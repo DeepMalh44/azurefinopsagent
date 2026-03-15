@@ -35,7 +35,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Maintainers
 
-- [Ali Farahnak](https://github.com/alfarahn) — Senior AI Architect
-- [Klaus Gjelstrup Nielsen](https://github.com/klausnielsen) — Sr. Cloud Solution Architect
 - [Anders Ravnholt](https://github.com/aravnholt) — Sr. Cloud Solution Architect
+- [Klaus Gjelstrup Nielsen](https://github.com/klausnielsen) — Sr. Cloud Solution Architect
+- [Ali Farahnak](https://github.com/alfarahn) — Senior AI Architect
 - [Abishek Narayan](https://github.com/abnaraya) — Cloud Solution Architect

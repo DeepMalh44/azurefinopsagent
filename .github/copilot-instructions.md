@@ -65,4 +65,4 @@ This file must always be kept up to date so that Copilot has accurate context ab
 
 - This repo lives in the `Azure-Samples` GitHub organization.
 - It is an open-source sample/accelerator, not a Microsoft product.
-- Direct owners: Ali Farahnak, Klaus Gjelstrup Nielsen, Anders Ravnholt, Abishek Narayan.
+- Direct owners: Anders Ravnholt, Klaus Gjelstrup Nielsen, Ali Farahnak, Abishek Narayan.
