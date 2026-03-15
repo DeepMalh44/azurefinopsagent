@@ -1,0 +1,41 @@
+## Visual Studio / .NET
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+.vs/
+*.nupkg
+*.snupkg
+project.lock.json
+artifacts/
+TestResults/
+
+## Node / JavaScript
+node_modules/
+dist/
+build/
+*.tsbuildinfo
+.env
+.env.local
+.env.*.local
+
+## Playwright MCP
+.playwright-mcp/
+
+## OS files
+.DS_Store
+Thumbs.db
+
+## IDE
+.idea/
+*.swp
+*.swo
+*~
