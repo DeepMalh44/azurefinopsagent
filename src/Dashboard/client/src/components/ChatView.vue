@@ -3,8 +3,8 @@
     <!-- Left sidebar -->
     <aside class="sidebar">
       <div class="sidebar-scroll">
-        <!-- Agents -->
-        <div class="sidebar-category">
+        <!-- Agents (hidden for v1 — re-enable by setting showAgents to true) -->
+        <div v-if="showAgents" class="sidebar-category">
           <div class="sidebar-category-label">Agents</div>
           <div class="sidebar-agent">
             <span class="sidebar-agent-icon sidebar-agent-icon--claude">
@@ -330,9 +330,9 @@
             <div class="es-avatar">AI</div>
             <h2 class="es-headline">Query. Visualize. Optimize.</h2>
             <p class="es-sub">
-              Ask about weather conditions worldwide, visualize forecasts with
-              interactive charts, and get data-driven insights — all powered by
-              Open-Meteo and GitHub Copilot.
+              Explore Azure pricing across services, regions, and SKUs.
+              Visualize cost comparisons and get FinOps insights — powered by
+              Azure Retail Prices API and GitHub Copilot.
             </p>
 
             <div class="es-phases">
@@ -341,8 +341,8 @@
                 <div>
                   <strong>Query</strong>
                   <span class="es-phase-desc"
-                    >Fetch real-time weather data and forecasts from
-                    Open-Meteo</span
+                    >Fetch real-time Azure pricing data across any service,
+                    region, or SKU</span
                   >
                 </div>
               </div>
@@ -351,8 +351,8 @@
                 <div>
                   <strong>Visualize</strong>
                   <span class="es-phase-desc"
-                    >Render interactive ECharts for temperature trends,
-                    precipitation, and more</span
+                    >Render interactive charts comparing costs across regions,
+                    SKUs, and tiers</span
                   >
                 </div>
               </div>
@@ -361,11 +361,64 @@
                 <div>
                   <strong>Optimize</strong>
                   <span class="es-phase-desc"
-                    >Compare cities, analyze patterns, and plan with data-driven
-                    insights</span
+                    >Identify cost-saving opportunities and the cheapest regions
+                    for your workloads</span
                   >
                 </div>
               </div>
+            </div>
+
+            <div class="es-prompts">
+              <button
+                class="es-prompt"
+                @click="
+                  sendPrompt(
+                    'Compare the cost of D-series VMs across East US, West Europe, and Southeast Asia',
+                  )
+                "
+              >
+                💰 Compare D-series VM costs across regions
+              </button>
+              <button
+                class="es-prompt"
+                @click="
+                  sendPrompt(
+                    'What are the cheapest GPU VMs available on Azure? Show me a chart comparing prices',
+                  )
+                "
+              >
+                🖥️ Cheapest GPU VMs on Azure
+              </button>
+              <button
+                class="es-prompt"
+                @click="
+                  sendPrompt(
+                    'Compare pricing for Azure Cosmos DB vs Azure SQL Database for a typical workload',
+                  )
+                "
+              >
+                📊 Cosmos DB vs SQL Database pricing
+              </button>
+              <button
+                class="es-prompt"
+                @click="
+                  sendPrompt(
+                    'Show me Azure App Service pricing tiers and what you get at each level',
+                  )
+                "
+              >
+                ☁️ App Service pricing tiers breakdown
+              </button>
+              <button
+                class="es-prompt"
+                @click="
+                  sendPrompt(
+                    'Are there any current Azure service health incidents or outages?',
+                  )
+                "
+              >
+                🔍 Azure service health status
+              </button>
             </div>
           </div>
 
@@ -436,7 +489,7 @@
             v-model="input"
             type="text"
             @keydown.enter.prevent="send"
-            placeholder="Ask about weather, forecasts, or data visualization..."
+            placeholder="Ask about Azure pricing, cost comparisons, or FinOps insights..."
             class="input-field"
           />
           <button
@@ -491,13 +544,13 @@
 <script setup>
 import * as echarts from "echarts";
 import {
-    computed,
-    nextTick,
-    onBeforeUnmount,
-    onMounted,
-    reactive,
-    ref,
-    watch,
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  reactive,
+  ref,
+  watch,
 } from "vue";
 
 const props = defineProps({
@@ -527,6 +580,7 @@ function toggleSection(key) {
 }
 const buildSha = ref("");
 const buildNumber = ref("0");
+const showAgents = ref(false); // Set to true to re-enable Agents sidebar section
 const availableModels = ref(["claude-sonnet-4.6"]);
 const selectedModel = ref("claude-sonnet-4.6");
 
@@ -557,9 +611,14 @@ onMounted(async () => {
     if (r.ok) {
       const models = await r.json();
       if (Array.isArray(models) && models.length > 0) {
-        availableModels.value = models
-          .map((m) => m.id || m.name || m)
-          .filter(Boolean);
+        const ids = models.map((m) => m.id || m.name || m).filter(Boolean);
+        availableModels.value = ids;
+        // Default to the highest-versioned Opus model if available
+        const opusModels = ids.filter((id) => /opus/i.test(id));
+        if (opusModels.length > 0) {
+          opusModels.sort();
+          selectedModel.value = opusModels[opusModels.length - 1];
+        }
       }
     }
   } catch {}
@@ -737,27 +796,26 @@ const allToolCalls = computed(() => {
 // -- Suggested questions --
 const suggestedQuestions = [
   {
-    label: "Current Weather",
-    prompt: "What's the current weather in New York?",
-  },
-  {
-    label: "7-Day Forecast",
-    prompt: "Show me a 7-day forecast for London with a temperature chart",
-  },
-  {
-    label: "Compare Cities",
+    label: "VM Pricing",
     prompt:
-      "Compare the current weather in Tokyo, Paris, and Sydney in a table",
+      "Compare D-series VM pricing across East US, West Europe, and Southeast Asia",
   },
   {
-    label: "Precipitation Forecast",
-    prompt:
-      "Show precipitation forecast for Seattle for the next 7 days as a bar chart",
+    label: "GPU VMs",
+    prompt: "What are the cheapest GPU VMs on Azure? Show a chart",
   },
   {
-    label: "Temperature Trends",
+    label: "Cosmos vs SQL",
+    prompt: "Compare pricing for Azure Cosmos DB vs Azure SQL Database",
+  },
+  {
+    label: "App Service Tiers",
     prompt:
-      "Show temperature trends for Berlin over the next week as a line chart",
+      "Show Azure App Service pricing tiers and what you get at each level",
+  },
+  {
+    label: "Service Health",
+    prompt: "Are there any current Azure service health incidents or outages?",
   },
 ];
 
@@ -769,9 +827,8 @@ function sendQuestion(q) {
 
 // -- Connected sources --
 const connectedSources = [
-  { name: "Open-Meteo API" },
-  { name: "ECharts Viz" },
-  { name: "GitHub Copilot" },
+  { name: "Azure Retail Prices API" },
+  { name: "Azure Service Health" },
 ];
 
 function formatJson(str) {
@@ -851,6 +908,11 @@ function renderContent(text) {
   html = html.replace(/<\/(table|pre|ul|h[234])><br\/>/g, "</$1>");
   html = html.replace(/<br\/><(table|pre|ul|h[234])/g, "<$1");
   return html;
+}
+
+function sendPrompt(text) {
+  input.value = text;
+  send();
 }
 
 async function send() {
@@ -1462,6 +1524,32 @@ async function send() {
   display: block;
   color: var(--text-muted);
   font-size: 0.85rem;
+}
+
+/* Prompt suggestion chips */
+.es-prompts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  width: 100%;
+  justify-content: center;
+}
+
+.es-prompt {
+  padding: 0.55rem 1rem;
+  border: 1px solid var(--border, #d8dee4);
+  border-radius: 20px;
+  background: transparent;
+  color: var(--text-primary, #1f2328);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.es-prompt:hover {
+  background: var(--bg-hover, #f3f4f6);
+  border-color: #0969da;
+  color: #0969da;
 }
 
 /* Sidebar suggested questions */

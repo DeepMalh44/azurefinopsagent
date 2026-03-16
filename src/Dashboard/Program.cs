@@ -1,6 +1,8 @@
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Net.Http.Headers;
 using System.Text.Json;
+using Azure.Monitor.OpenTelemetry.AspNetCore;
 using GitHub.Copilot.SDK;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -28,7 +30,18 @@ builder.Services.AddSession(options =>
 
 builder.Services.AddHttpClient();
 
+// OpenTelemetry + Application Insights
+var appInsightsCs = builder.Configuration["ApplicationInsights:ConnectionString"];
+if (!string.IsNullOrEmpty(appInsightsCs))
+{
+    builder.Services.AddOpenTelemetry().UseAzureMonitor(o => o.ConnectionString = appInsightsCs);
+}
+
+// ActivitySource for custom AI telemetry spans
+var aiActivitySource = new ActivitySource("AzureFinOps.AI");
+
 var app = builder.Build();
+var logger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("AzureFinOps.AI");
 
 // Trust forwarded headers from Azure App Service reverse proxy (X-Forwarded-Proto, X-Forwarded-For)
 var forwardedHeadersOptions = new ForwardedHeadersOptions
@@ -187,12 +200,14 @@ var clients = new ConcurrentDictionary<long, CopilotClient>();
 var sessions = new ConcurrentDictionary<long, CopilotSession>();
 // Track which token each client was created with (so we can detect changes and recreate)
 var clientTokens = new ConcurrentDictionary<long, string>();
+// Track which model each session was created with
+var sessionModels = new ConcurrentDictionary<long, string>();
 
 // ── Register all AI tools ──
 var agentTools = new List<AIFunction>();
 agentTools.AddRange(ChartTools.Create());
-agentTools.AddRange(WeatherTools.Create());
 agentTools.AddRange(PricingTools.Create());
+agentTools.AddRange(HealthTools.Create());
 
 app.MapPost("/api/chat", (Delegate)(async (HttpContext ctx) =>
 {
@@ -206,7 +221,7 @@ app.MapPost("/api/chat", (Delegate)(async (HttpContext ctx) =>
 
     using var bodyDoc = await JsonDocument.ParseAsync(ctx.Request.Body);
     var prompt = bodyDoc.RootElement.GetProperty("prompt").GetString();
-    var model = bodyDoc.RootElement.TryGetProperty("model", out var m) ? m.GetString() : "claude-sonnet-4.6";
+    var model = bodyDoc.RootElement.TryGetProperty("model", out var m) ? m.GetString() : "claude-opus-4.6";
 
     if (string.IsNullOrWhiteSpace(prompt))
     {
@@ -217,6 +232,13 @@ app.MapPost("/api/chat", (Delegate)(async (HttpContext ctx) =>
 
     var user = JsonSerializer.Deserialize<JsonElement>(userJson);
     var userId = user.GetProperty("id").GetInt64();
+    var userLogin = user.TryGetProperty("login", out var loginProp) ? loginProp.GetString() : userId.ToString();
+
+    using var chatActivity = aiActivitySource.StartActivity("ChatRequest");
+    chatActivity?.SetTag("ai.user", userLogin);
+    chatActivity?.SetTag("ai.model", model);
+    chatActivity?.SetTag("ai.prompt", prompt!.Length > 500 ? prompt[..500] + "..." : prompt);
+    logger.LogInformation("Chat request from {User} model={Model} prompt={Prompt}", userLogin, model, prompt.Length > 200 ? prompt[..200] + "..." : prompt);
 
     // Set GH_TOKEN BEFORE creating/starting the CopilotClient so the CLI child process
     // inherits it at spawn time.
@@ -257,6 +279,14 @@ app.MapPost("/api/chat", (Delegate)(async (HttpContext ctx) =>
         }
 
         // Get or create session — reuse across messages to preserve conversation history
+        // Recreate session if model changed
+        var currentModel = sessionModels.GetValueOrDefault(userId);
+        if (currentModel is not null && currentModel != model)
+        {
+            sessions.TryRemove(userId, out _);
+            sessionModels.TryRemove(userId, out _);
+        }
+
         if (!sessions.TryGetValue(userId, out var session))
         {
             session = await client.CreateSessionAsync(new SessionConfig
@@ -276,25 +306,30 @@ You run as a server-side agent inside a .NET backend. Your sandbox provides:
 - **sql** — In-memory SQLite database for analytical queries.
 - **shell (bash/powershell)** — Full Linux sandbox with rich tooling.
 - **task** — Sub-agent for delegating complex multi-step work.
-- **Custom tools** — Weather API (Open-Meteo), Azure Retail Prices API, and chart rendering (ECharts).
+- **Custom tools** — Azure Retail Prices API, Azure Service Health, and chart rendering (ECharts).
 
 ## Available Custom Tools
-- **GetCurrentWeather** — Fetches current weather conditions for a given location (latitude/longitude). Returns temperature, wind speed, humidity, and weather condition.
-- **GetWeatherForecast** — Fetches a 7-day weather forecast for a given location. Returns daily min/max temperatures, precipitation, and weather codes.
-- **GetAzureRetailPrices** — Fetches current retail prices for any Azure service. All parameters optional: pass serviceName to filter by service, armRegionName to filter by region, armSkuName to filter by SKU. Call with no parameters to browse all available Azure services. No auth required.
+- **GetAzureRetailPrices** — Fetches Azure retail prices. You provide the full API URL with OData filters. Base: https://prices.azure.com/api/retail/prices. Supports $filter (serviceName, armRegionName, armSkuName, priceType, productName, etc.) and $top. If the result is large, returns a schema preview + summary of unique values. No auth required.
+- **QueryAzurePrices** — Fetches the same Azure Retail Prices API but returns ONLY the fields you specify, keeping the result compact. Use this after GetAzureRetailPrices when dealing with large datasets. Supports field selection, sorting, and limiting. No auth required.
+- **GetAzureServiceHealth** — Fetches current Azure service health status and active incidents from the public Azure Status feed. No parameters needed. No auth required.
 - **RenderChart** — Renders interactive ECharts charts in the dashboard UI. Supports: bar, line, pie, scatter, funnel.
-
-## Weather Tool Usage
-- Use Open-Meteo tools to answer weather questions. The API is free, no key required.
-- For city names, convert to latitude/longitude first using your knowledge (e.g., New York = 40.71, -74.01).
-- Always include the location name in your response so the user knows which city the data is for.
-- When showing forecasts, consider using RenderChart to visualize temperature trends.
 
 ## Azure Pricing Tool Usage
 - Use GetAzureRetailPrices to answer any question about Azure service costs or pricing.
-- The serviceName must match Azure's exact naming (e.g. 'Virtual Machines', 'Azure Cosmos DB', 'Azure App Service', 'Storage', 'Azure DNS').
-- When the user asks about a service, infer the correct serviceName. Common mappings: VMs → 'Virtual Machines', Cosmos → 'Azure Cosmos DB', App Service → 'Azure App Service', SQL → 'SQL Database'.
+- YOU construct the full URL with OData $filter and $top query params. The tool just fetches whatever URL you provide.
+- Filter fields: serviceName, armRegionName, armSkuName, priceType, productName, skuName, meterName, serviceFamily, currencyCode.
+- Common serviceName values: 'Virtual Machines', 'Azure Cosmos DB', 'Azure App Service', 'Storage', 'Azure DNS', 'SQL Database'.
+- Always include priceType eq 'Consumption' to exclude Spot/DevTest/Reservation noise unless the user asks for those.
+- **Two-step workflow for large results:**
+  1. Call **GetAzureRetailPrices** first — if the result is large, you get a schema preview with available fields, unique SKUs, regions, and products.
+  2. Call **QueryAzurePrices** with the same URL + only the fields you need (e.g. 'armSkuName,armRegionName,retailPrice'). You can also sort (e.g. '-retailPrice' for descending) and limit results.
+- This lets you process hundreds of pricing items without overflowing context.
 - Consider using RenderChart to visualize pricing comparisons across SKUs or regions.
+
+## Azure Service Health Tool Usage
+- Use GetAzureServiceHealth to check current Azure service status and active incidents.
+- Call it when users ask about Azure outages, service issues, or overall platform health.
+- No parameters needed — it returns all active incidents (or confirms all services are healthy).
 
 ## Response Rules
 - **Max ONE RenderChart per response.** Pick the most impactful chart. Offer to show more if needed.
@@ -312,12 +347,13 @@ When a request involves many records:
                 },
             });
             sessions[userId] = session;
+            sessionModels[userId] = model!;
         }
 
         var done = new TaskCompletionSource();
         var cancelled = false;
-        // Track tool calls: id → (name, startTime)
-        var toolTracker = new ConcurrentDictionary<string, (string Name, DateTimeOffset StartTime)>();
+        // Track tool calls: id → (name, startTime, activity)
+        var toolTracker = new ConcurrentDictionary<string, (string Name, DateTimeOffset StartTime, Activity? Activity)>();
 
         ctx.RequestAborted.Register(async () =>
         {
@@ -349,12 +385,17 @@ When a request involves many records:
                 else if (evt is ToolExecutionStartEvent toolStart)
                 {
                     var toolId = toolStart.Data.ToolCallId ?? Guid.NewGuid().ToString();
-                    toolTracker[toolId] = (toolStart.Data.ToolName, DateTimeOffset.UtcNow);
+                    var toolActivity = aiActivitySource.StartActivity($"Tool:{toolStart.Data.ToolName}");
+                    toolActivity?.SetTag("ai.tool.name", toolStart.Data.ToolName);
+                    toolActivity?.SetTag("ai.tool.id", toolId);
+                    toolTracker[toolId] = (toolStart.Data.ToolName, DateTimeOffset.UtcNow, toolActivity);
                     string? argsJson = null;
                     if (toolStart.Data.Arguments is not null)
                     {
                         try { argsJson = JsonSerializer.Serialize(toolStart.Data.Arguments); } catch { }
                     }
+                    toolActivity?.SetTag("ai.tool.args", argsJson?.Length > 1000 ? argsJson[..1000] + "..." : argsJson);
+                    logger.LogInformation("Tool start: {Tool} id={ToolId} args={Args}", toolStart.Data.ToolName, toolId, argsJson?.Length > 500 ? argsJson[..500] + "..." : argsJson);
                     sseData = JsonSerializer.Serialize(new { type = "tool_start", tool = toolStart.Data.ToolName, id = toolId, args = argsJson });
                 }
                 else if (evt is ToolExecutionCompleteEvent toolDone)
@@ -362,7 +403,15 @@ When a request involves many records:
                     var toolId = toolDone.Data.ToolCallId ?? "";
                     var toolName = toolTracker.TryGetValue(toolId, out var info) ? info.Name : "unknown";
                     var durationMs = toolTracker.TryGetValue(toolId, out var info2) ? (long)(DateTimeOffset.UtcNow - info2.StartTime).TotalMilliseconds : (long?)null;
-                    toolTracker.TryRemove(toolId, out _);
+                    // Complete the tool activity span
+                    if (toolTracker.TryRemove(toolId, out var removed))
+                    {
+                        removed.Activity?.SetTag("ai.tool.success", toolDone.Data.Success);
+                        removed.Activity?.SetTag("ai.tool.durationMs", durationMs);
+                        if (toolDone.Data.Error?.Message is not null)
+                            removed.Activity?.SetTag("ai.tool.error", toolDone.Data.Error.Message);
+                        removed.Activity?.Dispose();
+                    }
                     string? resultText = null;
                     string? errorText = null;
                     if (toolDone.Data.Result?.Content is not null)
@@ -372,6 +421,8 @@ When a request involves many records:
                     if (toolDone.Data.Error?.Message is not null)
                         errorText = toolDone.Data.Error.Message;
                     sseData = JsonSerializer.Serialize(new { type = "tool_done", tool = toolName, id = toolId, success = toolDone.Data.Success, durationMs, result = resultText, error = errorText });
+                    logger.LogInformation("Tool done: {Tool} id={ToolId} success={Success} durationMs={Duration} resultLen={ResultLen}",
+                        toolName, toolId, toolDone.Data.Success, durationMs, resultText?.Length ?? 0);
 
                     // If this is a RenderChart tool completion, also emit a chart event
                     if (toolName == "RenderChart" && toolDone.Data.Success && resultText is not null)
@@ -391,6 +442,8 @@ When a request involves many records:
                 else if (evt is SessionErrorEvent error)
                 {
                     sseData = JsonSerializer.Serialize(new { type = "error", message = error.Data.Message });
+                    logger.LogError("Session error for {User}: {Error}", userLogin, error.Data.Message);
+                    chatActivity?.SetTag("ai.error", error.Data.Message);
                     sessions.TryRemove(userId, out _);
                     clients.TryRemove(userId, out _);
                 }
@@ -472,15 +525,24 @@ app.MapGet("/api/models", async (HttpContext ctx) =>
 
     try
     {
-        if (clients.TryGetValue(userId, out var client) && client.State == ConnectionState.Connected)
+        Environment.SetEnvironmentVariable("GH_TOKEN", githubToken);
+
+        var client = clients.GetOrAdd(userId,
+            _ => new CopilotClient(new CopilotClientOptions { GitHubToken = githubToken }));
+        clientTokens[userId] = githubToken;
+
+        if (client.State != ConnectionState.Connected)
         {
-            var models = await client.ListModelsAsync();
-            await ctx.Response.WriteAsJsonAsync(models);
+            if (clients.TryUpdate(userId, new CopilotClient(new CopilotClientOptions { GitHubToken = githubToken }), client))
+            {
+                try { client.Dispose(); } catch { }
+                client = clients[userId];
+            }
+            await client.StartAsync();
         }
-        else
-        {
-            await ctx.Response.WriteAsJsonAsync(Array.Empty<object>());
-        }
+
+        var models = await client.ListModelsAsync();
+        await ctx.Response.WriteAsJsonAsync(models);
     }
     catch (Exception ex)
     {
