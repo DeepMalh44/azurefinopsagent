@@ -64,5 +64,7 @@ This file must always be kept up to date so that Copilot has accurate context ab
 ## Repository Context
 
 - This repo lives in the `Azure-Samples` GitHub organization.
-- It is an open-source sample/accelerator, not a Microsoft product.
+- It is an open-source sample/accelerator and VBD delivery asset, not a Microsoft product.
+- It follows the same README/repo structure as other Azure-Samples solution accelerators (e.g., `chat-with-your-data-solution-accelerator`, `azure-search-openai-demo`).
+- Standard files: `README.md`, `CONTRIBUTING.md`, `SECURITY.md`, `SUPPORT.md`, `CODE_OF_CONDUCT.md`, `LICENSE`.
 - Direct owners: Anders Ravnholt, Klaus Gjelstrup Nielsen, Ali Farahnak, Abishek Narayan.
