@@ -192,6 +192,7 @@ var clientTokens = new ConcurrentDictionary<long, string>();
 var agentTools = new List<AIFunction>();
 agentTools.AddRange(ChartTools.Create());
 agentTools.AddRange(WeatherTools.Create());
+agentTools.AddRange(PricingTools.Create());
 
 app.MapPost("/api/chat", (Delegate)(async (HttpContext ctx) =>
 {
@@ -275,11 +276,12 @@ You run as a server-side agent inside a .NET backend. Your sandbox provides:
 - **sql** — In-memory SQLite database for analytical queries.
 - **shell (bash/powershell)** — Full Linux sandbox with rich tooling.
 - **task** — Sub-agent for delegating complex multi-step work.
-- **Custom tools** — Weather API (Open-Meteo) and chart rendering (ECharts).
+- **Custom tools** — Weather API (Open-Meteo), Azure Retail Prices API, and chart rendering (ECharts).
 
 ## Available Custom Tools
 - **GetCurrentWeather** — Fetches current weather conditions for a given location (latitude/longitude). Returns temperature, wind speed, humidity, and weather condition.
 - **GetWeatherForecast** — Fetches a 7-day weather forecast for a given location. Returns daily min/max temperatures, precipitation, and weather codes.
+- **GetAzureRetailPrices** — Fetches current retail prices for any Azure service. All parameters optional: pass serviceName to filter by service, armRegionName to filter by region, armSkuName to filter by SKU. Call with no parameters to browse all available Azure services. No auth required.
 - **RenderChart** — Renders interactive ECharts charts in the dashboard UI. Supports: bar, line, pie, scatter, funnel.
 
 ## Weather Tool Usage
@@ -287,6 +289,12 @@ You run as a server-side agent inside a .NET backend. Your sandbox provides:
 - For city names, convert to latitude/longitude first using your knowledge (e.g., New York = 40.71, -74.01).
 - Always include the location name in your response so the user knows which city the data is for.
 - When showing forecasts, consider using RenderChart to visualize temperature trends.
+
+## Azure Pricing Tool Usage
+- Use GetAzureRetailPrices to answer any question about Azure service costs or pricing.
+- The serviceName must match Azure's exact naming (e.g. 'Virtual Machines', 'Azure Cosmos DB', 'Azure App Service', 'Storage', 'Azure DNS').
+- When the user asks about a service, infer the correct serviceName. Common mappings: VMs → 'Virtual Machines', Cosmos → 'Azure Cosmos DB', App Service → 'Azure App Service', SQL → 'SQL Database'.
+- Consider using RenderChart to visualize pricing comparisons across SKUs or regions.
 
 ## Response Rules
 - **Max ONE RenderChart per response.** Pick the most impactful chart. Offer to show more if needed.
@@ -484,8 +492,18 @@ app.MapGet("/api/models", async (HttpContext ctx) =>
 // ──────────────────────────────────────────────
 // VERSION / BUILD INFO
 // ──────────────────────────────────────────────
-var buildSha = Environment.GetEnvironmentVariable("BUILD_SHA") ?? "dev";
-var buildNumber = Environment.GetEnvironmentVariable("BUILD_NUMBER") ?? "0";
+var buildSha = Environment.GetEnvironmentVariable("BUILD_SHA");
+if (string.IsNullOrEmpty(buildSha))
+{
+    try { buildSha = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("git", "rev-parse --short HEAD") { RedirectStandardOutput = true, UseShellExecute = false })!.StandardOutput.ReadToEnd().Trim(); }
+    catch { buildSha = "dev"; }
+}
+var buildNumber = Environment.GetEnvironmentVariable("BUILD_NUMBER");
+if (string.IsNullOrEmpty(buildNumber))
+{
+    try { buildNumber = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("git", "rev-list --count HEAD") { RedirectStandardOutput = true, UseShellExecute = false })!.StandardOutput.ReadToEnd().Trim(); }
+    catch { buildNumber = "0"; }
+}
 app.MapGet("/api/version", () => Results.Ok(new { sha = buildSha, build = buildNumber, started = DateTime.UtcNow.ToString("o") }));
 
 // ──────────────────────────────────────────────

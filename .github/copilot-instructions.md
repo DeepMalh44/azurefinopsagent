@@ -16,7 +16,7 @@ The agent acts as a frontend on top of Microsoft IQ and Microsoft Graph APIs to:
 - **Frontend**: Vue 3 + Vite SPA (`src/Dashboard/client/`) with ECharts for data visualization
 - **AI**: GitHub Copilot SDK for agentic reasoning — sessions managed via `CopilotClient` / `CopilotSession`
 - **Auth**: GitHub OAuth (user login + Copilot scope)
-- **Data Sources**: Open-Meteo weather API (demo tool), ECharts visualization, Microsoft IQ, Microsoft Graph APIs, Azure Cost Management APIs
+- **Data Sources**: Open-Meteo weather API (demo tool), Azure Retail Prices API (no auth), ECharts visualization, Microsoft IQ, Microsoft Graph APIs, Azure Cost Management APIs
 - **Deployment**: Azure App Service (Linux, .NET 10) via `az webapp deploy` zip push — must publish with `-r linux-x64` for Copilot SDK native binary
 - **Custom Domain**: `https://www.azure-finops-agent.com` (Namecheap DNS → Azure App Service with managed SSL)
 - **License**: MIT
@@ -29,6 +29,7 @@ src/Dashboard/
 ├── Dashboard.csproj        # .NET 10 project, GitHub.Copilot.SDK + Microsoft.Extensions.AI
 ├── Tools/
 │   ├── ChartTools.cs       # RenderChart tool — ECharts visualization (bar, line, pie, scatter, funnel)
+│   ├── PricingTools.cs     # GetAzureRetailPrices — Azure Retail Prices API (no auth required)
 │   └── WeatherTools.cs     # GetCurrentWeather + GetWeatherForecast — Open-Meteo API
 ├── client/
 │   ├── index.html          # SPA entry point

@@ -83,6 +83,10 @@ $prodSettings = Get-Content "$root\appsettings.Production.json" -Raw | ConvertFr
 $clientId = $prodSettings.GitHub.ClientId
 $clientSecret = $prodSettings.GitHub.ClientSecret
 
+# Derive build info from git
+$buildSha = (git -C $root rev-parse --short HEAD 2>$null) ?? "unknown"
+$buildNumber = (git -C $root rev-list --count HEAD 2>$null) ?? "0"
+
 az webapp config appsettings set `
     --name $AppName `
     --resource-group $ResourceGroup `
@@ -90,9 +94,12 @@ az webapp config appsettings set `
     "GitHub__ClientId=$clientId" `
     "GitHub__ClientSecret=$clientSecret" `
     "ASPNETCORE_ENVIRONMENT=Production" `
+    "BUILD_SHA=$buildSha" `
+    "BUILD_NUMBER=$buildNumber" `
     --output none
 
 Write-Host "  GitHub OAuth secrets configured (encrypted at rest)" -ForegroundColor Gray
+Write-Host "  Build: #$buildNumber ($buildSha)" -ForegroundColor Gray
 
 # ── 4. Build Vue frontend ──
 Write-Host "`n[4/6] Building Vue frontend..." -ForegroundColor Yellow
