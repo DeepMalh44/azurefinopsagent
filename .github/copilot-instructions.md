@@ -15,7 +15,7 @@ The agent acts as a frontend on top of Microsoft IQ and Microsoft Graph APIs to:
 - **Backend**: .NET 10 minimal API (`src/Dashboard/`)
 - **Frontend**: Vue 3 + Vite SPA (`src/Dashboard/client/`) with ECharts for data visualization
 - **AI**: GitHub Copilot SDK for agentic reasoning — sessions managed via `CopilotClient` / `CopilotSession`
-- **Auth**: GitHub OAuth (user login + Copilot scope)
+- **Auth**: GitHub App OAuth (no repo access — email read-only, user identity + Copilot) with automatic token refresh
 - **Data Sources**: Azure Retail Prices API (no auth), Azure Service Health (no auth), ECharts visualization, Microsoft IQ, Microsoft Graph APIs, Azure Cost Management APIs\n- **Observability**: OpenTelemetry + Azure Monitor (Application Insights) — structured traces for chat requests, tool calls, and AI responses via `ActivitySource(\"AzureFinOps.AI\")`
 - **Deployment**: Azure App Service (Linux, .NET 10) via `az webapp deploy` zip push — must publish with `-r linux-x64` for Copilot SDK native binary
 - **Custom Domain**: `https://www.azure-finops-agent.com` (Namecheap DNS → Azure App Service with managed SSL)
@@ -30,8 +30,7 @@ src/Dashboard/
 ├── Tools/
 │   ├── ChartTools.cs       # RenderChart tool — ECharts visualization (bar, line, pie, scatter, funnel)
 │   ├── HealthTools.cs      # GetAzureServiceHealth — Azure Status RSS feed (no auth required)
-│   ├── PricingTools.cs     # FetchUrl — minimal HTTP GET for allowed Azure API URLs (SSRF-protected)
-│   └── WeatherTools.cs     # GetCurrentWeather + GetWeatherForecast — Open-Meteo API (demo, not registered)
+│   └── PricingTools.cs     # FetchUrl — minimal HTTP GET for allowed Azure API URLs (SSRF-protected)
 ├── client/
 │   ├── index.html          # SPA entry point
 │   ├── package.json        # Vue 3, Vite, ECharts
@@ -82,14 +81,14 @@ When creating tools for the Copilot SDK:
   ```
 - **ChartTools** (`RenderChart`) returns a serialized JSON object with chart config — the frontend detects `tool_done` for `RenderChart` and emits a separate `chart` SSE event.
 
-## GitHub OAuth Setup
+## GitHub App OAuth Setup
 
-Two OAuth apps exist:
+Two **GitHub Apps** (not classic OAuth Apps) are registered — this ensures the consent screen only shows the permissions configured on the app (no "access all repos" prompt):
 
-- **Local dev**: `Azure FinOps Agent (Local)` — callback `http://localhost:5000/auth/github/callback`
-- **Production**: `Azure FinOps Agent` — callback `https://azure-finops-agent.com/auth/github/callback`
+- **Local dev**: `Azure FinOps Agent (Local)` (App ID: 3109880) — callback `http://localhost:5000/auth/github/callback`
+- **Production**: `Azure FinOps Agent` (App ID: 3109861) — callback `https://azure-finops-agent.com/auth/github/callback`
 
-OAuth scopes requested: `read:user`, `user:email`, `copilot`
+OAuth scopes: Not used — permissions are configured on the GitHub App itself (no repo access, email read-only + Copilot)
 
 ### Secrets Management
 
@@ -102,14 +101,20 @@ OAuth scopes requested: `read:user`, `user:email`, `copilot`
 
 ## Running Locally
 
+> **CRITICAL**: You **must** set `ASPNETCORE_ENVIRONMENT=Development` before running the backend.
+> Without it, ASP.NET Core defaults to Production, which loads `appsettings.Production.json`
+> (production OAuth credentials) and skips `appsettings.Local.json`. This causes a
+> GitHub OAuth `redirect_uri` mismatch error.
+
 ```bash
 # 1. Frontend (dev mode with hot reload — optional, only for UI development)
 cd src/Dashboard/client
 npm install
 npm run build          # Build to wwwroot (required for backend to serve)
 
-# 2. Backend
+# 2. Backend (must set Development environment)
 cd src/Dashboard
+$env:ASPNETCORE_ENVIRONMENT="Development"
 dotnet run --project Dashboard.csproj --urls "http://localhost:5000"
 
 # 3. Open http://localhost:5000
@@ -157,7 +162,7 @@ The deploy script:
 
 When you need to perform actions on Azure portals, GitHub, or the Microsoft Open Source Management portal (e.g., elevating JIT permissions, configuring repo settings, managing team membership), use **Playwright MCP** to navigate and interact with the portal UI directly from VS Code. This is especially useful for:
 
-- Creating GitHub OAuth apps at `https://github.com/settings/applications/new`.
+- Creating GitHub Apps at `https://github.com/settings/apps/new`.
 - Elevating JIT admin permissions on the repo via the Open Source portal.
 - Managing GitHub team membership or repo settings.
 - Any portal-based operation that cannot be done via CLI or API.

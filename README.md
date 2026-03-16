@@ -41,15 +41,15 @@ Azure FinOps Agent helps Azure customers optimize cloud costs by providing an in
 
 The solution follows an agentic architecture where an AI agent (powered by GitHub Copilot SDK) orchestrates calls to multiple Azure data sources and tools to answer user questions about cloud cost and infrastructure optimization.
 
-| Component     | Technology                                                              |
-| ------------- | ----------------------------------------------------------------------- |
-| Backend API   | .NET 10 minimal API                                                     |
-| Frontend      | Vue 3 + Vite SPA with ECharts                                           |
-| AI Engine     | GitHub Copilot SDK                                                      |
-| Auth          | GitHub OAuth (user login + Copilot scope)                               |
-| Data Sources  | Open-Meteo (demo), Microsoft IQ, Microsoft Graph, Azure Cost Management |
-| Deployment    | Azure App Service (Linux) via zip push                                  |
-| Custom Domain | https://www.azure-finops-agent.com                                      |
+| Component     | Technology                                                                                          |
+| ------------- | --------------------------------------------------------------------------------------------------- |
+| Backend API   | .NET 10 minimal API                                                                                 |
+| Frontend      | Vue 3 + Vite SPA with ECharts                                                                       |
+| AI Engine     | GitHub Copilot SDK                                                                                  |
+| Auth          | GitHub App OAuth (email read-only, no repo access)                                                  |
+| Data Sources  | Azure Retail Prices API, Azure Service Health, Microsoft IQ, Microsoft Graph, Azure Cost Management |
+| Deployment    | Azure App Service (Linux) via zip push                                                              |
+| Custom Domain | https://www.azure-finops-agent.com                                                                  |
 
 <!-- TODO: Add architecture diagram -->
 
@@ -81,8 +81,9 @@ cd src/Dashboard/client
 npm install
 npm run build
 
-# 2. Run locally
+# 2. Run locally (MUST set Development environment)
 cd src/Dashboard
+$env:ASPNETCORE_ENVIRONMENT="Development"
 dotnet run --urls "http://localhost:5000"
 # Open http://localhost:5000
 ```

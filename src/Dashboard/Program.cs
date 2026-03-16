@@ -72,7 +72,9 @@ app.MapGet("/auth/github", (HttpContext ctx) =>
     ctx.Session.SetString("oauth_state", state);
 
     var callbackUrl = $"{ctx.Request.Scheme}://{ctx.Request.Host}/auth/github/callback";
-    var url = $"https://github.com/login/oauth/authorize?client_id={gitHubClientId}&redirect_uri={Uri.EscapeDataString(callbackUrl)}&scope=read:user%20user:email%20copilot&state={state}";
+    // GitHub App OAuth — permissions are configured on the app itself, not via scopes.
+    // This avoids the classic OAuth App consent screen that shows "access all repos".
+    var url = $"https://github.com/login/oauth/authorize?client_id={gitHubClientId}&redirect_uri={Uri.EscapeDataString(callbackUrl)}&state={state}";
     return Results.Redirect(url);
 });
 
@@ -117,6 +119,9 @@ app.MapGet("/auth/github/callback", async (HttpContext ctx, IHttpClientFactory h
 
         var accessToken = tokenProp.GetString()!;
 
+        // Store refresh token if provided (GitHub App tokens expire)
+        var refreshToken = tokenJson.TryGetProperty("refresh_token", out var rtProp) ? rtProp.GetString() : null;
+
         // Validate token scopes
         var scopeReq = new HttpRequestMessage(HttpMethod.Head, "https://api.github.com/user");
         scopeReq.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
@@ -144,6 +149,8 @@ app.MapGet("/auth/github/callback", async (HttpContext ctx, IHttpClientFactory h
 
         // Store in session
         ctx.Session.SetString("github_token", accessToken);
+        if (refreshToken is not null)
+            ctx.Session.SetString("github_refresh_token", refreshToken);
         ctx.Session.SetString("user", JsonSerializer.Serialize(new
         {
             id = userJson.GetProperty("id").GetInt64(),
@@ -195,6 +202,40 @@ app.MapPost("/auth/logout", (HttpContext ctx) =>
 // CHAT SSE ENDPOINT (Copilot SDK)
 // ──────────────────────────────────────────────
 
+// Helper: refresh expired GitHub App user token
+async Task<string?> RefreshGitHubTokenAsync(HttpContext ctx, IHttpClientFactory httpFactory)
+{
+    var refreshToken = ctx.Session.GetString("github_refresh_token");
+    if (refreshToken is null) return null;
+
+    var http = httpFactory.CreateClient();
+    var req = new HttpRequestMessage(HttpMethod.Post, "https://github.com/login/oauth/access_token");
+    req.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+    req.Content = JsonContent.Create(new
+    {
+        client_id = gitHubClientId,
+        client_secret = gitHubClientSecret,
+        grant_type = "refresh_token",
+        refresh_token = refreshToken
+    });
+
+    var res = await http.SendAsync(req);
+    if (!res.IsSuccessStatusCode) return null;
+
+    var body = await res.Content.ReadAsStringAsync();
+    var json = JsonSerializer.Deserialize<JsonElement>(body);
+    if (json.TryGetProperty("error", out _)) return null;
+    if (!json.TryGetProperty("access_token", out var newToken)) return null;
+
+    var newAccessToken = newToken.GetString()!;
+    ctx.Session.SetString("github_token", newAccessToken);
+    if (json.TryGetProperty("refresh_token", out var newRt))
+        ctx.Session.SetString("github_refresh_token", newRt.GetString()!);
+
+    Console.WriteLine("[Auth] Token refreshed successfully");
+    return newAccessToken;
+}
+
 // Per-user CopilotClient + CopilotSession cache
 var clients = new ConcurrentDictionary<long, CopilotClient>();
 var sessions = new ConcurrentDictionary<long, CopilotSession>();
@@ -209,14 +250,23 @@ agentTools.AddRange(ChartTools.Create());
 agentTools.AddRange(PricingTools.Create());
 agentTools.AddRange(HealthTools.Create());
 
-app.MapPost("/api/chat", (Delegate)(async (HttpContext ctx) =>
+app.MapPost("/api/chat", (Delegate)(async (HttpContext ctx, IHttpClientFactory httpFactory) =>
 {
     var githubToken = ctx.Session.GetString("github_token");
     var userJson = ctx.Session.GetString("user");
     if (githubToken is null || userJson is null)
     {
-        ctx.Response.StatusCode = 401;
-        return;
+        // Try refreshing the token before returning 401
+        var refreshed = await RefreshGitHubTokenAsync(ctx, httpFactory);
+        if (refreshed is not null)
+        {
+            githubToken = refreshed;
+        }
+        else if (githubToken is null || userJson is null)
+        {
+            ctx.Response.StatusCode = 401;
+            return;
+        }
     }
 
     using var bodyDoc = await JsonDocument.ParseAsync(ctx.Request.Body);
@@ -482,13 +532,19 @@ app.MapPost("/api/chat/reset", async (HttpContext ctx) =>
 // MODELS ENDPOINT
 // ──────────────────────────────────────────────
 
-app.MapGet("/api/models", async (HttpContext ctx) =>
+app.MapGet("/api/models", async (HttpContext ctx, IHttpClientFactory httpFactory) =>
 {
     var githubToken = ctx.Session.GetString("github_token");
     if (githubToken is null)
     {
-        ctx.Response.StatusCode = 401;
-        return;
+        var refreshed = await RefreshGitHubTokenAsync(ctx, httpFactory);
+        if (refreshed is not null)
+            githubToken = refreshed;
+        else
+        {
+            ctx.Response.StatusCode = 401;
+            return;
+        }
     }
 
     var userJson = ctx.Session.GetString("user");
