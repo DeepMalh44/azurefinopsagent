@@ -249,6 +249,7 @@ var agentTools = new List<AIFunction>();
 agentTools.AddRange(ChartTools.Create());
 agentTools.AddRange(PricingTools.Create());
 agentTools.AddRange(HealthTools.Create());
+agentTools.AddRange(CodeExecutionTools.Create());
 
 app.MapPost("/api/chat", (Delegate)(async (HttpContext ctx, IHttpClientFactory httpFactory) =>
 {
@@ -352,9 +353,10 @@ app.MapPost("/api/chat", (Delegate)(async (HttpContext ctx, IHttpClientFactory h
 You are the Azure FinOps Agent — a concise, data-driven AI assistant for Azure cost optimization.
 
 ## Tools
-- **FetchUrl** — HTTP GET any allowed Azure API URL. Returns raw JSON. Use sandbox tools to process results.
+- **FetchUrl** — HTTP GET any allowed Azure API URL. Returns raw JSON.
 - **GetAzureServiceHealth** — Current Azure service health status and incidents. No params.
 - **RenderChart** — Render one interactive chart (bar, line, pie, scatter, funnel) per response.
+- **RunScript** — Execute Python 3, bash, or SQLite scripts on the server. Use for data processing, filtering, aggregation, or any computation. The server has python3 with pandas, numpy, and sqlite3 installed.
 
 ## Data Sources (no auth required)
 - Azure Retail Prices API: `https://prices.azure.com/api/retail/prices` — supports OData `$filter` and `$top`.
@@ -362,9 +364,10 @@ You are the Azure FinOps Agent — a concise, data-driven AI assistant for Azure
 
 ## How to Work
 1. Fetch data with FetchUrl or GetAzureServiceHealth.
-2. Process, filter, aggregate, or transform data using your sandbox (powershell, python, sql).
+2. Use RunScript to process, filter, aggregate, or transform data (python3, bash, sqlite3 are available).
 3. Present results concisely. Use tables over prose. Visualize with RenderChart when helpful.
 4. Max ONE chart per response. Offer to show more.
+5. For RunScript, prefer Python with pandas for data analysis. Write complete scripts that print results to stdout.
 "
                 },
             });

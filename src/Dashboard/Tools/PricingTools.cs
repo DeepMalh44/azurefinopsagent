@@ -17,7 +17,7 @@ public static class PricingTools
             "Fetches data from an allowed Azure API URL and returns the raw response. " +
             "Allowed hosts: prices.azure.com. " +
             "You construct the full URL with any query parameters. The tool just fetches and returns the raw JSON. " +
-            "Use your sandbox tools (powershell, python, sql) to process, filter, or transform the results.");
+            "Use the RunScript tool to process, filter, or transform large results with Python, bash, or SQL.");
     }
 
     private static async Task<string> FetchUrl(

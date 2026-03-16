@@ -80,6 +80,7 @@ When creating tools for the Copilot SDK:
   }
   ```
 - **ChartTools** (`RenderChart`) returns a serialized JSON object with chart config — the frontend detects `tool_done` for `RenderChart` and emits a separate `chart` SSE event.
+- **CodeExecutionTools** (`RunScript`) executes Python 3, bash, or SQLite scripts directly on the App Service. Installed via `startup.sh` at boot. **⚠️ This is a temporary, unsandboxed implementation — see Future Improvements below.**
 
 ## GitHub App OAuth Setup
 
@@ -199,3 +200,26 @@ This file must always be kept up to date so that Copilot has accurate context ab
 - It follows the same README/repo structure as other Azure-Samples solution accelerators (e.g., `chat-with-your-data-solution-accelerator`, `azure-search-openai-demo`).
 - Standard files: `README.md`, `CONTRIBUTING.md`, `SECURITY.md`, `SUPPORT.md`, `CODE_OF_CONDUCT.md`, `LICENSE`.
 - Direct owners: Anders Ravnholt, Klaus Gjelstrup Nielsen, Ali Farahnak, Abishek Narayan.
+
+## Future Improvements
+
+### 🔴 Migrate RunScript to Azure Container Apps Dynamic Sessions (Security)
+
+**Current state**: The `RunScript` tool (`CodeExecutionTools.cs`) executes Python/bash/SQLite scripts **directly on the App Service** with no sandboxing. The runtimes are installed via `startup.sh` at boot using `apt-get`. This is a **known security risk** — scripts run with the same permissions as the app and have access to environment variables, secrets, filesystem, and network.
+
+**Target state**: Replace `RunScript` with a tool that calls [Azure Container Apps dynamic sessions](https://learn.microsoft.com/azure/container-apps/sessions) — ephemeral, Hyper-V isolated Python sandboxes with:
+
+- No access to App Service secrets, filesystem, or network
+- Per-user session isolation via session identifiers
+- Automatic cleanup after cooldown period
+- Pre-installed Python with pandas, numpy, etc.
+
+**Migration steps**:
+
+1. Create a Container Apps session pool (code interpreter type) in the same resource group
+2. Enable managed identity on the App Service and assign `Azure ContainerApps Session Executor` role
+3. Replace `CodeExecutionTools.cs` to call the session pool REST API instead of `System.Diagnostics.Process`
+4. Remove `startup.sh` (no longer needed — runtimes are in the session pool)
+5. Update `deploy.ps1` to remove the startup command and add session pool provisioning
+
+**Why this matters**: Any prompt injection attack that tricks the LLM into running malicious code currently executes with full App Service permissions. Dynamic sessions eliminate this attack surface entirely.

@@ -98,8 +98,16 @@ az webapp config appsettings set `
     "BUILD_NUMBER=$buildNumber" `
     --output none
 
+# Set custom startup command to install Python/SQL tools before starting the app
+az webapp config set `
+    --name $AppName `
+    --resource-group $ResourceGroup `
+    --startup-file "/home/site/wwwroot/startup.sh" `
+    --output none
+
 Write-Host "  GitHub OAuth secrets configured (encrypted at rest)" -ForegroundColor Gray
 Write-Host "  Build: #$buildNumber ($buildSha)" -ForegroundColor Gray
+Write-Host "  Startup script: startup.sh (installs Python, pandas, numpy, sqlite3)" -ForegroundColor Gray
 
 # ── 4. Build Vue frontend ──
 Write-Host "`n[4/6] Building Vue frontend..." -ForegroundColor Yellow
