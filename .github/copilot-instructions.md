@@ -30,7 +30,7 @@ src/Dashboard/
 ├── Tools/
 │   ├── ChartTools.cs       # RenderChart tool — ECharts visualization (bar, line, pie, scatter, funnel)
 │   ├── HealthTools.cs      # GetAzureServiceHealth — Azure Status RSS feed (no auth required)
-│   ├── PricingTools.cs     # GetAzureRetailPrices + QueryAzurePrices — Azure Retail Prices API, takes full URL as input (no auth required)
+│   ├── PricingTools.cs     # FetchUrl — minimal HTTP GET for allowed Azure API URLs (SSRF-protected)
 │   └── WeatherTools.cs     # GetCurrentWeather + GetWeatherForecast — Open-Meteo API (demo, not registered)
 ├── client/
 │   ├── index.html          # SPA entry point

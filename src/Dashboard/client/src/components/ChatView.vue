@@ -327,97 +327,50 @@
       <div class="messages" ref="messagesEl">
         <div class="messages-inner">
           <div v-if="messages.length === 0" class="empty-state">
-            <div class="es-avatar">AI</div>
-            <h2 class="es-headline">Query. Visualize. Optimize.</h2>
+            <h2 class="es-headline">Azure FinOps Agent</h2>
             <p class="es-sub">
-              Explore Azure pricing across services, regions, and SKUs.
-              Visualize cost comparisons and get FinOps insights — powered by
-              Azure Retail Prices API and GitHub Copilot.
+              Ask about Azure pricing, compare costs across regions and SKUs, or
+              check service health.
             </p>
-
-            <div class="es-phases">
-              <div class="es-phase">
-                <div class="es-phase-num">1</div>
-                <div>
-                  <strong>Query</strong>
-                  <span class="es-phase-desc"
-                    >Fetch real-time Azure pricing data across any service,
-                    region, or SKU</span
-                  >
-                </div>
-              </div>
-              <div class="es-phase">
-                <div class="es-phase-num">2</div>
-                <div>
-                  <strong>Visualize</strong>
-                  <span class="es-phase-desc"
-                    >Render interactive charts comparing costs across regions,
-                    SKUs, and tiers</span
-                  >
-                </div>
-              </div>
-              <div class="es-phase">
-                <div class="es-phase-num">3</div>
-                <div>
-                  <strong>Optimize</strong>
-                  <span class="es-phase-desc"
-                    >Identify cost-saving opportunities and the cheapest regions
-                    for your workloads</span
-                  >
-                </div>
-              </div>
-            </div>
 
             <div class="es-prompts">
               <button
                 class="es-prompt"
                 @click="
                   sendPrompt(
-                    'Compare the cost of D-series VMs across East US, West Europe, and Southeast Asia',
+                    'Compare D-series VM pricing across East US, West Europe, and Southeast Asia',
                   )
                 "
               >
-                💰 Compare D-series VM costs across regions
+                💰 VM pricing across regions
+              </button>
+              <button
+                class="es-prompt"
+                @click="sendPrompt('What are the cheapest GPU VMs on Azure?')"
+              >
+                🖥️ Cheapest GPU VMs
               </button>
               <button
                 class="es-prompt"
                 @click="
-                  sendPrompt(
-                    'What are the cheapest GPU VMs available on Azure? Show me a chart comparing prices',
-                  )
+                  sendPrompt('Compare Azure Cosmos DB vs SQL Database pricing')
                 "
               >
-                🖥️ Cheapest GPU VMs on Azure
+                📊 Cosmos DB vs SQL pricing
+              </button>
+              <button
+                class="es-prompt"
+                @click="sendPrompt('Show Azure App Service pricing tiers')"
+              >
+                ☁️ App Service tiers
               </button>
               <button
                 class="es-prompt"
                 @click="
-                  sendPrompt(
-                    'Compare pricing for Azure Cosmos DB vs Azure SQL Database for a typical workload',
-                  )
+                  sendPrompt('Are there any Azure service health incidents?')
                 "
               >
-                📊 Cosmos DB vs SQL Database pricing
-              </button>
-              <button
-                class="es-prompt"
-                @click="
-                  sendPrompt(
-                    'Show me Azure App Service pricing tiers and what you get at each level',
-                  )
-                "
-              >
-                ☁️ App Service pricing tiers breakdown
-              </button>
-              <button
-                class="es-prompt"
-                @click="
-                  sendPrompt(
-                    'Are there any current Azure service health incidents or outages?',
-                  )
-                "
-              >
-                🔍 Azure service health status
+                🔍 Service health
               </button>
             </div>
           </div>
@@ -827,7 +780,7 @@ function sendQuestion(q) {
 
 // -- Connected sources --
 const connectedSources = [
-  { name: "Azure Retail Prices API" },
+  { name: "Azure Retail Prices" },
   { name: "Azure Service Health" },
 ];
 
@@ -961,8 +914,11 @@ async function send() {
               streamBuffer.value += data.content;
               break;
             case "message":
+              // Append rather than replace — the SDK may send a complete
+              // message after tool calls that would wipe out earlier streamed
+              // content (tables, analysis) if we overwrote the buffer.
               if (data.content) {
-                streamBuffer.value = data.content;
+                streamBuffer.value += data.content;
               }
               break;
             case "tool_start": {
