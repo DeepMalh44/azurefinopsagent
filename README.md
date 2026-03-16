@@ -39,14 +39,17 @@ Azure FinOps Agent helps Azure customers optimize cloud costs by providing an in
 
 ## Architecture
 
-The solution follows an agentic architecture where an AI agent (powered by Azure OpenAI) orchestrates calls to multiple Azure data sources and tools to answer user questions about cloud cost and infrastructure optimization.
+The solution follows an agentic architecture where an AI agent (powered by GitHub Copilot SDK) orchestrates calls to multiple Azure data sources and tools to answer user questions about cloud cost and infrastructure optimization.
 
-| Component    | Technology                                                |
-| ------------ | --------------------------------------------------------- |
-| Backend API  | .NET                                                      |
-| Frontend     | JavaScript                                                |
-| AI Engine    | Azure OpenAI                                              |
-| Data Sources | Microsoft IQ, Microsoft Graph APIs, Azure Cost Management |
+| Component     | Technology                                                              |
+| ------------- | ----------------------------------------------------------------------- |
+| Backend API   | .NET 10 minimal API                                                     |
+| Frontend      | Vue 3 + Vite SPA with ECharts                                           |
+| AI Engine     | GitHub Copilot SDK                                                      |
+| Auth          | GitHub OAuth (user login + Copilot scope)                               |
+| Data Sources  | Open-Meteo (demo), Microsoft IQ, Microsoft Graph, Azure Cost Management |
+| Deployment    | Azure App Service (Linux) via zip push                                  |
+| Custom Domain | https://www.azure-finops-agent.com                                      |
 
 <!-- TODO: Add architecture diagram -->
 
@@ -57,24 +60,43 @@ The solution follows an agentic architecture where an AI agent (powered by Azure
 ### Prerequisites
 
 - [Azure subscription](https://azure.microsoft.com/free/) with owner access
-- [Azure OpenAI Service](https://learn.microsoft.com/azure/ai-services/openai/overview) access approved
-- [.NET SDK](https://dotnet.microsoft.com/download) (latest LTS)
+- [GitHub account](https://github.com) with Copilot access
+- [.NET 10 SDK](https://dotnet.microsoft.com/download)
 - [Node.js](https://nodejs.org/) (LTS)
 - [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli)
 
 ### Products Used
 
-- Azure OpenAI Service
+- GitHub Copilot SDK
 - Azure Cost Management APIs
 - Microsoft Graph APIs
 - Microsoft IQ
-- Azure App Service (or Azure Container Apps)
+- Azure App Service
 
 ### Deploy Instructions
 
-> Deployment instructions will be provided once the initial implementation is complete.
+```bash
+# 1. Build the Vue frontend
+cd src/Dashboard/client
+npm install
+npm run build
 
-<!-- TODO: Add Deploy to Azure button -->
+# 2. Run locally
+cd src/Dashboard
+dotnet run --urls "http://localhost:5000"
+# Open http://localhost:5000
+```
+
+```powershell
+# Deploy to Azure (first time — creates infrastructure)
+cd src/Dashboard
+.\deploy.ps1 -ResourceGroup "rg-finops-agent" -AppName "finops-agent"
+
+# Subsequent deploys (skip infra)
+.\deploy.ps1 -ResourceGroup "rg-finops-agent" -AppName "finops-agent" -SkipInfra
+```
+
+The deploy script builds the frontend, publishes .NET with `-r linux-x64` (required for the Copilot SDK native binary), and deploys via `az webapp deploy`.
 
 ## Use Case Scenarios
 

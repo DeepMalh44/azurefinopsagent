@@ -109,6 +109,8 @@ if (Test-Path $publishDir) { Remove-Item $publishDir -Recurse -Force }
 
 dotnet publish "$root\Dashboard.csproj" `
     -c Release `
+    -r linux-x64 `
+    --self-contained false `
     -o $publishDir `
     --nologo
 

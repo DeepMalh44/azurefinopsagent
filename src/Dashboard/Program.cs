@@ -9,8 +9,9 @@ using AzureFinOps.Dashboard.Tools;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Load local settings if present
-builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: false);
+// Load local settings only in Development
+if (builder.Environment.IsDevelopment())
+    builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: false);
 
 // Data protection for cookie encryption
 builder.Services.AddDataProtection();

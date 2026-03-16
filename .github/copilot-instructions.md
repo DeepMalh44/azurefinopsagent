@@ -17,7 +17,8 @@ The agent acts as a frontend on top of Microsoft IQ and Microsoft Graph APIs to:
 - **AI**: GitHub Copilot SDK for agentic reasoning — sessions managed via `CopilotClient` / `CopilotSession`
 - **Auth**: GitHub OAuth (user login + Copilot scope)
 - **Data Sources**: Open-Meteo weather API (demo tool), ECharts visualization, Microsoft IQ, Microsoft Graph APIs, Azure Cost Management APIs
-- **Deployment**: Azure App Service (Linux, .NET 10) via `az webapp deploy` zip push
+- **Deployment**: Azure App Service (Linux, .NET 10) via `az webapp deploy` zip push — must publish with `-r linux-x64` for Copilot SDK native binary
+- **Custom Domain**: `https://www.azure-finops-agent.com` (Namecheap DNS → Azure App Service with managed SSL)
 - **License**: MIT
 
 ## Project Structure
@@ -84,17 +85,18 @@ When creating tools for the Copilot SDK:
 Two OAuth apps exist:
 
 - **Local dev**: `Azure FinOps Agent (Local)` — callback `http://localhost:5000/auth/github/callback`
-- **Production**: `Azure FinOps Agent` — callback `https://azure-finops-agent.com/auth/github/callback`
+- **Production**: `Azure FinOps Agent` — callback `https://www.azure-finops-agent.com/auth/github/callback`
 
 OAuth scopes requested: `read:user`, `user:email`, `copilot`
 
 ### Secrets Management
 
-- `appsettings.Local.json` — local dev secrets (gitignored)
+- `appsettings.Local.json` — local dev secrets (gitignored), **only loaded in Development** (`builder.Environment.IsDevelopment()` guard in `Program.cs`)
 - `appsettings.Production.json` — production secrets (gitignored)
 - `appsettings.json` — base config with empty placeholders (committed)
 - For Azure App Service: secrets are set as app settings via `az webapp config appsettings set` (encrypted at rest)
 - Environment variable format: `GitHub__ClientId`, `GitHub__ClientSecret` (.NET auto-maps `__` to config sections)
+- **Critical**: Never load `appsettings.Local.json` unconditionally — it will override production env vars on Azure
 
 ## Running Locally
 
@@ -116,10 +118,10 @@ dotnet run --project Dashboard.csproj --urls "http://localhost:5000"
 ```powershell
 # First deploy (creates infrastructure)
 cd src/Dashboard
-.\deploy.ps1 -ResourceGroup "rg-finops-agent" -AppName "azure-finops-agent"
+.\deploy.ps1 -ResourceGroup "rg-finops-agent" -AppName "finops-agent"
 
 # Subsequent deploys (skip infra)
-.\deploy.ps1 -ResourceGroup "rg-finops-agent" -AppName "azure-finops-agent" -SkipInfra
+.\deploy.ps1 -ResourceGroup "rg-finops-agent" -AppName "finops-agent" -SkipInfra
 ```
 
 The deploy script:
@@ -128,7 +130,7 @@ The deploy script:
 2. Creates resource group + App Service plan (B1 Linux) + web app
 3. Reads production secrets from local `appsettings.Production.json` and sets as App Service settings
 4. Builds Vue frontend (`npm ci` + `npm run build`)
-5. Publishes .NET (`dotnet publish -c Release`)
+5. Publishes .NET (`dotnet publish -c Release -r linux-x64 --self-contained false`) — **must target `linux-x64`** since App Service runs Linux and the Copilot SDK includes a platform-specific native CLI binary
 6. Zips and deploys via `az webapp deploy --type zip`
 
 ## Code Conventions
@@ -159,6 +161,18 @@ When you need to perform actions on Azure portals, GitHub, or the Microsoft Open
 - Any portal-based operation that cannot be done via CLI or API.
 
 Always use Playwright when portal interaction is required rather than asking the user to do it manually.
+
+## Custom Domain Setup
+
+The production app is available at `https://www.azure-finops-agent.com` and `https://azure-finops-agent.com`.
+
+- **DNS Provider**: Namecheap (BasicDNS)
+- **DNS Records**:
+  - `CNAME` `www` → `finops-agent-bagwe9fdayepd7ed.canadacentral-01.azurewebsites.net.`
+  - `ALIAS` `@` → `finops-agent-bagwe9fdayepd7ed.canadacentral-01.azurewebsites.net.`
+  - `TXT` `asuid` → Azure domain verification token
+- **SSL**: Azure Managed Certificates (auto-renewed) bound via SNI for both `www` and root domain
+- **GitHub OAuth callback** must match the custom domain: `https://www.azure-finops-agent.com/auth/github/callback`
 
 ## Self-Maintenance
 
