@@ -85,7 +85,7 @@ When creating tools for the Copilot SDK:
 Two OAuth apps exist:
 
 - **Local dev**: `Azure FinOps Agent (Local)` — callback `http://localhost:5000/auth/github/callback`
-- **Production**: `Azure FinOps Agent` — callback `https://www.azure-finops-agent.com/auth/github/callback`
+- **Production**: `Azure FinOps Agent` — callback `https://azure-finops-agent.com/auth/github/callback`
 
 OAuth scopes requested: `read:user`, `user:email`, `copilot`
 
@@ -172,7 +172,7 @@ The production app is available at `https://www.azure-finops-agent.com` and `htt
   - `ALIAS` `@` → `finops-agent-bagwe9fdayepd7ed.canadacentral-01.azurewebsites.net.`
   - `TXT` `asuid` → Azure domain verification token
 - **SSL**: Azure Managed Certificates (auto-renewed) bound via SNI for both `www` and root domain
-- **GitHub OAuth callback** must match the custom domain: `https://www.azure-finops-agent.com/auth/github/callback`
+- **GitHub OAuth callback** must match the custom domain: `https://azure-finops-agent.com/auth/github/callback`
 
 ## Self-Maintenance
 

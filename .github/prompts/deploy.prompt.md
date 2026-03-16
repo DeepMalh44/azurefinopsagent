@@ -22,10 +22,15 @@ Use `-SkipInfra` if the resource group and app service already exist.
 
 5. After deployment, confirm the app is running by checking `https://<app-name>.azurewebsites.net/api/version`.
 
-6. If a custom domain is configured, also verify `https://www.azure-finops-agent.com/api/version`.
+6. If a custom domain is configured, also verify `https://azure-finops-agent.com/api/version`.
+
+### Rules
+
+- **Always deploy to the existing app** if one is found in step 2 — use `-SkipInfra` automatically. Only create new infrastructure if no app exists or if I explicitly ask.
 
 ### Notes
 
 - The deploy script publishes with `-r linux-x64` — required for the Copilot SDK native binary on Linux App Service.
 - `appsettings.Local.json` is only loaded in Development mode — it will NOT override production env vars on Azure.
+- GitHub OAuth callback URL must match the custom domain: `https://azure-finops-agent.com/auth/github/callback`.
 - GitHub OAuth callback URL must match the custom domain: `https://www.azure-finops-agent.com/auth/github/callback`.
