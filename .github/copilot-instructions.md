@@ -17,7 +17,8 @@ The agent acts as a frontend on top of Microsoft IQ and Microsoft Graph APIs to:
 - **AI**: GitHub Copilot SDK for agentic reasoning — sessions managed via `CopilotClient` / `CopilotSession`
 - **Auth**: GitHub App OAuth (no repo access — email read-only, user identity + Copilot) with automatic token refresh
 - **Data Sources**: Azure Retail Prices API (no auth), Azure Service Health (no auth), ECharts visualization, Microsoft IQ, Microsoft Graph APIs, Azure Cost Management APIs\n- **Observability**: OpenTelemetry + Azure Monitor (Application Insights) — structured traces for chat requests, tool calls, and AI responses via `ActivitySource(\"AzureFinOps.AI\")`
-- **Deployment**: Azure App Service (Linux, .NET 10) via `az webapp deploy` zip push — must publish with `-r linux-x64` for Copilot SDK native binary
+- **Deployment**: Azure App Service (Linux, custom Docker container) via ACR build + push — Dockerfile includes .NET 10, Python 3, and all CLI tools
+- **Container Registry**: Azure Container Registry (ACR) — image built remotely via `az acr build`
 - **Custom Domain**: `https://www.azure-finops-agent.com` (Namecheap DNS → Azure App Service with managed SSL)
 - **License**: MIT
 
@@ -80,7 +81,7 @@ When creating tools for the Copilot SDK:
   }
   ```
 - **ChartTools** (`RenderChart`) returns a serialized JSON object with chart config — the frontend detects `tool_done` for `RenderChart` and emits a separate `chart` SSE event.
-- **CodeExecutionTools** (`RunScript`) executes Python 3, bash, or SQLite scripts directly on the App Service. Installed via `startup.sh` at boot. **⚠️ This is a temporary, unsandboxed implementation — see Future Improvements below.**
+- **CodeExecutionTools** (`RunScript`) executes Python 3, bash, or SQLite scripts inside the container. All runtimes and packages are baked into the Docker image. **⚠️ This is a temporary, unsandboxed implementation — see Future Improvements below.**
 
 ## GitHub App OAuth Setup
 
@@ -135,11 +136,11 @@ cd src/Dashboard
 The deploy script:
 
 1. Verifies `az login`
-2. Creates resource group + App Service plan (B1 Linux) + web app
+2. Creates resource group + ACR + App Service plan (B1 Linux) + web app (container)
 3. Reads production secrets from local `appsettings.Production.json` and sets as App Service settings
-4. Builds Vue frontend (`npm ci` + `npm run build`)
-5. Publishes .NET (`dotnet publish -c Release -r linux-x64 --self-contained false`) — **must target `linux-x64`** since App Service runs Linux and the Copilot SDK includes a platform-specific native CLI binary
-6. Zips and deploys via `az webapp deploy --type zip`
+4. Builds Docker image remotely via `az acr build` (multi-stage: Node frontend → .NET publish → runtime with Python/tools)
+5. Configures App Service to pull the container from ACR
+6. Restarts the App Service to pull the new image
 
 ## Code Conventions
 

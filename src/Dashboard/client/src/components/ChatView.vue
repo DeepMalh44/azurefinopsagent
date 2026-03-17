@@ -338,39 +338,51 @@
                 class="es-prompt"
                 @click="
                   sendPrompt(
-                    'Compare D-series VM pricing across East US, West Europe, and Southeast Asia',
+                    'We are deploying D4s_v5 VMs for our microservices platform. Show me a world map of Azure regions color-coded from cheapest to most expensive so we can pick the best region.',
                   )
                 "
               >
-                💰 VM pricing across regions
-              </button>
-              <button
-                class="es-prompt"
-                @click="sendPrompt('What are the cheapest GPU VMs on Azure?')"
-              >
-                🖥️ Cheapest GPU VMs
+                Regional cost map
               </button>
               <button
                 class="es-prompt"
                 @click="
-                  sendPrompt('Compare Azure Cosmos DB vs SQL Database pricing')
+                  sendPrompt(
+                    'Our D16s_v5 VMs in East US are under 30% utilization. Compare D4s_v5, D8s_v5, and D16s_v5 monthly costs across East US, West Europe, and Southeast Asia. Show a grouped bar chart.',
+                  )
                 "
               >
-                📊 Cosmos DB vs SQL pricing
-              </button>
-              <button
-                class="es-prompt"
-                @click="sendPrompt('Show Azure App Service pricing tiers')"
-              >
-                ☁️ App Service tiers
+                VM right-sizing
               </button>
               <button
                 class="es-prompt"
                 @click="
-                  sendPrompt('Are there any Azure service health incidents?')
+                  sendPrompt(
+                    'Compare NC-series, ND-series, and NV-series GPU VM pricing in East US. Which gives best price per GPU? Show a chart.',
+                  )
                 "
               >
-                🔍 Service health
+                GPU cost analysis
+              </button>
+              <button
+                class="es-prompt"
+                @click="
+                  sendPrompt(
+                    'Compare Azure Cosmos DB serverless vs Azure SQL Database General Purpose for a service handling 10M requests/day. Show a cost breakdown chart.',
+                  )
+                "
+              >
+                Database pricing
+              </button>
+              <button
+                class="es-prompt"
+                @click="
+                  sendPrompt(
+                    'Are there any active Azure service health incidents? We have workloads in East US, West Europe, and Southeast Asia.',
+                  )
+                "
+              >
+                Service health
               </button>
             </div>
           </div>
@@ -579,7 +591,7 @@ onMounted(async () => {
 
 let abortController = null;
 
-function clearMessages() {
+async function clearMessages() {
   messages.value = [];
   streamBuffer.value = "";
   streamToolCalls.value = [];
@@ -592,7 +604,10 @@ function clearMessages() {
     } catch {}
   });
   chartInstances.length = 0;
-  fetch("/api/chat/reset", { method: "POST" }).catch(() => {});
+  // Wait for backend to destroy the Copilot session before allowing new messages
+  try {
+    await fetch("/api/chat/reset", { method: "POST" });
+  } catch {}
 }
 
 function stopGeneration() {
@@ -610,12 +625,104 @@ function formatDuration(ms) {
 }
 
 // ── ECharts rendering ──
+
+// World map GeoJSON cache
+let worldMapLoaded = false;
+let worldMapLoading = null;
+
+async function ensureWorldMap() {
+  if (worldMapLoaded) return;
+  if (worldMapLoading) return worldMapLoading;
+  worldMapLoading = fetch(
+    "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json",
+  )
+    .then((r) => r.json())
+    .then((topoData) => {
+      // Convert TopoJSON to GeoJSON for ECharts
+      const countries = topojsonFeature(topoData, topoData.objects.countries);
+      echarts.registerMap("world", countries);
+      worldMapLoaded = true;
+    })
+    .catch(() => {
+      // Fallback: try ECharts built-in world map URL
+      return fetch("https://cdn.jsdelivr.net/npm/echarts@5/map/json/world.json")
+        .then((r) => r.json())
+        .then((geoJson) => {
+          echarts.registerMap("world", geoJson);
+          worldMapLoaded = true;
+        });
+    });
+  return worldMapLoading;
+}
+
+// Minimal TopoJSON feature extraction (avoids importing topojson-client)
+function topojsonFeature(topology, obj) {
+  const arcs = topology.arcs;
+  function decodeArc(arcIdx) {
+    const arc = arcs[arcIdx < 0 ? ~arcIdx : arcIdx];
+    const coords = [];
+    let x = 0,
+      y = 0;
+    for (const [dx, dy] of arc) {
+      x += dx;
+      y += dy;
+      coords.push([
+        x * topology.transform.scale[0] + topology.transform.translate[0],
+        y * topology.transform.scale[1] + topology.transform.translate[1],
+      ]);
+    }
+    if (arcIdx < 0) coords.reverse();
+    return coords;
+  }
+  function decodeRing(ring) {
+    return ring.reduce((coords, arcIdx) => {
+      const decoded = decodeArc(arcIdx);
+      return coords.concat(decoded);
+    }, []);
+  }
+  function decodeGeometry(geom) {
+    if (geom.type === "Polygon") {
+      return {
+        type: "Polygon",
+        coordinates: geom.arcs.map(decodeRing),
+      };
+    } else if (geom.type === "MultiPolygon") {
+      return {
+        type: "MultiPolygon",
+        coordinates: geom.arcs.map((polygon) => polygon.map(decodeRing)),
+      };
+    }
+    return geom;
+  }
+  const features = obj.geometries.map((geom) => ({
+    type: "Feature",
+    properties: geom.properties || {},
+    geometry: decodeGeometry(geom),
+  }));
+  return { type: "FeatureCollection", features };
+}
+
 function buildEChartsOption(raw) {
   let parsed;
   try {
     parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
   } catch {
     return null;
+  }
+
+  // Raw ECharts options mode (from RenderAdvancedChart)
+  if (parsed.raw === true && parsed.options) {
+    try {
+      const opts =
+        typeof parsed.options === "string"
+          ? JSON.parse(parsed.options)
+          : parsed.options;
+      // Mark as needing map registration
+      opts._needsMap = needsMapRegistration(opts);
+      return opts;
+    } catch {
+      return null;
+    }
   }
 
   let dataArr;
@@ -674,6 +781,55 @@ function buildEChartsOption(raw) {
   const categories = dataArr.map((d) =>
     Array.isArray(d) ? String(d[0]) : d.name,
   );
+
+  // Detect multi-series: objects with keys beyond "name" and "value"
+  const firstItem = dataArr[0];
+  const isMultiSeries =
+    firstItem &&
+    !Array.isArray(firstItem) &&
+    !("value" in firstItem) &&
+    Object.keys(firstItem).filter((k) => k !== "name").length > 1;
+
+  if (isMultiSeries) {
+    const seriesKeys = Object.keys(firstItem).filter((k) => k !== "name");
+    return {
+      title: {
+        text: title,
+        left: "center",
+        textStyle: { fontSize: 14, color: "#1f2328" },
+      },
+      tooltip: { trigger: "axis" },
+      legend: {
+        data: seriesKeys,
+        bottom: 0,
+        textStyle: { color: "#656d76", fontSize: 11 },
+      },
+      color: colors,
+      grid: { left: 60, right: 20, bottom: 40, top: 50 },
+      xAxis: {
+        type: "category",
+        data: categories,
+        name: xAxisName,
+        nameLocation: "center",
+        nameGap: 30,
+        axisLabel: { fontSize: 10, rotate: categories.length > 10 ? 45 : 0 },
+      },
+      yAxis: {
+        type: "value",
+        name: yAxisName,
+        nameLocation: "center",
+        nameGap: 45,
+        axisLabel: { fontSize: 10 },
+      },
+      series: seriesKeys.map((key, idx) => ({
+        name: key,
+        type: chartType === "scatter" ? "scatter" : chartType,
+        data: dataArr.map((d) => d[key]),
+        barMaxWidth: 40,
+      })),
+    };
+  }
+
   const values = dataArr.map((d) => (Array.isArray(d) ? d[1] : d.value));
 
   return {
@@ -711,18 +867,43 @@ function buildEChartsOption(raw) {
   };
 }
 
+function needsMapRegistration(opts) {
+  if (!opts || !opts.series) return false;
+  const series = Array.isArray(opts.series) ? opts.series : [opts.series];
+  return series.some(
+    (s) => s.type === "map" && s.map === "world" && !worldMapLoaded,
+  );
+}
+
 function mountChart(el, chartData) {
   if (!el || el._echarts_mounted) return;
   el._echarts_mounted = true;
   const option = buildEChartsOption(chartData);
   if (!option) return;
-  nextTick(() => {
-    const instance = echarts.init(el, null, { renderer: "svg" });
-    instance.setOption(option);
-    chartInstances.push(instance);
-    const ro = new ResizeObserver(() => instance.resize());
-    ro.observe(el);
-  });
+
+  const doMount = () => {
+    nextTick(() => {
+      const isMap =
+        option._needsMap ||
+        (option.series &&
+          Array.isArray(option.series) &&
+          option.series.some((s) => s.type === "map"));
+      delete option._needsMap;
+      const instance = echarts.init(el, null, {
+        renderer: isMap ? "canvas" : "svg",
+      });
+      instance.setOption(option);
+      chartInstances.push(instance);
+      const ro = new ResizeObserver(() => instance.resize());
+      ro.observe(el);
+    });
+  };
+
+  if (option._needsMap) {
+    ensureWorldMap().then(doMount).catch(doMount);
+  } else {
+    doMount();
+  }
 }
 
 onBeforeUnmount(() => {
@@ -749,26 +930,39 @@ const allToolCalls = computed(() => {
 // -- Suggested questions --
 const suggestedQuestions = [
   {
-    label: "VM Pricing",
+    label: "Regional Cost Map",
     prompt:
-      "Compare D-series VM pricing across East US, West Europe, and Southeast Asia",
+      "We're deploying D4s_v5 VMs for our microservices platform. Show me a world map of Azure regions color-coded from cheapest (green) to most expensive (red) so we can pick the best region for cost and latency.",
   },
   {
-    label: "GPU VMs",
-    prompt: "What are the cheapest GPU VMs on Azure? Show a chart",
-  },
-  {
-    label: "Cosmos vs SQL",
-    prompt: "Compare pricing for Azure Cosmos DB vs Azure SQL Database",
-  },
-  {
-    label: "App Service Tiers",
+    label: "VM Right-Sizing",
     prompt:
-      "Show Azure App Service pricing tiers and what you get at each level",
+      "Our team is running D16s_v5 VMs in East US but utilization is under 30%. Compare the monthly cost of D4s_v5, D8s_v5, and D16s_v5 in East US, West Europe, and Southeast Asia. Show a grouped bar chart and recommend the best option.",
+  },
+  {
+    label: "GPU Cost Analysis",
+    prompt:
+      "We need to run ML training jobs on Azure. Compare the hourly and monthly costs of NC-series, ND-series, and NV-series GPU VMs in East US. Which gives the best price per GPU? Show a chart.",
+  },
+  {
+    label: "Database Pricing",
+    prompt:
+      "We're choosing between Azure Cosmos DB (serverless) and Azure SQL Database (General Purpose) for a new service handling 10M requests/day. Compare the pricing models and show a cost breakdown chart.",
+  },
+  {
+    label: "App Service vs AKS",
+    prompt:
+      "Compare the monthly cost of running a .NET web app on App Service Premium v3 P1V3 vs an equivalent AKS cluster with 2 D4s_v5 nodes in East US. Include compute, networking, and load balancer costs.",
   },
   {
     label: "Service Health",
-    prompt: "Are there any current Azure service health incidents or outages?",
+    prompt:
+      "Are there any active Azure service health incidents or degradations? We have workloads in East US, West Europe, and Southeast Asia — flag anything affecting those regions.",
+  },
+  {
+    label: "Available D-series VMs",
+    prompt:
+      "List all available D-series VM sizes in France Central with their vCPUs, RAM, and hourly Linux pay-as-you-go pricing. Sort by price ascending.",
   },
 ];
 

@@ -13,4 +13,9 @@
     <PackageReference Include="Microsoft.Extensions.AI" Version="10.3.0" />
   </ItemGroup>
 
+  <!-- Include startup.sh in publish output for App Service custom startup -->
+  <ItemGroup>
+    <None Update="startup.sh" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

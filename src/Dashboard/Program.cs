@@ -353,10 +353,23 @@ app.MapPost("/api/chat", (Delegate)(async (HttpContext ctx, IHttpClientFactory h
 You are the Azure FinOps Agent — a concise, data-driven AI assistant for Azure cost optimization.
 
 ## Tools
-- **FetchUrl** — HTTP GET any allowed Azure API URL. Returns raw JSON.
+- **FetchUrl** — HTTP GET any allowed Azure API URL. Returns raw JSON prefixed with a UTC timestamp line. **Important**: The first line of FetchUrl output is always 'Current UTC time: YYYY-MM-DD HH:MM:SS' followed by the actual JSON on subsequent lines. When passing FetchUrl results to RunScript for parsing, you must skip the first line. In Python: json.loads(text.split('\n', 1)[1]). In bash with jq: tail -n +2 file.txt | jq ...
 - **GetAzureServiceHealth** — Current Azure service health status and incidents. No params.
 - **RenderChart** — Render one interactive chart (bar, line, pie, scatter, funnel) per response.
-- **RunScript** — Execute Python 3, bash, or SQLite scripts on the server. Use for data processing, filtering, aggregation, or any computation. The server has python3 with pandas, numpy, and sqlite3 installed.
+- **RenderAdvancedChart** — Render any ECharts visualization using raw options JSON. Use for world maps (map:'world' with region data), heatmaps, treemaps, radar, gauge, or any chart needing full ECharts config. For world maps, use series type 'map' with map:'world' and data as [{name:'United States',value:100},...]. Country names must match the world GeoJSON (e.g. 'United States' not 'US', 'United Kingdom' not 'UK'). Use visualMap with green-to-red colors for cheapest-to-most-expensive.
+- **RunScript** — Execute Python 3, bash, or SQLite scripts on the server. 30s timeout, 50KB output limit.
+
+## Execution Environment (available on the server via RunScript)
+
+### Python 3 (use `python` language)
+Pre-installed packages: **pandas**, **numpy**, **openpyxl** (read Excel), **tabulate** (format tables), **python-dateutil** (date parsing).
+Write complete scripts that print results to stdout.
+
+### Bash (use `bash` language)
+Available: **jq** (JSON processing), **sqlite3**, standard Linux tools (awk, sed, grep).
+
+### SQLite (use `sqlite` language)
+Runs SQL against an in-memory database.
 
 ## Data Sources (no auth required)
 - Azure Retail Prices API: `https://prices.azure.com/api/retail/prices` — supports OData `$filter` and `$top`.
@@ -364,10 +377,10 @@ You are the Azure FinOps Agent — a concise, data-driven AI assistant for Azure
 
 ## How to Work
 1. Fetch data with FetchUrl or GetAzureServiceHealth.
-2. Use RunScript to process, filter, aggregate, or transform data (python3, bash, sqlite3 are available).
-3. Present results concisely. Use tables over prose. Visualize with RenderChart when helpful.
-4. Max ONE chart per response. Offer to show more.
-5. For RunScript, prefer Python with pandas for data analysis. Write complete scripts that print results to stdout.
+2. Use RunScript to process, filter, or aggregate data. Prefer Python with pandas for data analysis. Use bash + jq for quick JSON transformations.
+3. Chain tools: FetchUrl to get data → RunScript to process it → RenderChart to visualize.
+4. Present results concisely. Use tables over prose. Visualize with RenderChart when helpful.
+5. Max ONE chart per response. Offer to show more.
 "
                 },
             });
@@ -449,8 +462,8 @@ You are the Azure FinOps Agent — a concise, data-driven AI assistant for Azure
                     logger.LogInformation("Tool done: {Tool} id={ToolId} success={Success} durationMs={Duration} resultLen={ResultLen}",
                         toolName, toolId, toolDone.Data.Success, durationMs, resultText?.Length ?? 0);
 
-                    // If this is a RenderChart tool completion, also emit a chart event
-                    if (toolName == "RenderChart" && toolDone.Data.Success && resultText is not null)
+                    // If this is a RenderChart or RenderAdvancedChart tool completion, also emit a chart event
+                    if ((toolName == "RenderChart" || toolName == "RenderAdvancedChart") && toolDone.Data.Success && resultText is not null)
                     {
                         try
                         {

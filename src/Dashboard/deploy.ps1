@@ -5,6 +5,7 @@
 .DESCRIPTION
     Builds the Vue frontend, publishes the .NET backend, and deploys to Azure App Service.
     Sets GitHub OAuth secrets as App Service configuration (encrypted at rest).
+    Configures startup.sh to install Python and tools for the AI agent.
 
 .PARAMETER ResourceGroup
     Azure resource group name.
@@ -13,13 +14,13 @@
     Azure App Service name.
 
 .PARAMETER Location
-    Azure region (default: westeurope).
+    Azure region (default: canadacentral).
 
 .PARAMETER SkipInfra
     Skip creating the resource group and App Service (use if they already exist).
 
 .EXAMPLE
-    .\deploy.ps1 -ResourceGroup "rg-finops-agent" -AppName "azure-finops-agent"
+    .\deploy.ps1 -ResourceGroup "rg-finops-agent" -AppName "finops-agent"
 #>
 
 param(
@@ -29,7 +30,7 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$AppName,
 
-    [string]$Location = "westeurope",
+    [string]$Location = "canadacentral",
 
     [switch]$SkipInfra
 )
@@ -55,19 +56,27 @@ if (-not $SkipInfra) {
     Write-Host "  Resource group: $ResourceGroup"
     az group create --name $ResourceGroup --location $Location --output none
 
-    Write-Host "  App Service plan: ${AppName}-plan (Linux, B1)"
-    az appservice plan create `
-        --name "${AppName}-plan" `
-        --resource-group $ResourceGroup `
-        --sku B1 `
-        --is-linux `
-        --output none
+    # Use existing App Service plan if one exists, otherwise create one
+    $existingPlan = az appservice plan list --resource-group $ResourceGroup --query "[0].name" -o tsv 2>$null
+    if ($existingPlan) {
+        Write-Host "  Using existing App Service plan: $existingPlan"
+    }
+    else {
+        $existingPlan = "${AppName}-plan"
+        Write-Host "  App Service plan: $existingPlan (Linux, B1)"
+        az appservice plan create `
+            --name $existingPlan `
+            --resource-group $ResourceGroup `
+            --sku B1 `
+            --is-linux `
+            --output none
+    }
 
     Write-Host "  Web app: $AppName (.NET 10)"
     az webapp create `
         --name $AppName `
         --resource-group $ResourceGroup `
-        --plan "${AppName}-plan" `
+        --plan $existingPlan `
         --runtime "DOTNETCORE:10.0" `
         --output none
 }
@@ -78,12 +87,10 @@ else {
 # ── 3. Configure app settings (secrets) ──
 Write-Host "`n[3/6] Configuring app settings..." -ForegroundColor Yellow
 
-# Read production secrets from local file
 $prodSettings = Get-Content "$root\appsettings.Production.json" -Raw | ConvertFrom-Json
 $clientId = $prodSettings.GitHub.ClientId
 $clientSecret = $prodSettings.GitHub.ClientSecret
 
-# Derive build info from git
 $buildSha = (git -C $root rev-parse --short HEAD 2>$null) ?? "unknown"
 $buildNumber = (git -C $root rev-list --count HEAD 2>$null) ?? "0"
 
@@ -98,7 +105,7 @@ az webapp config appsettings set `
     "BUILD_NUMBER=$buildNumber" `
     --output none
 
-# Set custom startup command to install Python/SQL tools before starting the app
+# Set startup script to install Python/tools before starting the app
 az webapp config set `
     --name $AppName `
     --resource-group $ResourceGroup `
@@ -107,7 +114,6 @@ az webapp config set `
 
 Write-Host "  GitHub OAuth secrets configured (encrypted at rest)" -ForegroundColor Gray
 Write-Host "  Build: #$buildNumber ($buildSha)" -ForegroundColor Gray
-Write-Host "  Startup script: startup.sh (installs Python, pandas, numpy, sqlite3)" -ForegroundColor Gray
 
 # ── 4. Build Vue frontend ──
 Write-Host "`n[4/6] Building Vue frontend..." -ForegroundColor Yellow
@@ -153,4 +159,4 @@ Remove-Item $publishDir -Recurse -Force
 
 Write-Host "`n=== Deployment complete ===" -ForegroundColor Green
 Write-Host "  URL: https://${AppName}.azurewebsites.net" -ForegroundColor Cyan
-Write-Host "  Custom domain: https://azure-finops-agent.com (configure in portal)" -ForegroundColor Cyan
+Write-Host "  Custom domain: https://azure-finops-agent.com" -ForegroundColor Cyan

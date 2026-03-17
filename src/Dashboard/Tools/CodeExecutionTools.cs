@@ -23,10 +23,12 @@ public static class CodeExecutionTools
     {
         yield return AIFunctionFactory.Create(RunScript, "RunScript",
             "Executes a script on the server and returns stdout + stderr. " +
-            "Supported languages: python (python3 with pandas, numpy), bash, sqlite (sqlite3 in-memory). " +
+            "Supported languages: python (python3 with pandas, numpy, openpyxl, tabulate, python-dateutil), " +
+            "bash (with jq, sqlite3, awk, sed, grep), " +
+            "sqlite (sqlite3 in-memory). " +
             "Scripts have a 30-second timeout and 50KB output limit. " +
-            "For Python: write complete scripts that print results to stdout. pandas and numpy are available. " +
-            "For bash: standard Linux commands are available. " +
+            "For Python: write complete scripts that print results to stdout. " +
+            "For bash: pipe commands, use jq for JSON. " +
             "For SQLite: pass SQL statements that will run against an in-memory database.");
     }
 
