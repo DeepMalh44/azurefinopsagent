@@ -626,6 +626,70 @@ function formatDuration(ms) {
 
 // ── ECharts rendering ──
 
+// Country name aliases → Natural Earth canonical names used by world-atlas GeoJSON.
+// The LLM may produce short/common names; this map normalizes them so ECharts can match features.
+const COUNTRY_NAME_ALIASES = {
+  "United States": "United States of America",
+  US: "United States of America",
+  USA: "United States of America",
+  "U.S.": "United States of America",
+  "U.S.A.": "United States of America",
+  Russia: "Russia",
+  "South Korea": "South Korea",
+  Korea: "South Korea",
+  "Republic of Korea": "South Korea",
+  "North Korea": "North Korea",
+  "Dem. Rep. Korea": "North Korea",
+  DPRK: "North Korea",
+  "Czech Republic": "Czechia",
+  "DR Congo": "Dem. Rep. Congo",
+  "Democratic Republic of the Congo": "Dem. Rep. Congo",
+  "Congo (DRC)": "Dem. Rep. Congo",
+  "Republic of the Congo": "Congo",
+  Tanzania: "United Republic of Tanzania",
+  "United Republic of Tanzania": "United Republic of Tanzania",
+  "Ivory Coast": "Côte d'Ivoire",
+  "Cote d'Ivoire": "Côte d'Ivoire",
+  Bosnia: "Bosnia and Herzegovina",
+  "Bosnia & Herzegovina": "Bosnia and Herzegovina",
+  UAE: "United Arab Emirates",
+  UK: "United Kingdom",
+  Britain: "United Kingdom",
+  "Great Britain": "United Kingdom",
+  "Dominican Rep.": "Dominican Republic",
+  "Central African Rep.": "Central African Republic",
+  "Eq. Guinea": "Equatorial Guinea",
+  eSwatini: "eSwatini",
+  Swaziland: "eSwatini",
+  "East Timor": "Timor-Leste",
+  Burma: "Myanmar",
+  Laos: "Lao PDR",
+  Vatican: "Vatican City",
+  Palestine: "Palestine",
+  "Falkland Islands": "Falkland Islands",
+  Macedonia: "North Macedonia",
+  FYROM: "North Macedonia",
+};
+
+function normalizeCountryName(name) {
+  return COUNTRY_NAME_ALIASES[name] || name;
+}
+
+// Normalize all data items in map-type series
+function normalizeMapSeriesData(opts) {
+  if (!opts || !opts.series) return opts;
+  const series = Array.isArray(opts.series) ? opts.series : [opts.series];
+  for (const s of series) {
+    if (s.type === "map" && Array.isArray(s.data)) {
+      s.data = s.data.map((d) => ({
+        ...d,
+        name: normalizeCountryName(d.name),
+      }));
+    }
+  }
+  return opts;
+}
+
 // World map GeoJSON cache
 let worldMapLoaded = false;
 let worldMapLoading = null;
@@ -717,6 +781,8 @@ function buildEChartsOption(raw) {
         typeof parsed.options === "string"
           ? JSON.parse(parsed.options)
           : parsed.options;
+      // Normalize country names in map series so they match the GeoJSON feature names
+      normalizeMapSeriesData(opts);
       // Mark as needing map registration
       opts._needsMap = needsMapRegistration(opts);
       return opts;
