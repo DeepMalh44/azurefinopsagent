@@ -91,13 +91,25 @@
               v-for="q in pricingPrompts"
               :key="q.label"
               class="sidebar-question"
-              :disabled="streaming"
-              :title="q.prompt"
+              :class="{ 'sidebar-question--locked': !user }"
+              :disabled="streaming || !user"
+              :title="user ? q.prompt : 'Sign in with GitHub to unlock'"
               @click="sendQuestion(q.prompt)"
             >
-              <span class="sidebar-question-icon sidebar-question-icon--price"
-                >$</span
-              >
+              <span class="sidebar-question-icon sidebar-question-icon--price">
+                <svg
+                  v-if="!user"
+                  width="10"
+                  height="10"
+                  viewBox="0 0 16 16"
+                  fill="currentColor"
+                >
+                  <path
+                    d="M4 7V5a4 4 0 118 0v2h1a1 1 0 011 1v6a1 1 0 01-1 1H3a1 1 0 01-1-1V8a1 1 0 011-1h1zm2 0h4V5a2 2 0 10-4 0v2z"
+                  />
+                </svg>
+                <template v-else>$</template>
+              </span>
               <span>{{ q.label }}</span>
             </button>
           </div>
@@ -1499,11 +1511,13 @@ function renderContent(text) {
 }
 
 function sendPrompt(text) {
+  if (!props.user) return;
   input.value = text;
   send();
 }
 
 async function send() {
+  if (!props.user) return;
   const prompt = input.value.trim();
   if (!prompt || streaming.value) return;
 
