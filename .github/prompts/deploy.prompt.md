@@ -9,7 +9,7 @@ description: "Deploy Azure FinOps Agent to Azure App Service via az CLI"
 
 2. Run `az webapp list --query "[].{name:name, group:resourceGroup, state:state}" -o table` to find existing web apps.
 
-3. Ask me which resource group and app name to use (or whether to create new ones).
+3. If an existing app is found in step 2, use it automatically — do NOT ask the user for confirmation. Only ask if no app exists or multiple apps are found.
 
 4. Run the deploy script:
 
@@ -27,6 +27,7 @@ Use `-SkipInfra` if the resource group and app service already exist.
 ### Rules
 
 - **Always deploy to the existing app** if one is found in step 2 — use `-SkipInfra` automatically. Only create new infrastructure if no app exists or if I explicitly ask.
+- **Never ask for confirmation** — proceed with deployment immediately after identifying the target app.
 
 ### Notes
 
