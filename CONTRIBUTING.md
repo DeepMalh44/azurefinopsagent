@@ -16,12 +16,57 @@ This project has adopted the [Microsoft Open Source Code of Conduct](https://ope
 
 ## Development Setup
 
+### Prerequisites
+
+- [.NET 10 SDK](https://dotnet.microsoft.com/download)
+- [Node.js LTS](https://nodejs.org/)
+- GitHub App OAuth credentials (for local dev, see Secrets below)
+
+### Building & Running
+
 - **Backend**: .NET 10 minimal API in `src/Dashboard/`
 - **Frontend**: Vue 3 + Vite SPA in `src/Dashboard/client/`
-- **Build frontend**: `cd src/Dashboard/client && npm install && npm run build`
-- **Run backend**: Set `ASPNETCORE_ENVIRONMENT=Development` then `dotnet run --urls "http://localhost:5000"` from `src/Dashboard/`
 
-See the [README](README.md) for full prerequisites and setup instructions.
+```bash
+# Build the Vue frontend to wwwroot/
+cd src/Dashboard/client
+npm install
+npm run build
+
+# Start the .NET backend (must set Development environment)
+cd ../
+$env:ASPNETCORE_ENVIRONMENT="Development"
+dotnet run --urls "http://localhost:5000"
+
+# Open http://localhost:5000
+```
+
+> **Important**: You must set `ASPNETCORE_ENVIRONMENT=Development` before running. Without it, the app defaults to Production, loads `appsettings.Production.json`, and causes OAuth redirect_uri mismatch errors.
+
+### Secrets
+
+- `appsettings.Local.json` — local dev GitHub and Microsoft OAuth secrets (gitignored, only loaded in Development)
+- `appsettings.Production.json` — production OAuth secrets (gitignored)
+- `appsettings.json` — base config with empty placeholders (committed)
+
+### Project Structure
+
+```
+src/Dashboard/
+├── Program.cs              # Auth, SSE chat, models, version endpoints
+├── Tools/                  # AI agent tools (QueryAzure, QueryGraph, RunScript, etc.)
+├── client/src/components/  # Vue 3 components (ChatView, LoginScreen, Dashboard)
+├── deploy.ps1              # Azure App Service deployment
+└── startup.sh              # App Service startup — installs Python/tools
+```
+
+### Code Conventions
+
+- **Backend**: Clean C# following Microsoft coding conventions, .NET 10 APIs, Vue 3 Composition API with `<script setup>`
+- **Tools**: Return raw API JSON (let the LLM interpret it), use `string` parameters, keep tools simple
+- **Frontend**: Modern JavaScript, ECharts for visualization, SSE for streaming
+
+See the [README](README.md) for full architecture details.
 
 ## Reporting Issues
 

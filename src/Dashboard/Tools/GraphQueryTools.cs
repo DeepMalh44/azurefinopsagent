@@ -1,0 +1,79 @@
+using System.ComponentModel;
+using System.Diagnostics;
+using System.Net.Http.Headers;
+using Microsoft.Extensions.AI;
+
+namespace AzureFinOps.Dashboard.Tools;
+
+/// <summary>
+/// Queries Microsoft Graph API using the user's delegated Graph token.
+/// Used for license inventory, directory objects, and org structure for FinOps chargebacks.
+/// </summary>
+public static class GraphQueryTools
+{
+    private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(30) };
+    private static readonly ActivitySource Telemetry = new("AzureFinOps.AI");
+    private const int MaxResponseChars = 80_000;
+
+    public static IEnumerable<AIFunction> Create()
+    {
+        yield return AIFunctionFactory.Create(QueryGraph, "QueryGraph", @"Calls Microsoft Graph API (https://graph.microsoft.com) using the signed-in user's token.
+Provide path starting with /. Returns raw JSON.
+LICENSES: GET /v1.0/subscribedSkus — tenant license inventory (M365, EMS, etc.); GET /v1.0/users?$select=displayName,assignedLicenses — license assignments per user; GET /v1.0/reports/getOffice365ActiveUserDetail(period='D30') — active usage vs assigned.
+DIRECTORY: GET /v1.0/organization — tenant info; GET /v1.0/groups — groups for chargeback mapping; GET /v1.0/users?$select=displayName,department,companyName — org structure for cost allocation.
+APPS: GET /v1.0/applications — app registrations; GET /v1.0/servicePrincipals — service principals.");
+    }
+
+    private static async Task<string> QueryGraph(
+        [Description("API path starting with /, e.g. /v1.0/subscribedSkus")] string path)
+    {
+        using var activity = Telemetry.StartActivity("QueryGraph");
+        activity?.SetTag("graph.path", path);
+
+        var token = TokenContext.GraphToken;
+        if (string.IsNullOrEmpty(token))
+        {
+            activity?.SetTag("graph.result", "not_connected");
+            activity?.SetStatus(ActivityStatusCode.Error, "Graph not connected");
+            return "HTTP 401 Unauthorized\nTokenContext.GraphToken is null — no Microsoft Graph token available. The user must click 'Connect Azure' in the sidebar to authenticate, then retry.";
+        }
+
+        if (string.IsNullOrWhiteSpace(path) || !path.StartsWith('/'))
+        {
+            activity?.SetTag("graph.result", "invalid_path");
+            return $"HTTP 400 BadRequest\nInvalid path: '{path}'. Path must start with /.";
+        }
+
+        try
+        {
+            using var req = new HttpRequestMessage(HttpMethod.Get, $"https://graph.microsoft.com{path}");
+            req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            req.Headers.Add("User-Agent", "FinOps-Dashboard/1.0");
+
+            var res = await Http.SendAsync(req);
+            var responseBody = await res.Content.ReadAsStringAsync();
+
+            activity?.SetTag("graph.status_code", (int)res.StatusCode);
+            activity?.SetTag("graph.response_length", responseBody.Length);
+            activity?.SetTag("graph.result", res.IsSuccessStatusCode ? "success" : "http_error");
+
+            var result = $"HTTP {(int)res.StatusCode} {res.StatusCode}\n";
+            if (responseBody.Length > MaxResponseChars)
+                result += responseBody[..MaxResponseChars] + $"\n... (truncated, {responseBody.Length} total chars)";
+            else
+                result += responseBody;
+
+            if (!res.IsSuccessStatusCode)
+                activity?.SetStatus(ActivityStatusCode.Error, $"HTTP {(int)res.StatusCode}");
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            activity?.SetTag("graph.result", "exception");
+            activity?.SetTag("graph.error", ex.Message);
+            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+            return ex.ToString();
+        }
+    }
+}

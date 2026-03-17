@@ -80,6 +80,10 @@ app.UseStaticFiles();
 var gitHubClientId = app.Configuration["GitHub:ClientId"]!;
 var gitHubClientSecret = app.Configuration["GitHub:ClientSecret"]!;
 
+var msClientId = app.Configuration["Microsoft:ClientId"] ?? "";
+var msClientSecret = app.Configuration["Microsoft:ClientSecret"] ?? "";
+var msTenantId = app.Configuration["Microsoft:TenantId"] ?? "common";
+
 // ──────────────────────────────────────────────
 // AUTH ENDPOINTS
 // ──────────────────────────────────────────────
@@ -119,7 +123,7 @@ app.MapGet("/auth/github/callback", async (HttpContext ctx, IHttpClientFactory h
         var http = httpFactory.CreateClient();
 
         // Exchange code for token
-        var tokenReq = new HttpRequestMessage(HttpMethod.Post, "https://github.com/login/oauth/access_token");
+        using var tokenReq = new HttpRequestMessage(HttpMethod.Post, "https://github.com/login/oauth/access_token");
         tokenReq.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
         tokenReq.Content = JsonContent.Create(new
         {
@@ -161,7 +165,7 @@ app.MapGet("/auth/github/callback", async (HttpContext ctx, IHttpClientFactory h
         authActivity?.SetTag("auth.has_refresh_token", refreshToken is not null);
 
         // Validate token scopes
-        var scopeReq = new HttpRequestMessage(HttpMethod.Head, "https://api.github.com/user");
+        using var scopeReq = new HttpRequestMessage(HttpMethod.Head, "https://api.github.com/user");
         scopeReq.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
         scopeReq.Headers.UserAgent.ParseAdd("FinOps-Dashboard/1.0");
         var scopeRes = await http.SendAsync(scopeReq);
@@ -172,7 +176,7 @@ app.MapGet("/auth/github/callback", async (HttpContext ctx, IHttpClientFactory h
         ctx.Session.SetString("token_scopes", grantedScopes);
 
         // Fetch user profile
-        var userReq = new HttpRequestMessage(HttpMethod.Get, "https://api.github.com/user");
+        using var userReq = new HttpRequestMessage(HttpMethod.Get, "https://api.github.com/user");
         userReq.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
         userReq.Headers.UserAgent.ParseAdd("FinOps-Dashboard/1.0");
 
@@ -255,6 +259,391 @@ app.MapPost("/auth/logout", (HttpContext ctx) =>
 });
 
 // ──────────────────────────────────────────────
+// AZURE / MICROSOFT ENTRA ID OAUTH (Multi-Tenant)
+// ──────────────────────────────────────────────
+
+// Redirect to Microsoft Entra ID login
+app.MapGet("/auth/microsoft", (HttpContext ctx) =>
+{
+    if (string.IsNullOrEmpty(msClientId))
+        return Results.Problem("Microsoft OAuth is not configured");
+
+    var state = Guid.NewGuid().ToString("N");
+    ctx.Session.SetString("ms_oauth_state", state);
+
+    var redirectUri = $"{ctx.Request.Scheme}://{ctx.Request.Host}/auth/microsoft/callback";
+    var scope = "openid profile email offline_access https://management.azure.com/user_impersonation https://graph.microsoft.com/User.Read https://graph.microsoft.com/Organization.Read.All https://graph.microsoft.com/Directory.Read.All";
+    var url = $"https://login.microsoftonline.com/{Uri.EscapeDataString(msTenantId)}/oauth2/v2.0/authorize" +
+              $"?client_id={Uri.EscapeDataString(msClientId)}" +
+              $"&response_type=code" +
+              $"&redirect_uri={Uri.EscapeDataString(redirectUri)}" +
+              $"&scope={Uri.EscapeDataString(scope)}" +
+              $"&state={state}" +
+              $"&response_mode=query";
+
+    logger.LogInformation("Microsoft OAuth redirect initiated from {Host}", ctx.Request.Host);
+    return Results.Redirect(url);
+});
+
+// Microsoft OAuth callback
+app.MapGet("/auth/microsoft/callback", async (HttpContext ctx, IHttpClientFactory httpFactory) =>
+{
+    try
+    {
+        var code = ctx.Request.Query["code"].ToString();
+        var state = ctx.Request.Query["state"].ToString();
+        var error = ctx.Request.Query["error"].ToString();
+
+        if (!string.IsNullOrEmpty(error))
+        {
+            var errorDesc = ctx.Request.Query["error_description"].ToString();
+            logger.LogWarning("Microsoft OAuth error: {Error} — {Description}", error, errorDesc);
+            return Results.Redirect("/?azure_error=" + Uri.EscapeDataString(error));
+        }
+
+        if (state != ctx.Session.GetString("ms_oauth_state"))
+        {
+            logger.LogWarning("Microsoft OAuth state mismatch — possible CSRF attempt");
+            return Results.StatusCode(403);
+        }
+
+        ctx.Session.Remove("ms_oauth_state");
+
+        var http = httpFactory.CreateClient();
+        var redirectUri = $"{ctx.Request.Scheme}://{ctx.Request.Host}/auth/microsoft/callback";
+
+        using var tokenReq = new HttpRequestMessage(HttpMethod.Post,
+            $"https://login.microsoftonline.com/{Uri.EscapeDataString(msTenantId)}/oauth2/v2.0/token");
+        tokenReq.Content = new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["client_id"] = msClientId,
+            ["client_secret"] = msClientSecret,
+            ["code"] = code,
+            ["redirect_uri"] = redirectUri,
+            ["grant_type"] = "authorization_code",
+            ["scope"] = "openid profile email https://management.azure.com/user_impersonation offline_access"
+        });
+
+        var tokenRes = await http.SendAsync(tokenReq);
+        var tokenBody = await tokenRes.Content.ReadAsStringAsync();
+
+        if (!tokenRes.IsSuccessStatusCode)
+        {
+            logger.LogError("Microsoft token exchange failed: status={Status} body={Body}", (int)tokenRes.StatusCode, tokenBody);
+            return Results.Redirect("/?azure_error=token_exchange_failed");
+        }
+
+        var tokenJson = JsonSerializer.Deserialize<JsonElement>(tokenBody);
+
+        if (!tokenJson.TryGetProperty("access_token", out var atProp))
+        {
+            logger.LogError("No access_token in Microsoft response");
+            return Results.Redirect("/?azure_error=no_access_token");
+        }
+
+        var azureToken = atProp.GetString()!;
+        var refreshToken = tokenJson.TryGetProperty("refresh_token", out var rtProp) ? rtProp.GetString() : null;
+        var expiresIn = tokenJson.TryGetProperty("expires_in", out var expProp) ? expProp.GetInt32() : 3600;
+
+        ctx.Session.SetString("azure_token", azureToken);
+        ctx.Session.SetString("azure_token_expiry", DateTimeOffset.UtcNow.AddSeconds(expiresIn - 60).ToString("o"));
+        if (refreshToken is not null)
+            ctx.Session.SetString("azure_refresh_token", refreshToken);
+
+        // Extract user info from ID token claims (basic info)
+        if (tokenJson.TryGetProperty("id_token", out var idTokenProp))
+        {
+            var idToken = idTokenProp.GetString()!;
+            var parts = idToken.Split('.');
+            if (parts.Length == 3)
+            {
+                try
+                {
+                    var payload = parts[1];
+                    // Pad base64url
+                    payload = payload.Replace('-', '+').Replace('_', '/');
+                    switch (payload.Length % 4)
+                    {
+                        case 2: payload += "=="; break;
+                        case 3: payload += "="; break;
+                    }
+                    var claims = JsonSerializer.Deserialize<JsonElement>(Convert.FromBase64String(payload));
+                    var azureUser = new Dictionary<string, string?>();
+                    if (claims.TryGetProperty("name", out var n)) azureUser["name"] = n.GetString();
+                    if (claims.TryGetProperty("preferred_username", out var u)) azureUser["email"] = u.GetString();
+                    if (claims.TryGetProperty("tid", out var t)) azureUser["tenantId"] = t.GetString();
+                    if (claims.TryGetProperty("oid", out var o)) azureUser["objectId"] = o.GetString();
+                    ctx.Session.SetString("azure_user", JsonSerializer.Serialize(azureUser));
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Failed to parse ID token claims");
+                }
+            }
+        }
+
+        logger.LogInformation("Microsoft OAuth login successful");
+
+        // Exchange refresh token for Graph + Log Analytics tokens
+        if (refreshToken is not null)
+        {
+            // Graph token
+            try
+            {
+                var graphToken = await ExchangeRefreshTokenForResource(http, refreshToken, "https://graph.microsoft.com/.default");
+                if (graphToken is not null)
+                {
+                    ctx.Session.SetString("graph_token", graphToken.Value.Token);
+                    ctx.Session.SetString("graph_token_expiry", graphToken.Value.Expiry.ToString("o"));
+                }
+            }
+            catch (Exception ex) { logger.LogWarning(ex, "Failed to get Graph token"); }
+
+            // Log Analytics token (also works for App Insights query API)
+            try
+            {
+                var laToken = await ExchangeRefreshTokenForResource(http, refreshToken, "https://api.loganalytics.io/.default");
+                if (laToken is not null)
+                {
+                    ctx.Session.SetString("loganalytics_token", laToken.Value.Token);
+                    ctx.Session.SetString("loganalytics_token_expiry", laToken.Value.Expiry.ToString("o"));
+                }
+            }
+            catch (Exception ex) { logger.LogWarning(ex, "Failed to get Log Analytics token"); }
+        }
+
+        return Results.Redirect("/");
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Microsoft OAuth callback failed");
+        return Results.Redirect("/?azure_error=callback_failed");
+    }
+});
+
+// Helper: refresh Azure token silently
+async Task<string?> RefreshAzureTokenAsync(HttpContext ctx, IHttpClientFactory httpFactory)
+{
+    var refreshToken = ctx.Session.GetString("azure_refresh_token");
+    if (refreshToken is null) return null;
+
+    var http = httpFactory.CreateClient();
+    using var req = new HttpRequestMessage(HttpMethod.Post,
+        $"https://login.microsoftonline.com/{Uri.EscapeDataString(msTenantId)}/oauth2/v2.0/token");
+    req.Content = new FormUrlEncodedContent(new Dictionary<string, string>
+    {
+        ["client_id"] = msClientId,
+        ["client_secret"] = msClientSecret,
+        ["refresh_token"] = refreshToken,
+        ["grant_type"] = "refresh_token",
+        ["scope"] = "openid profile email https://management.azure.com/user_impersonation offline_access"
+    });
+
+    var res = await http.SendAsync(req);
+    if (!res.IsSuccessStatusCode)
+    {
+        logger.LogWarning("Azure token refresh failed: status={Status}", (int)res.StatusCode);
+        return null;
+    }
+
+    var body = await res.Content.ReadAsStringAsync();
+    var json = JsonSerializer.Deserialize<JsonElement>(body);
+    if (!json.TryGetProperty("access_token", out var newToken))
+    {
+        logger.LogWarning("Azure token refresh: no access_token in response");
+        return null;
+    }
+
+    var newAccessToken = newToken.GetString()!;
+    var expiresIn = json.TryGetProperty("expires_in", out var expProp) ? expProp.GetInt32() : 3600;
+    ctx.Session.SetString("azure_token", newAccessToken);
+    ctx.Session.SetString("azure_token_expiry", DateTimeOffset.UtcNow.AddSeconds(expiresIn - 60).ToString("o"));
+    if (json.TryGetProperty("refresh_token", out var newRt))
+        ctx.Session.SetString("azure_refresh_token", newRt.GetString()!);
+
+    logger.LogInformation("Azure token refreshed successfully");
+    return newAccessToken;
+}
+
+// Helper: exchange refresh token for a token scoped to a specific resource
+async Task<(string Token, DateTimeOffset Expiry)?> ExchangeRefreshTokenForResource(HttpClient http, string refreshToken, string scope)
+{
+    using var req = new HttpRequestMessage(HttpMethod.Post,
+        $"https://login.microsoftonline.com/{Uri.EscapeDataString(msTenantId)}/oauth2/v2.0/token");
+    req.Content = new FormUrlEncodedContent(new Dictionary<string, string>
+    {
+        ["client_id"] = msClientId,
+        ["client_secret"] = msClientSecret,
+        ["refresh_token"] = refreshToken,
+        ["grant_type"] = "refresh_token",
+        ["scope"] = scope
+    });
+
+    var res = await http.SendAsync(req);
+    if (!res.IsSuccessStatusCode) return null;
+
+    var body = await res.Content.ReadAsStringAsync();
+    var json = JsonSerializer.Deserialize<JsonElement>(body);
+    if (!json.TryGetProperty("access_token", out var tokenProp)) return null;
+
+    var expiresIn = json.TryGetProperty("expires_in", out var expProp) ? expProp.GetInt32() : 3600;
+    return (tokenProp.GetString()!, DateTimeOffset.UtcNow.AddSeconds(expiresIn - 60));
+}
+
+// Helper: get valid Graph token
+async Task<string?> GetGraphTokenAsync(HttpContext ctx, IHttpClientFactory httpFactory)
+{
+    var token = ctx.Session.GetString("graph_token");
+    if (token is null) return null;
+
+    var expiryStr = ctx.Session.GetString("graph_token_expiry");
+    if (expiryStr is not null && DateTimeOffset.TryParse(expiryStr, out var expiry) && expiry <= DateTimeOffset.UtcNow)
+    {
+        var refreshToken = ctx.Session.GetString("azure_refresh_token");
+        if (refreshToken is null) return null;
+        var http = httpFactory.CreateClient();
+        var result = await ExchangeRefreshTokenForResource(http, refreshToken, "https://graph.microsoft.com/.default");
+        if (result is null) return null;
+        ctx.Session.SetString("graph_token", result.Value.Token);
+        ctx.Session.SetString("graph_token_expiry", result.Value.Expiry.ToString("o"));
+        return result.Value.Token;
+    }
+    return token;
+}
+
+// Helper: get valid Log Analytics token (also works for App Insights query API)
+async Task<string?> GetLogAnalyticsTokenAsync(HttpContext ctx, IHttpClientFactory httpFactory)
+{
+    var token = ctx.Session.GetString("loganalytics_token");
+    if (token is null) return null;
+
+    var expiryStr = ctx.Session.GetString("loganalytics_token_expiry");
+    if (expiryStr is not null && DateTimeOffset.TryParse(expiryStr, out var expiry) && expiry <= DateTimeOffset.UtcNow)
+    {
+        var refreshToken = ctx.Session.GetString("azure_refresh_token");
+        if (refreshToken is null) return null;
+        var http = httpFactory.CreateClient();
+        var result = await ExchangeRefreshTokenForResource(http, refreshToken, "https://api.loganalytics.io/.default");
+        if (result is null) return null;
+        ctx.Session.SetString("loganalytics_token", result.Value.Token);
+        ctx.Session.SetString("loganalytics_token_expiry", result.Value.Expiry.ToString("o"));
+        return result.Value.Token;
+    }
+    return token;
+}
+
+// Helper: get valid Azure token (auto-refresh if expired)
+async Task<string?> GetAzureTokenAsync(HttpContext ctx, IHttpClientFactory httpFactory)
+{
+    var token = ctx.Session.GetString("azure_token");
+    if (token is null) return null;
+
+    var expiryStr = ctx.Session.GetString("azure_token_expiry");
+    if (expiryStr is not null && DateTimeOffset.TryParse(expiryStr, out var expiry) && expiry <= DateTimeOffset.UtcNow)
+    {
+        token = await RefreshAzureTokenAsync(ctx, httpFactory);
+    }
+    return token;
+}
+
+// Azure connection status + subscription discovery
+app.MapGet("/auth/azure/status", async (HttpContext ctx, IHttpClientFactory httpFactory) =>
+{
+    var token = await GetAzureTokenAsync(ctx, httpFactory);
+    if (token is null)
+        return Results.Json(new { connected = false });
+
+    var azureUserJson = ctx.Session.GetString("azure_user");
+    object? azureUser = azureUserJson is not null ? JsonSerializer.Deserialize<JsonElement>(azureUserJson) : null;
+
+    // Discover subscriptions
+    var http = httpFactory.CreateClient();
+    http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+    http.DefaultRequestHeaders.Add("User-Agent", "FinOps-Dashboard/1.0");
+
+    var subscriptions = new List<object>();
+    try
+    {
+        var subRes = await http.GetStringAsync("https://management.azure.com/subscriptions?api-version=2022-12-01");
+        var subJson = JsonSerializer.Deserialize<JsonElement>(subRes);
+        if (subJson.TryGetProperty("value", out var subs))
+        {
+            foreach (var sub in subs.EnumerateArray())
+            {
+                subscriptions.Add(new
+                {
+                    id = sub.GetProperty("subscriptionId").GetString(),
+                    name = sub.GetProperty("displayName").GetString(),
+                    state = sub.GetProperty("state").GetString()
+                });
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        logger.LogWarning(ex, "Failed to list Azure subscriptions");
+    }
+
+    // Discover management groups
+    var managementGroups = new List<object>();
+    try
+    {
+        var mgRes = await http.GetStringAsync("https://management.azure.com/providers/Microsoft.Management/managementGroups?api-version=2021-04-01");
+        var mgJson = JsonSerializer.Deserialize<JsonElement>(mgRes);
+        if (mgJson.TryGetProperty("value", out var mgs))
+        {
+            foreach (var mg in mgs.EnumerateArray())
+            {
+                managementGroups.Add(new
+                {
+                    id = mg.GetProperty("id").GetString(),
+                    name = mg.TryGetProperty("properties", out var props) && props.TryGetProperty("displayName", out var dn) ? dn.GetString() : mg.GetProperty("name").GetString()
+                });
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        logger.LogWarning(ex, "Failed to list management groups");
+    }
+
+    var connectedApis = new List<string>
+    {
+        "Cost Management",
+        "Billing",
+        "Advisor",
+        "Resource Graph",
+        "Azure Monitor",
+        "Resource Health",
+        "Subscriptions"
+    };
+
+    return Results.Json(new
+    {
+        connected = true,
+        user = azureUser,
+        subscriptions,
+        managementGroups,
+        apis = connectedApis
+    });
+});
+
+// Disconnect Azure
+app.MapPost("/auth/azure/disconnect", (HttpContext ctx) =>
+{
+    ctx.Session.Remove("azure_token");
+    ctx.Session.Remove("azure_refresh_token");
+    ctx.Session.Remove("azure_token_expiry");
+    ctx.Session.Remove("azure_user");
+    ctx.Session.Remove("graph_token");
+    ctx.Session.Remove("graph_token_expiry");
+    ctx.Session.Remove("loganalytics_token");
+    ctx.Session.Remove("loganalytics_token_expiry");
+    logger.LogInformation("Azure disconnected");
+    return Results.Ok(new { ok = true });
+});
+
+// ──────────────────────────────────────────────
 // CHAT SSE ENDPOINT (Copilot SDK)
 // ──────────────────────────────────────────────
 
@@ -265,7 +654,7 @@ async Task<string?> RefreshGitHubTokenAsync(HttpContext ctx, IHttpClientFactory 
     if (refreshToken is null) return null;
 
     var http = httpFactory.CreateClient();
-    var req = new HttpRequestMessage(HttpMethod.Post, "https://github.com/login/oauth/access_token");
+    using var req = new HttpRequestMessage(HttpMethod.Post, "https://github.com/login/oauth/access_token");
     req.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
     req.Content = JsonContent.Create(new
     {
@@ -322,6 +711,9 @@ agentTools.AddRange(ChartTools.Create());
 agentTools.AddRange(PricingTools.Create());
 agentTools.AddRange(HealthTools.Create());
 agentTools.AddRange(CodeExecutionTools.Create());
+agentTools.AddRange(AzureQueryTools.Create());
+agentTools.AddRange(GraphQueryTools.Create());
+agentTools.AddRange(LogAnalyticsQueryTools.Create());
 
 app.MapPost("/api/chat", (Delegate)(async (HttpContext ctx, IHttpClientFactory httpFactory) =>
 {
@@ -370,6 +762,17 @@ app.MapPost("/api/chat", (Delegate)(async (HttpContext ctx, IHttpClientFactory h
     // Set GH_TOKEN BEFORE creating/starting the CopilotClient so the CLI child process
     // inherits it at spawn time.
     Environment.SetEnvironmentVariable("GH_TOKEN", githubToken);
+
+    // Set per-request tokens via AsyncLocal + volatile fallback (for SDK tool execution)
+    var azureToken = await GetAzureTokenAsync(ctx, httpFactory);
+    TokenContext.AzureToken = azureToken;
+    var graphToken = await GetGraphTokenAsync(ctx, httpFactory);
+    TokenContext.GraphToken = graphToken;
+    var logAnalyticsToken = await GetLogAnalyticsTokenAsync(ctx, httpFactory);
+    TokenContext.LogAnalyticsToken = logAnalyticsToken;
+
+    logger.LogInformation("Chat tokens: azure={HasAzure} graph={HasGraph} la={HasLA}",
+        azureToken is not null, graphToken is not null, logAnalyticsToken is not null);
 
     // SSE headers
     ctx.Response.Headers.ContentType = "text/event-stream";
@@ -432,10 +835,48 @@ You are the Azure FinOps Agent — a concise, data-driven AI assistant for Azure
 - Use a single wide table (many columns) instead of multiple tables or paragraphs. Pack all relevant info into one table.
 - Max ONE chart per response.
 
+## Tools
+- **FetchUrl** — fetch Azure Retail Prices and other public HTTP URLs.
+- **GetAzureServiceHealth** — get Azure service health incidents.
+- **RenderChart / RenderAdvancedChart** — render ECharts visualizations.
+- **RunScript** — execute Python 3, bash, or SQLite code for data processing.
+- **QueryAzure** — call any Azure ARM REST API using the signed-in user's token. Use for all Azure management queries (GET/POST only).
+- **QueryGraph** — call Microsoft Graph API for license inventory, directory objects, org structure.
+- **QueryLogAnalytics** — run KQL queries against Log Analytics workspaces or App Insights.
+
 ## Workflow
-1. Fetch data → process with RunScript → visualize with RenderChart/RenderAdvancedChart.
-2. FetchUrl output starts with a 'Current UTC time: ...' line before the JSON. When parsing in RunScript, skip the first line (e.g. json.loads(text.split('\n', 1)[1])).
+1. Use FetchUrl for public pricing data, QueryAzure for Azure tenant data.
+2. Process results with RunScript if needed.
+3. Visualize with RenderChart/RenderAdvancedChart.
+4. FetchUrl output starts with a 'Current UTC time: ...' line before the JSON. When parsing in RunScript, skip the first line.
+
+## QueryAzure API Reference
+If the user has not connected Azure, tell them to click 'Connect Azure' in the sidebar.
+Base: https://management.azure.com (provide path starting with /)
+
+Key APIs (method — path):
+- GET /subscriptions?api-version=2022-12-01
+- POST /{scope}/providers/Microsoft.CostManagement/query?api-version=2023-11-01 — cost analysis (body: {type:'ActualCost',timeframe:'MonthToDate',dataset:{granularity:'None',aggregation:{totalCost:{name:'Cost',function:'Sum'}},grouping:[{type:'Dimension',name:'ServiceName'}]}})
+- POST /{scope}/providers/Microsoft.CostManagement/forecast?api-version=2023-11-01 — cost forecast
+- GET /{scope}/providers/Microsoft.Consumption/budgets?api-version=2023-05-01
+- GET /subscriptions/{subId}/providers/Microsoft.Advisor/recommendations?api-version=2023-01-01&$filter=Category eq 'Cost'
+- POST /providers/Microsoft.ResourceGraph/resources?api-version=2022-10-01 — KQL queries (body: {query:'Resources | summarize count() by type',subscriptions:['sub-id']})
+- GET /providers/Microsoft.Billing/billingAccounts?api-version=2024-04-01
+- GET /providers/Microsoft.Capacity/reservationOrders?api-version=2022-11-01
+- GET /providers/Microsoft.BillingBenefits/savingsPlanOrders?api-version=2022-11-01
+- GET /{scope}/providers/Microsoft.CostManagement/benefitUtilizationSummaries?api-version=2023-11-01
+- GET /{scope}/providers/Microsoft.CostManagement/benefitRecommendations?api-version=2023-11-01
+- GET /subscriptions/{subId}/providers/Microsoft.Compute/skus?api-version=2021-07-01
+- GET /{resourceId}/providers/Microsoft.Insights/metrics?api-version=2024-02-01
+- GET /providers/Microsoft.Management/managementGroups?api-version=2021-04-01
+- GET /subscriptions/{subId}/tagNames?api-version=2021-04-01
+- GET /{scope}/providers/Microsoft.PolicyInsights/policyStates/latest/summarize?api-version=2024-10-01
+- POST /{scope}/providers/Microsoft.CostManagement/generateCostDetailsReport?api-version=2023-11-01 — async line-item report
+- GET /subscriptions/{subId}/providers/Microsoft.ResourceHealth/availabilityStatuses?api-version=2024-02-01
+- POST /providers/Microsoft.Carbon/carbonEmissionReports?api-version=2023-04-01-preview — emissions data
+Scope = /subscriptions/{subId} or /subscriptions/{subId}/resourceGroups/{rg}
 "
+
             },
         };
 
@@ -530,6 +971,7 @@ You are the Azure FinOps Agent — a concise, data-driven AI assistant for Azure
                         toolName, toolId, toolDone.Data.Success, durationMs, resultText?.Length ?? 0);
 
                     // If this is a RenderChart or RenderAdvancedChart tool completion, also emit a chart event
+                    // Also detect __CHART__: marker in any tool output for inline chart rendering
                     if ((toolName == "RenderChart" || toolName == "RenderAdvancedChart") && toolDone.Data.Success && resultText is not null)
                     {
                         try
@@ -540,6 +982,30 @@ You are the Azure FinOps Agent — a concise, data-driven AI assistant for Azure
                             await ctx.Response.WriteAsync($"data: {chartData}\n\n");
                             await ctx.Response.Body.FlushAsync();
                             sseData = null;
+                        }
+                        catch { }
+                    }
+                    else if (toolDone.Data.Success && resultText is not null && resultText.Contains("__CHART__:"))
+                    {
+                        try
+                        {
+                            // Extract chart JSON from __CHART__: lines in output
+                            foreach (var line in resultText.Split('\n'))
+                            {
+                                var trimmed = line.Trim();
+                                if (trimmed.StartsWith("__CHART__:"))
+                                {
+                                    var chartJson = trimmed["__CHART__:".Length..].Trim();
+                                    // Emit tool_done first, then chart event
+                                    await ctx.Response.WriteAsync($"data: {sseData}\n\n");
+                                    await ctx.Response.Body.FlushAsync();
+                                    var chartPayload = JsonSerializer.Serialize(new { type = "chart", options = chartJson });
+                                    await ctx.Response.WriteAsync($"data: {chartPayload}\n\n");
+                                    await ctx.Response.Body.FlushAsync();
+                                    sseData = null;
+                                    break; // Only one chart per response
+                                }
+                            }
                         }
                         catch { }
                     }

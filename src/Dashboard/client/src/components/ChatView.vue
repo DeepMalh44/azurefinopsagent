@@ -3,39 +3,17 @@
     <!-- Left sidebar -->
     <aside class="sidebar">
       <div class="sidebar-scroll">
-        <!-- Agents (hidden for v1 — re-enable by setting showAgents to true) -->
-        <div v-if="showAgents" class="sidebar-category">
-          <div class="sidebar-category-label">Agents</div>
-          <div class="sidebar-agent">
-            <span class="sidebar-agent-icon sidebar-agent-icon--claude">
-              <img
-                src="/icons/claude.png"
-                width="18"
-                height="18"
-                alt="Claude"
-              />
-            </span>
-            <span>Anthropic Claude</span>
-          </div>
-          <div class="sidebar-agent">
-            <span class="sidebar-agent-icon sidebar-agent-icon--codex">
-              <img src="/icons/codex.png" width="18" height="18" alt="Codex" />
-            </span>
-            <span>OpenAI Codex</span>
-          </div>
-        </div>
-
-        <!-- Suggested questions -->
-        <div class="sidebar-category sidebar-questions">
+        <!-- FinOps Prompt Samples (require Azure) -->
+        <div class="sidebar-category">
           <div
             class="sidebar-category-label sidebar-category-label--toggle"
-            @click="toggleSection('prompts')"
+            @click="toggleSection('finops')"
           >
-            <span>Prompts</span>
+            <span>FinOps</span>
             <svg
               class="collapse-chevron"
               :class="{
-                'collapse-chevron--collapsed': collapsedSections.prompts,
+                'collapse-chevron--collapsed': collapsedSections.finops,
               }"
               viewBox="0 0 16 16"
               fill="none"
@@ -51,24 +29,138 @@
           </div>
           <div
             class="collapse-body"
-            :class="{ 'collapse-body--collapsed': collapsedSections.prompts }"
+            :class="{ 'collapse-body--collapsed': collapsedSections.finops }"
           >
             <button
-              v-for="q in suggestedQuestions"
-              :key="q.prompt"
+              v-for="q in finopsPrompts"
+              :key="q.label"
               class="sidebar-question"
-              :disabled="streaming"
-              :title="q.prompt"
+              :class="{ 'sidebar-question--locked': !azureConnected }"
+              :disabled="streaming || !azureConnected"
+              :title="azureConnected ? q.prompt : 'Connect Azure to unlock'"
               @click="sendQuestion(q.prompt)"
             >
-              <span class="sidebar-question-icon">AI</span>
+              <span class="sidebar-question-icon sidebar-question-icon--finops">
+                <svg
+                  v-if="!azureConnected"
+                  width="10"
+                  height="10"
+                  viewBox="0 0 16 16"
+                  fill="currentColor"
+                >
+                  <path
+                    d="M4 7V5a4 4 0 118 0v2h1a1 1 0 011 1v6a1 1 0 01-1 1H3a1 1 0 01-1-1V8a1 1 0 011-1h1zm2 0h4V5a2 2 0 10-4 0v2z"
+                  />
+                </svg>
+                <template v-else>F</template>
+              </span>
               <span>{{ q.label }}</span>
             </button>
           </div>
         </div>
 
-        <!-- Connected sources -->
-        <div class="sidebar-category sidebar-sources">
+        <!-- Pricing Prompt Samples (always available) -->
+        <div class="sidebar-category sidebar-category--border">
+          <div
+            class="sidebar-category-label sidebar-category-label--toggle"
+            @click="toggleSection('pricing')"
+          >
+            <span>Pricing</span>
+            <svg
+              class="collapse-chevron"
+              :class="{
+                'collapse-chevron--collapsed': collapsedSections.pricing,
+              }"
+              viewBox="0 0 16 16"
+              fill="none"
+            >
+              <path
+                d="M4 6l4 4 4-4"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </div>
+          <div
+            class="collapse-body"
+            :class="{ 'collapse-body--collapsed': collapsedSections.pricing }"
+          >
+            <button
+              v-for="q in pricingPrompts"
+              :key="q.label"
+              class="sidebar-question"
+              :disabled="streaming"
+              :title="q.prompt"
+              @click="sendQuestion(q.prompt)"
+            >
+              <span class="sidebar-question-icon sidebar-question-icon--price"
+                >$</span
+              >
+              <span>{{ q.label }}</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Tenant Prompt Samples (require Azure) -->
+        <div class="sidebar-category sidebar-category--border">
+          <div
+            class="sidebar-category-label sidebar-category-label--toggle"
+            @click="toggleSection('tenant')"
+          >
+            <span>Tenant</span>
+            <svg
+              class="collapse-chevron"
+              :class="{
+                'collapse-chevron--collapsed': collapsedSections.tenant,
+              }"
+              viewBox="0 0 16 16"
+              fill="none"
+            >
+              <path
+                d="M4 6l4 4 4-4"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </div>
+          <div
+            class="collapse-body"
+            :class="{ 'collapse-body--collapsed': collapsedSections.tenant }"
+          >
+            <button
+              v-for="q in tenantPrompts"
+              :key="q.label"
+              class="sidebar-question"
+              :class="{ 'sidebar-question--locked': !azureConnected }"
+              :disabled="streaming || !azureConnected"
+              :title="azureConnected ? q.prompt : 'Connect Azure to unlock'"
+              @click="sendQuestion(q.prompt)"
+            >
+              <span class="sidebar-question-icon sidebar-question-icon--tenant">
+                <svg
+                  v-if="!azureConnected"
+                  width="10"
+                  height="10"
+                  viewBox="0 0 16 16"
+                  fill="currentColor"
+                >
+                  <path
+                    d="M4 7V5a4 4 0 118 0v2h1a1 1 0 011 1v6a1 1 0 01-1 1H3a1 1 0 01-1-1V8a1 1 0 011-1h1zm2 0h4V5a2 2 0 10-4 0v2z"
+                  />
+                </svg>
+                <template v-else>T</template>
+              </span>
+              <span>{{ q.label }}</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Connected APIs -->
+        <div class="sidebar-category sidebar-category--border">
           <div
             class="sidebar-category-label sidebar-category-label--toggle"
             @click="toggleSection('connected')"
@@ -95,216 +187,146 @@
             class="collapse-body"
             :class="{ 'collapse-body--collapsed': collapsedSections.connected }"
           >
-            <div
-              v-for="s in connectedSources"
-              :key="s.name"
-              class="sidebar-source"
-            >
+            <div v-for="s in publicSources" :key="s" class="sidebar-source">
               <span class="sidebar-source-dot"></span>
-              <span>{{ s.name }}</span>
+              <span>{{ s }}</span>
             </div>
+            <template v-if="azureConnected">
+              <div class="sidebar-source-divider">Azure APIs</div>
+              <div v-for="api in azureApis" :key="api" class="sidebar-source">
+                <span
+                  class="sidebar-source-dot sidebar-source-dot--azure"
+                ></span>
+                <span>{{ api }}</span>
+              </div>
+            </template>
           </div>
         </div>
 
-        <!-- Tool calls -->
-        <div class="sidebar-category sidebar-tools" v-if="allToolCalls.length">
+        <!-- Subscriptions (after Azure login) -->
+        <div
+          v-if="azureConnected && azureSubscriptions.length"
+          class="sidebar-category sidebar-category--border"
+        >
           <div
             class="sidebar-category-label sidebar-category-label--toggle"
-            @click="toggleSection('tools')"
+            @click="toggleSection('subs')"
           >
-            <span>Tools</span>
-            <span style="display: flex; align-items: center; gap: 4px">
-              <span class="st-count">{{ allToolCalls.length }}</span>
-              <svg
-                class="collapse-chevron"
-                :class="{
-                  'collapse-chevron--collapsed': collapsedSections.tools,
-                }"
-                viewBox="0 0 16 16"
-                fill="none"
-              >
-                <path
-                  d="M4 6l4 4 4-4"
-                  stroke="currentColor"
-                  stroke-width="1.5"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-              </svg>
-            </span>
+            <span>Subscriptions ({{ azureSubscriptions.length }})</span>
+            <svg
+              class="collapse-chevron"
+              :class="{ 'collapse-chevron--collapsed': collapsedSections.subs }"
+              viewBox="0 0 16 16"
+              fill="none"
+            >
+              <path
+                d="M4 6l4 4 4-4"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
           </div>
-
           <div
-            class="st-list collapse-body"
-            :class="{ 'collapse-body--collapsed': collapsedSections.tools }"
+            class="collapse-body"
+            :class="{ 'collapse-body--collapsed': collapsedSections.subs }"
           >
             <div
-              v-for="tc in reversedToolCalls"
-              :key="tc._uid"
-              :class="[
-                'st-row',
-                { 'st-row--running': !tc.done, 'st-row--clickable': tc.done },
-              ]"
-              @click.stop="
-                tc.done && (hoveredTool = hoveredTool === tc ? null : tc)
-              "
+              v-for="sub in azureSubscriptions"
+              :key="sub.id"
+              class="sidebar-sub"
             >
-              <!-- Running spinner -->
-              <svg
-                v-if="!tc.done"
-                class="st-icon st-icon--spin"
-                viewBox="0 0 16 16"
-                fill="none"
+              <span class="sidebar-sub-name">{{ sub.name }}</span>
+              <span class="sidebar-sub-id"
+                >{{ sub.id.substring(0, 8) }}...</span
               >
-                <circle
-                  cx="8"
-                  cy="8"
-                  r="6"
-                  stroke="#bf8700"
-                  stroke-width="2"
-                  stroke-dasharray="28"
-                  stroke-dashoffset="8"
-                  stroke-linecap="round"
-                />
-              </svg>
-              <!-- Success checkmark -->
-              <svg
-                v-else-if="tc.success"
-                class="st-icon st-icon--ok"
-                viewBox="0 0 16 16"
-                fill="none"
-              >
-                <circle
-                  cx="8"
-                  cy="8"
-                  r="7"
-                  stroke="#1a7f37"
-                  stroke-width="1.5"
-                />
-                <path
-                  d="M5 8.2 7 10.2 11 6"
-                  stroke="#1a7f37"
-                  stroke-width="1.5"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-              </svg>
-              <!-- Failure X -->
-              <svg
-                v-else
-                class="st-icon st-icon--fail"
-                viewBox="0 0 16 16"
-                fill="none"
-              >
-                <circle
-                  cx="8"
-                  cy="8"
-                  r="7"
-                  stroke="#cf222e"
-                  stroke-width="1.5"
-                />
-                <path
-                  d="M5.5 5.5 10.5 10.5M10.5 5.5 5.5 10.5"
-                  stroke="#cf222e"
-                  stroke-width="1.5"
-                  stroke-linecap="round"
-                />
-              </svg>
-              <span class="st-name">{{ tc.tool }}</span>
-              <span v-if="tc.done" class="st-time">{{
-                formatDuration(tc.durationMs)
-              }}</span>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Hover popover (positioned outside sidebar scroll) -->
-      <Teleport to="body">
-        <div
-          v-if="hoveredTool"
-          class="tool-popover"
-          :style="popoverStyle"
-          @click.stop
-        >
-          <div class="tool-popover-header">
-            <span class="tool-popover-name">{{ hoveredTool.tool }}</span>
-            <span class="tool-popover-time">{{
-              formatDuration(hoveredTool.durationMs)
-            }}</span>
-          </div>
-          <div v-if="hoveredTool.args" class="tool-popover-section">
-            <div class="tool-popover-label">INPUT</div>
-            <pre class="tool-popover-pre">{{
-              formatJson(hoveredTool.args)
-            }}</pre>
-          </div>
-          <div v-if="hoveredTool.result" class="tool-popover-section">
-            <div class="tool-popover-label">RESPONSE</div>
-            <pre class="tool-popover-pre">{{
-              truncate(hoveredTool.result, 4000)
-            }}</pre>
-          </div>
-          <div v-if="hoveredTool.error" class="tool-popover-section">
-            <div class="tool-popover-label">ERROR</div>
-            <pre class="tool-popover-pre tool-popover-pre--error">{{
-              hoveredTool.error
-            }}</pre>
-          </div>
-        </div>
-      </Teleport>
-      <!-- Bottom section: model selector + clear chat + user -->
+      <!-- Bottom section: Azure connect + model + user -->
       <div class="sidebar-footer">
-        <!-- Model selector -->
-        <div class="model-selector">
-          <label class="model-selector-label">Model</label>
-          <select v-model="selectedModel" class="model-selector-select">
-            <option v-for="m in availableModels" :key="m" :value="m">
-              {{ m }}
-            </option>
-          </select>
-        </div>
-        <button
-          v-if="messages.length > 0 && !streaming"
-          class="new-chat-btn"
-          @click="clearMessages"
-          title="New chat"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-            <path d="M3 3v5h5" />
-          </svg>
-          New Chat
-        </button>
-        <div class="sidebar-user">
-          <img
-            :src="user.avatar"
-            :alt="user.login"
-            class="sidebar-user-avatar"
-          />
-          <div class="sidebar-user-info">
-            <span class="sidebar-user-name">{{ user.name || user.login }}</span>
-            <span class="sidebar-user-login">@{{ user.login }}</span>
+        <!-- Not logged in: show GitHub login -->
+        <template v-if="!user">
+          <a href="/auth/github" class="login-btn login-btn--github">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+              <path
+                d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"
+              />
+            </svg>
+            Sign in with GitHub
+          </a>
+        </template>
+
+        <!-- Logged in -->
+        <template v-else>
+          <!-- Azure connect/status -->
+          <div v-if="!azureConnected" class="azure-connect">
+            <a href="/auth/microsoft" class="azure-connect-btn">
+              <svg width="16" height="16" viewBox="0 0 21 21" fill="none">
+                <rect width="10" height="10" fill="#f25022" />
+                <rect x="11" width="10" height="10" fill="#7fba00" />
+                <rect y="11" width="10" height="10" fill="#00a4ef" />
+                <rect x="11" y="11" width="10" height="10" fill="#ffb900" />
+              </svg>
+              Connect Azure
+            </a>
           </div>
+          <div v-else class="azure-status">
+            <div class="azure-status-info">
+              <svg width="14" height="14" viewBox="0 0 21 21" fill="none">
+                <rect width="10" height="10" fill="#f25022" />
+                <rect x="11" width="10" height="10" fill="#7fba00" />
+                <rect y="11" width="10" height="10" fill="#00a4ef" />
+                <rect x="11" y="11" width="10" height="10" fill="#ffb900" />
+              </svg>
+              <span class="azure-status-text">{{
+                azureUserEmail || "Azure Connected"
+              }}</span>
+              <button
+                class="azure-disconnect-btn"
+                @click="disconnectAzure"
+                title="Disconnect Azure"
+              >
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Model selector -->
+          <div class="model-selector">
+            <label class="model-selector-label">Model</label>
+            <select v-model="selectedModel" class="model-selector-select">
+              <option v-for="m in availableModels" :key="m" :value="m">
+                {{ m }}
+              </option>
+            </select>
+          </div>
+
           <button
-            class="sidebar-logout-btn"
-            @click="emit('logout')"
-            title="Sign out"
+            v-if="messages.length > 0 && !streaming"
+            class="new-chat-btn"
+            @click="clearMessages"
+            title="New chat"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              width="16"
-              height="16"
+              width="14"
+              height="14"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -312,33 +334,72 @@
               stroke-linecap="round"
               stroke-linejoin="round"
             >
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-              <polyline points="16 17 21 12 16 7" />
-              <line x1="21" y1="12" x2="9" y2="12" />
+              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+              <path d="M3 3v5h5" />
             </svg>
+            New Chat
           </button>
-        </div>
+
+          <div class="sidebar-user">
+            <img
+              :src="user.avatar"
+              :alt="user.login"
+              class="sidebar-user-avatar"
+            />
+            <div class="sidebar-user-info">
+              <span class="sidebar-user-name">{{
+                user.name || user.login
+              }}</span>
+              <span class="sidebar-user-login">@{{ user.login }}</span>
+            </div>
+            <button
+              class="sidebar-logout-btn"
+              @click="emit('logout')"
+              title="Sign out"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <polyline points="16 17 21 12 16 7" />
+                <line x1="21" y1="12" x2="9" y2="12" />
+              </svg>
+            </button>
+          </div>
+        </template>
       </div>
     </aside>
 
-    <!-- Right: chat area -->
+    <!-- Center: chat area -->
     <div class="chat-main">
       <!-- Messages -->
       <div class="messages" ref="messagesEl">
         <div class="messages-inner">
           <div v-if="messages.length === 0" class="empty-state">
             <h2 class="es-headline">Azure FinOps Agent</h2>
-            <p class="es-sub">
+            <p v-if="!user" class="es-sub">
+              Sign in with GitHub to start chatting. Connect Azure for cost
+              &amp; billing data.
+            </p>
+            <p v-else class="es-sub">
               Ask about Azure pricing, compare costs across regions and SKUs, or
               check service health.
             </p>
 
-            <div class="es-prompts">
+            <div v-if="user" class="es-prompts">
               <button
                 class="es-prompt"
                 @click="
                   sendPrompt(
-                    'We are deploying D4s_v5 VMs for our microservices platform. Show me a world map of Azure regions color-coded from cheapest to most expensive so we can pick the best region.',
+                    'Show a world map of Azure regions color-coded by D4s_v5 VM pricing.',
                   )
                 "
               >
@@ -348,7 +409,7 @@
                 class="es-prompt"
                 @click="
                   sendPrompt(
-                    'Our D16s_v5 VMs in East US are under 30% utilization. Compare D4s_v5, D8s_v5, and D16s_v5 monthly costs across East US, West Europe, and Southeast Asia. Show a grouped bar chart.',
+                    'Compare D4s_v5, D8s_v5, D16s_v5 monthly costs across East US, West Europe, Southeast Asia.',
                   )
                 "
               >
@@ -358,31 +419,41 @@
                 class="es-prompt"
                 @click="
                   sendPrompt(
-                    'Compare NC-series, ND-series, and NV-series GPU VM pricing in East US. Which gives best price per GPU? Show a chart.',
+                    'Compare NC, ND, NV GPU VM pricing in East US. Best price per GPU?',
                   )
                 "
               >
-                GPU cost analysis
+                GPU pricing
               </button>
               <button
                 class="es-prompt"
                 @click="
-                  sendPrompt(
-                    'Compare Azure Cosmos DB serverless vs Azure SQL Database General Purpose for a service handling 10M requests/day. Show a cost breakdown chart.',
-                  )
-                "
-              >
-                Database pricing
-              </button>
-              <button
-                class="es-prompt"
-                @click="
-                  sendPrompt(
-                    'Are there any active Azure service health incidents? We have workloads in East US, West Europe, and Southeast Asia.',
-                  )
+                  sendPrompt('Any active Azure service health incidents?')
                 "
               >
                 Service health
+              </button>
+              <button
+                v-if="azureConnected"
+                class="es-prompt es-prompt--azure"
+                @click="
+                  sendPrompt(
+                    'Show my Azure cost for the current month grouped by service. Chart it.',
+                  )
+                "
+              >
+                My costs this month
+              </button>
+              <button
+                v-if="azureConnected"
+                class="es-prompt es-prompt--azure"
+                @click="
+                  sendPrompt(
+                    'What cost optimization recommendations does Azure Advisor have for me?',
+                  )
+                "
+              >
+                Advisor savings
               </button>
             </div>
           </div>
@@ -396,22 +467,18 @@
               msg.role === 'user' ? 'message-row--user' : 'message-row--ai'
             "
           >
-            <!-- User messages: right-aligned bubble -->
             <div v-if="msg.role === 'user'" class="bubble bubble--user">
               {{ msg.content }}
             </div>
-            <!-- AI messages: left-aligned, no bubble -->
             <div v-else class="ai-row">
               <div class="ai-avatar">AI</div>
               <div class="ai-content">
-                <!-- Charts -->
                 <div
                   v-for="(chart, ci) in msg.charts || []"
                   :key="'chart-' + i + '-' + ci"
                   class="chart-container"
                   :ref="(el) => el && mountChart(el, chart)"
                 ></div>
-                <!-- Text content -->
                 <div
                   class="message-text"
                   v-html="renderContent(msg.content)"
@@ -425,7 +492,6 @@
             <div class="ai-row">
               <div class="ai-avatar">AI</div>
               <div class="ai-content">
-                <!-- Streaming charts -->
                 <div
                   v-for="(chart, ci) in streamCharts"
                   :key="'stream-chart-' + ci"
@@ -443,19 +509,26 @@
             </div>
           </div>
         </div>
-        <!-- /messages-inner -->
       </div>
 
       <!-- Input bar -->
       <div class="input-area">
-        <div class="input-wrapper">
+        <div
+          class="input-wrapper"
+          :class="{ 'input-wrapper--disabled': !user }"
+        >
           <input
             ref="inputEl"
             v-model="input"
             type="text"
             @keydown.enter.prevent="send"
-            placeholder="Ask about Azure pricing, cost comparisons, or FinOps insights..."
+            :placeholder="
+              user
+                ? 'Ask about Azure pricing, cost comparisons, or FinOps insights...'
+                : 'Sign in with GitHub to start...'
+            "
             class="input-field"
+            :disabled="!user"
           />
           <button
             v-if="streaming"
@@ -499,9 +572,114 @@
         </div>
       </div>
     </div>
-    <!-- /chat-main -->
 
-    <!-- Fixed build badge bottom-right -->
+    <!-- Right sidebar: Tool calls -->
+    <aside
+      class="tools-sidebar"
+      :class="{ 'tools-sidebar--open': allToolCalls.length > 0 }"
+    >
+      <div class="tools-sidebar-header">
+        <span class="tools-sidebar-title">Tools</span>
+        <span class="st-count">{{ allToolCalls.length }}</span>
+      </div>
+      <div class="tools-sidebar-scroll">
+        <div
+          v-for="tc in reversedToolCalls"
+          :key="tc._uid"
+          :class="[
+            'st-row',
+            { 'st-row--running': !tc.done, 'st-row--clickable': tc.done },
+          ]"
+          @click.stop="
+            tc.done && (hoveredTool = hoveredTool === tc ? null : tc)
+          "
+        >
+          <svg
+            v-if="!tc.done"
+            class="st-icon st-icon--spin"
+            viewBox="0 0 16 16"
+            fill="none"
+          >
+            <circle
+              cx="8"
+              cy="8"
+              r="6"
+              stroke="#bf8700"
+              stroke-width="2"
+              stroke-dasharray="28"
+              stroke-dashoffset="8"
+              stroke-linecap="round"
+            />
+          </svg>
+          <svg
+            v-else-if="tc.success"
+            class="st-icon st-icon--ok"
+            viewBox="0 0 16 16"
+            fill="none"
+          >
+            <circle cx="8" cy="8" r="7" stroke="#1a7f37" stroke-width="1.5" />
+            <path
+              d="M5 8.2 7 10.2 11 6"
+              stroke="#1a7f37"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+          <svg
+            v-else
+            class="st-icon st-icon--fail"
+            viewBox="0 0 16 16"
+            fill="none"
+          >
+            <circle cx="8" cy="8" r="7" stroke="#cf222e" stroke-width="1.5" />
+            <path
+              d="M5.5 5.5 10.5 10.5M10.5 5.5 5.5 10.5"
+              stroke="#cf222e"
+              stroke-width="1.5"
+              stroke-linecap="round"
+            />
+          </svg>
+          <span class="st-name">{{ tc.tool }}</span>
+          <span v-if="tc.done" class="st-time">{{
+            formatDuration(tc.durationMs)
+          }}</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Tool popover -->
+    <Teleport to="body">
+      <div v-if="hoveredTool" class="tool-popover" @click.stop>
+        <div class="tool-popover-header">
+          <span class="tool-popover-name">{{ hoveredTool.tool }}</span>
+          <span class="tool-popover-time">{{
+            formatDuration(hoveredTool.durationMs)
+          }}</span>
+          <button class="tool-popover-close" @click="hoveredTool = null">
+            &times;
+          </button>
+        </div>
+        <div v-if="hoveredTool.args" class="tool-popover-section">
+          <div class="tool-popover-label">INPUT</div>
+          <pre class="tool-popover-pre">{{ formatJson(hoveredTool.args) }}</pre>
+        </div>
+        <div v-if="hoveredTool.result" class="tool-popover-section">
+          <div class="tool-popover-label">RESPONSE</div>
+          <pre class="tool-popover-pre">{{
+            truncate(hoveredTool.result, 4000)
+          }}</pre>
+        </div>
+        <div v-if="hoveredTool.error" class="tool-popover-section">
+          <div class="tool-popover-label">ERROR</div>
+          <pre class="tool-popover-pre tool-popover-pre--error">{{
+            hoveredTool.error
+          }}</pre>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- Build badge -->
     <div class="build-badge">Build #{{ buildNumber }}</div>
   </div>
 </template>
@@ -509,19 +687,19 @@
 <script setup>
 import * as echarts from "echarts";
 import {
-    computed,
-    nextTick,
-    onBeforeUnmount,
-    onMounted,
-    reactive,
-    ref,
-    watch,
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  reactive,
+  ref,
+  watch,
 } from "vue";
 
 const props = defineProps({
-  user: { type: Object, required: true },
+  user: { type: Object, default: null },
 });
-const emit = defineEmits(["logout"]);
+const emit = defineEmits(["logout", "login"]);
 
 const messages = ref([]);
 const input = ref("");
@@ -534,44 +712,63 @@ const messagesEl = ref(null);
 const inputEl = ref(null);
 const chartInstances = [];
 let intentAnimTimer = null;
-const expandedToolIds = ref(new Set());
 const hoveredTool = ref(null);
 const collapsedSections = reactive({
-  connected: false,
-  prompts: false,
-  tools: false,
+  pricing: true,
+  tenant: true,
+  finops: false,
+  connected: true,
+  subs: true,
 });
 function toggleSection(key) {
   collapsedSections[key] = !collapsedSections[key];
 }
 const buildSha = ref("");
 const buildNumber = ref("0");
-const showAgents = ref(false); // Set to true to re-enable Agents sidebar section
 const availableModels = ref(["claude-sonnet-4.6"]);
 const selectedModel = ref("claude-sonnet-4.6");
+
+// Azure connection state
+const azureConnected = ref(false);
+const azureUserEmail = ref("");
+const azureSubscriptions = ref([]);
+const azureManagementGroups = ref([]);
+const azureApis = ref([]);
+const publicSources = ["Azure Retail Prices", "Azure Service Health"];
+
+async function checkAzureStatus() {
+  try {
+    const r = await fetch("/auth/azure/status");
+    if (r.ok) {
+      const data = await r.json();
+      azureConnected.value = data.connected;
+      if (data.connected) {
+        azureUserEmail.value = data.user?.email || data.user?.name || "";
+        azureSubscriptions.value = data.subscriptions || [];
+        azureManagementGroups.value = data.managementGroups || [];
+        azureApis.value = data.apis || [];
+      }
+    }
+  } catch {}
+}
+
+async function disconnectAzure() {
+  try {
+    await fetch("/auth/azure/disconnect", { method: "POST" });
+    azureConnected.value = false;
+    azureUserEmail.value = "";
+    azureSubscriptions.value = [];
+    azureManagementGroups.value = [];
+    azureApis.value = [];
+    await clearMessages();
+  } catch {}
+}
 
 function dismissPopover() {
   hoveredTool.value = null;
 }
 
-const popoverStyle = computed(() => {
-  return {
-    left: "274px",
-    top: "60px",
-  };
-});
-
-onMounted(async () => {
-  document.addEventListener("click", dismissPopover);
-  try {
-    const r = await fetch("/api/version");
-    if (r.ok) {
-      const v = await r.json();
-      buildSha.value = v.sha || "";
-      buildNumber.value = v.build || "0";
-    }
-  } catch {}
-  // Fetch available models
+async function fetchModels() {
   try {
     const r = await fetch("/api/models");
     if (r.ok) {
@@ -579,7 +776,6 @@ onMounted(async () => {
       if (Array.isArray(models) && models.length > 0) {
         const ids = models.map((m) => m.id || m.name || m).filter(Boolean);
         availableModels.value = ids;
-        // Default to the highest-versioned Opus model if available
         const opusModels = ids.filter((id) => /opus/i.test(id));
         if (opusModels.length > 0) {
           opusModels.sort();
@@ -588,6 +784,58 @@ onMounted(async () => {
       }
     }
   } catch {}
+}
+
+// Handle user login/logout
+watch(
+  () => props.user,
+  (newUser, oldUser) => {
+    if (newUser && !oldUser) {
+      // User just logged in — fetch models and Azure status
+      fetchModels();
+      checkAzureStatus();
+    } else if (!newUser && oldUser) {
+      // User logged out — clear all UI state
+      clearMessages();
+      azureConnected.value = false;
+      azureUserEmail.value = "";
+      azureSubscriptions.value = [];
+      azureManagementGroups.value = [];
+      azureApis.value = [];
+      input.value = "";
+      streaming.value = false;
+      if (abortController) {
+        abortController.abort();
+        abortController = null;
+      }
+    }
+  },
+);
+
+onMounted(async () => {
+  document.addEventListener("click", dismissPopover);
+  // Handle Azure OAuth error redirect
+  const params = new URLSearchParams(window.location.search);
+  const azureError = params.get("azure_error");
+  if (azureError) {
+    messages.value.push({
+      role: "assistant",
+      content: `**Azure connection failed:** ${azureError}. Please try again.`,
+    });
+    window.history.replaceState({}, "", window.location.pathname);
+  }
+  try {
+    const r = await fetch("/api/version");
+    if (r.ok) {
+      const v = await r.json();
+      buildSha.value = v.sha || "";
+      buildNumber.value = v.build || "0";
+    }
+  } catch {}
+  // Fetch available models and Azure status in parallel
+  if (props.user) {
+    await Promise.all([fetchModels(), checkAzureStatus()]);
+  }
 });
 
 let abortController = null;
@@ -598,14 +846,12 @@ async function clearMessages() {
   streamToolCalls.value = [];
   streamCharts.value = [];
   activeTools.value = [];
-  expandedToolIds.value = new Set();
   chartInstances.forEach((c) => {
     try {
       c.dispose();
     } catch {}
   });
   chartInstances.length = 0;
-  // Wait for backend to destroy the Copilot session before allowing new messages
   try {
     await fetch("/api/chat/reset", { method: "POST" });
   } catch {}
@@ -623,6 +869,143 @@ function formatDuration(ms) {
   if (ms == null) return "";
   if (ms < 1000) return ms + "ms";
   return (ms / 1000).toFixed(1) + "s";
+}
+
+// ── Prompt categories ──
+const pricingPrompts = [
+  {
+    label: "Regional cost map",
+    prompt:
+      "Show a world map of Azure regions color-coded by D4s_v5 VM pricing.",
+  },
+  {
+    label: "VM right-sizing",
+    prompt:
+      "Compare D4s_v5, D8s_v5, D16s_v5 monthly costs across East US, West Europe, Southeast Asia. Show a chart.",
+  },
+  {
+    label: "GPU pricing",
+    prompt: "Compare NC, ND, NV GPU VM pricing in East US. Best price per GPU?",
+  },
+  {
+    label: "Database pricing",
+    prompt:
+      "Compare Cosmos DB serverless vs Azure SQL General Purpose for 10M req/day.",
+  },
+  {
+    label: "Service health",
+    prompt:
+      "Any active Azure service health incidents in East US, West Europe, Southeast Asia?",
+  },
+];
+
+const tenantPrompts = [
+  {
+    label: "My subscriptions",
+    prompt:
+      "List all my Azure subscriptions with their states and subscription IDs.",
+  },
+  {
+    label: "Resource inventory",
+    prompt:
+      "Query Resource Graph for a count of all resources by type across my subscriptions.",
+  },
+  {
+    label: "Tag coverage",
+    prompt:
+      "What percentage of my resources have cost-center and environment tags?",
+  },
+  {
+    label: "Billing accounts",
+    prompt:
+      "Show my billing account structure — accounts, profiles, invoice sections.",
+  },
+  {
+    label: "Management groups",
+    prompt: "Show my management group hierarchy with subscriptions under each.",
+  },
+];
+
+const finopsPrompts = [
+  {
+    label: "Cost this month",
+    prompt:
+      "Show my Azure cost for the current month grouped by service. Chart it.",
+  },
+  {
+    label: "Cost trend",
+    prompt: "Show my daily Azure spend for the last 30 days as a line chart.",
+  },
+  {
+    label: "Advisor savings",
+    prompt:
+      "What cost optimization recommendations does Azure Advisor have for me?",
+  },
+  {
+    label: "Idle resources",
+    prompt:
+      "Find idle or underutilized VMs, disks, and public IPs across my subscriptions.",
+  },
+  {
+    label: "Reservation usage",
+    prompt: "Show my reservation and savings plan utilization rates.",
+  },
+  {
+    label: "Cost by resource group",
+    prompt:
+      "Break down my current month's Azure cost by resource group and show a bar chart.",
+  },
+  {
+    label: "Month-over-month",
+    prompt:
+      "Compare this month's Azure spend to last month by service. Highlight the biggest increases.",
+  },
+  {
+    label: "Anomaly detection",
+    prompt:
+      "Identify any cost anomalies or unexpected spikes in my Azure spend over the past 14 days.",
+  },
+  {
+    label: "Unattached disks",
+    prompt:
+      "Find all unattached managed disks across my subscriptions and show how much they cost.",
+  },
+  {
+    label: "Top 10 resources",
+    prompt:
+      "What are my top 10 most expensive Azure resources this month? Show a chart.",
+  },
+  {
+    label: "Budget vs actual",
+    prompt:
+      "Show my Azure budget vs actual spend for the current billing period.",
+  },
+  {
+    label: "Dev/test savings",
+    prompt:
+      "Identify resources in dev/test environments that could be shut down or scaled down to save costs.",
+  },
+  {
+    label: "License optimization",
+    prompt:
+      "Analyze my Microsoft 365 and Azure license usage. Are there unused or underutilized licenses?",
+  },
+  {
+    label: "Storage optimization",
+    prompt:
+      "Find storage accounts with no recent access and recommend tiering or cleanup for cost savings.",
+  },
+  {
+    label: "Cost forecast",
+    prompt:
+      "Based on my current spending trend, forecast my Azure bill for the rest of this month.",
+  },
+];
+
+function sendQuestion(q) {
+  if (streaming.value || !props.user) return;
+  input.value = q;
+  send();
 }
 
 // ── ECharts rendering ──
@@ -1033,56 +1416,8 @@ const allToolCalls = computed(() => {
   return result;
 });
 
-// -- Suggested questions --
-const suggestedQuestions = [
-  {
-    label: "Regional Cost Map",
-    prompt:
-      "We're deploying D4s_v5 VMs for our microservices platform. Show me a world map of Azure regions color-coded from cheapest (green) to most expensive (red) so we can pick the best region for cost and latency.",
-  },
-  {
-    label: "VM Right-Sizing",
-    prompt:
-      "Our team is running D16s_v5 VMs in East US but utilization is under 30%. Compare the monthly cost of D4s_v5, D8s_v5, and D16s_v5 in East US, West Europe, and Southeast Asia. Show a grouped bar chart and recommend the best option.",
-  },
-  {
-    label: "GPU Cost Analysis",
-    prompt:
-      "We need to run ML training jobs on Azure. Compare the hourly and monthly costs of NC-series, ND-series, and NV-series GPU VMs in East US. Which gives the best price per GPU? Show a chart.",
-  },
-  {
-    label: "Database Pricing",
-    prompt:
-      "We're choosing between Azure Cosmos DB (serverless) and Azure SQL Database (General Purpose) for a new service handling 10M requests/day. Compare the pricing models and show a cost breakdown chart.",
-  },
-  {
-    label: "App Service vs AKS",
-    prompt:
-      "Compare the monthly cost of running a .NET web app on App Service Premium v3 P1V3 vs an equivalent AKS cluster with 2 D4s_v5 nodes in East US. Include compute, networking, and load balancer costs.",
-  },
-  {
-    label: "Service Health",
-    prompt:
-      "Are there any active Azure service health incidents or degradations? We have workloads in East US, West Europe, and Southeast Asia — flag anything affecting those regions.",
-  },
-  {
-    label: "Available D-series VMs",
-    prompt:
-      "List all available D-series VM sizes in France Central with their vCPUs, RAM, and hourly Linux pay-as-you-go pricing. Sort by price ascending.",
-  },
-];
-
-function sendQuestion(q) {
-  if (streaming.value) return;
-  input.value = q;
-  send();
-}
-
 // -- Connected sources --
-const connectedSources = [
-  { name: "Azure Retail Prices" },
-  { name: "Azure Service Health" },
-];
+// (moved to reactive state: publicSources, azureApis)
 
 function formatJson(str) {
   try {
@@ -1358,8 +1693,6 @@ async function send() {
   min-height: 0;
   overflow: hidden;
 }
-
-/* ── Left sidebar ── */
 .sidebar {
   width: 260px;
   flex-shrink: 0;
@@ -1369,7 +1702,6 @@ async function send() {
   flex-direction: column;
   overflow: hidden;
 }
-
 .sidebar-scroll {
   flex: 1;
   overflow-y: auto;
@@ -1378,7 +1710,6 @@ async function send() {
   flex-direction: column;
   gap: 4px;
 }
-
 .sidebar-category-label {
   font-size: 11px;
   font-weight: 600;
@@ -1387,6 +1718,11 @@ async function send() {
   color: var(--text-muted);
   margin-bottom: 6px;
   padding: 0 6px;
+}
+.sidebar-category--border {
+  margin-top: 6px;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
 }
 
 .sidebar-category-label--toggle {
@@ -1400,22 +1736,18 @@ async function send() {
   margin-left: -2px;
   margin-right: -2px;
 }
-
 .sidebar-category-label--toggle:hover {
   background: rgba(0, 0, 0, 0.04);
 }
-
 .collapse-chevron {
   width: 14px;
   height: 14px;
   transition: transform 0.15s ease;
   flex-shrink: 0;
 }
-
 .collapse-chevron--collapsed {
   transform: rotate(-90deg);
 }
-
 .collapse-body {
   overflow: hidden;
   max-height: 600px;
@@ -1424,7 +1756,6 @@ async function send() {
     max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1),
     opacity 0.25s ease;
 }
-
 .collapse-body--collapsed {
   max-height: 0;
   opacity: 0;
@@ -1432,8 +1763,7 @@ async function send() {
     max-height 0.25s cubic-bezier(0.4, 0, 0.2, 1),
     opacity 0.15s ease;
 }
-
-.sidebar-agent {
+.sidebar-question {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -1442,31 +1772,99 @@ async function send() {
   border: none;
   border-radius: 8px;
   background: transparent;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 400;
   color: var(--text);
-  margin-bottom: 0;
+  cursor: pointer;
+  text-align: left;
+  line-height: 1.4;
+  transition: all 0.15s;
+  font-family: inherit;
 }
-
-.sidebar-agent-icon {
+.sidebar-question:hover {
+  background: rgba(9, 105, 218, 0.06);
+  color: var(--accent);
+}
+.sidebar-question:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.sidebar-question--locked {
+  opacity: 0.4;
+}
+.sidebar-question--locked:hover {
+  background: transparent;
+  color: var(--text);
+}
+.sidebar-question-icon {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  font-size: 10px;
+  font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 6px;
+}
+.sidebar-question-icon--price {
+  background: #ddf4ff;
+  color: #0969da;
+}
+.sidebar-question-icon--tenant {
+  background: #fff1e5;
+  color: #bc4c00;
+}
+.sidebar-question-icon--finops {
+  background: #dafbe1;
+  color: #1a7f37;
+}
+.sidebar-source {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 10px;
+  font-size: 13px;
+  color: var(--text);
+}
+.sidebar-source-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
   flex-shrink: 0;
+  background: #2da44e;
+  box-shadow: 0 0 4px rgba(45, 164, 78, 0.45);
 }
-
-.sidebar-agent-icon--claude {
-  background: #fef0e8;
+.sidebar-source-dot--azure {
+  background: #0078d4;
+  box-shadow: 0 0 4px rgba(0, 120, 212, 0.45);
 }
-
-.sidebar-agent-icon--codex {
-  background: #f0f0f0;
+.sidebar-source-divider {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  padding: 6px 10px 2px;
 }
-
-/* ── Chat main area ── */
+.sidebar-sub {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 10px;
+  gap: 1px;
+}
+.sidebar-sub-name {
+  font-size: 13px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sidebar-sub-id {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-family: monospace;
+}
 .chat-main {
   flex: 1;
   display: flex;
@@ -1475,32 +1873,41 @@ async function send() {
   min-height: 0;
   overflow: hidden;
 }
-
-/* ── Sidebar tool calls ── */
-.sidebar-tools {
-  margin-top: 6px;
-  border-top: 1px solid var(--border);
-  padding-top: 10px;
-  font-family: "Cascadia Code", "Fira Code", "Consolas", monospace;
-  font-size: 0.75rem;
-  min-height: 0;
+.tools-sidebar {
+  width: 0;
+  flex-shrink: 0;
+  border-left: 1px solid var(--border);
+  background: var(--surface);
+  overflow: hidden;
+  transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  font-family: "Cascadia Code", "Fira Code", "Consolas", monospace;
+  font-size: 0.75rem;
 }
-
-.st-list {
-  overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(0, 0, 0, 0.1) transparent;
+.tools-sidebar--open {
+  width: 220px;
 }
-
-.sidebar-tools .sidebar-category-label {
+.tools-sidebar-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
 }
-
+.tools-sidebar-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+.tools-sidebar-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px 8px;
+  scrollbar-width: thin;
+}
 .st-count {
   font-size: 10px;
   font-weight: 600;
@@ -1511,27 +1918,22 @@ async function send() {
   min-width: 20px;
   text-align: center;
 }
-
 .st-icon {
   width: 15px;
   height: 15px;
   flex-shrink: 0;
 }
-
 .st-icon--spin {
   animation: icon-spin 0.9s linear infinite;
 }
-
 @keyframes icon-spin {
   to {
     transform: rotate(360deg);
   }
 }
-
 .st-icon--ok {
   animation: icon-pop 0.3s ease-out;
 }
-
 @keyframes icon-pop {
   0% {
     transform: scale(0);
@@ -1545,7 +1947,6 @@ async function send() {
     opacity: 1;
   }
 }
-
 .st-row {
   display: flex;
   align-items: center;
@@ -1556,26 +1957,16 @@ async function send() {
   user-select: none;
   transition: background 0.1s;
   min-height: 28px;
-  position: relative;
 }
-
 .st-row:hover {
   background: rgba(9, 105, 218, 0.06);
 }
-
 .st-row--clickable {
   cursor: pointer;
 }
-
 .st-row--running {
-  cursor: default;
   background: rgba(191, 135, 0, 0.06);
 }
-
-.st-row--running:hover {
-  background: rgba(191, 135, 0, 0.06);
-}
-
 .st-name {
   flex: 1;
   min-width: 0;
@@ -1585,19 +1976,19 @@ async function send() {
   color: var(--text);
   font-weight: 500;
 }
-
 .st-time {
   flex-shrink: 0;
   color: var(--text-muted);
   font-size: 0.65rem;
-  font-weight: 400;
 }
-
-/* ── Hover popover ── */
 .tool-popover {
   position: fixed;
   z-index: 9999;
-  width: 860px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 800px;
+  max-width: 90vw;
   max-height: 85vh;
   background: #fff;
   border: 1px solid var(--border, #d8dee4);
@@ -1605,54 +1996,59 @@ async function send() {
   box-shadow:
     0 8px 30px rgba(0, 0, 0, 0.12),
     0 2px 8px rgba(0, 0, 0, 0.06);
-  padding: 0;
   overflow: hidden;
   display: flex;
   flex-direction: column;
   animation: popover-in 0.15s ease-out;
   font-family: "Cascadia Code", "Fira Code", "Consolas", monospace;
 }
-
 @keyframes popover-in {
   from {
     opacity: 0;
-    transform: translateX(-6px);
+    transform: translate(-50%, -50%) scale(0.95);
   }
   to {
     opacity: 1;
-    transform: translateX(0);
+    transform: translate(-50%, -50%) scale(1);
   }
 }
-
 .tool-popover-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 12px;
   padding: 1rem 1.4rem;
   border-bottom: 1px solid var(--border, #d8dee4);
   background: #fafbfc;
 }
-
 .tool-popover-name {
-  font-size: 1.15rem;
+  font-size: 1.1rem;
   font-weight: 600;
   color: #1f2328;
+  flex: 1;
 }
-
 .tool-popover-time {
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   color: #656d76;
 }
-
+.tool-popover-close {
+  background: none;
+  border: none;
+  font-size: 1.4rem;
+  color: #656d76;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+}
+.tool-popover-close:hover {
+  color: #1f2328;
+}
 .tool-popover-section {
   padding: 0.85rem 1.4rem;
   border-bottom: 1px solid rgba(0, 0, 0, 0.04);
 }
-
 .tool-popover-section:last-child {
   border-bottom: none;
 }
-
 .tool-popover-label {
   font-size: 0.82rem;
   font-weight: 700;
@@ -1661,39 +2057,26 @@ async function send() {
   margin-bottom: 0.4rem;
   text-transform: uppercase;
 }
-
 .tool-popover-pre {
   background: #f6f8fa;
   border: 1px solid #d8dee4;
   border-radius: 6px;
   padding: 0.85rem 1rem;
   margin: 0;
-  font-size: 1rem;
+  font-size: 0.9rem;
   white-space: pre-wrap;
   word-break: break-word;
-  max-height: 420px;
+  max-height: 350px;
   overflow-y: auto;
-  line-height: 1.6;
+  line-height: 1.5;
   color: #1f2328;
   scrollbar-width: thin;
-  scrollbar-color: rgba(0, 0, 0, 0.1) transparent;
 }
-
-.tool-popover-pre::-webkit-scrollbar {
-  width: 4px;
-}
-
-.tool-popover-pre::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.1);
-  border-radius: 2px;
-}
-
 .tool-popover-pre--error {
   color: #cf222e;
   background: #fef2f2;
   border-color: rgba(186, 26, 26, 0.15);
 }
-
 .messages {
   flex: 1;
   overflow-y: auto;
@@ -1702,7 +2085,6 @@ async function send() {
   flex-direction: column;
   scroll-behavior: smooth;
 }
-
 .messages-inner {
   padding: 1rem 2rem;
   display: flex;
@@ -1713,7 +2095,6 @@ async function send() {
   min-width: 0;
   flex: 1;
 }
-
 .empty-state {
   display: flex;
   flex-direction: column;
@@ -1728,7 +2109,6 @@ async function send() {
   width: 100%;
   animation: fadeSlideIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
-
 @keyframes fadeSlideIn {
   from {
     opacity: 0;
@@ -1739,22 +2119,6 @@ async function send() {
     transform: translateY(0);
   }
 }
-
-.es-avatar {
-  width: 96px;
-  height: 96px;
-  border-radius: 50%;
-  background: #18181b;
-  color: #fff;
-  font-size: 32px;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 1.25rem;
-  letter-spacing: 2px;
-}
-
 .es-headline {
   font-size: 2rem;
   font-weight: 700;
@@ -1762,64 +2126,12 @@ async function send() {
   margin: 0 0 0.5rem;
   letter-spacing: -0.02em;
 }
-
 .es-sub {
   font-size: 1.1rem;
   color: var(--text-muted);
   margin: 0 0 2rem;
   line-height: 1.5;
 }
-
-/* Phases row */
-.es-phases {
-  display: flex;
-  gap: 1rem;
-  width: 100%;
-  margin-bottom: 1.75rem;
-}
-
-.es-phase {
-  flex: 1;
-  display: flex;
-  gap: 0.75rem;
-  align-items: flex-start;
-  padding: 1rem 1.15rem;
-  border: 1px solid var(--border, #d8dee4);
-  border-radius: 10px;
-  font-size: 0.9rem;
-  line-height: 1.45;
-  color: var(--text-primary, #1f2328);
-}
-
-.es-phase-num {
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  background: #0969da;
-  color: #fff;
-  font-size: 0.8rem;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  margin-top: 1px;
-}
-
-.es-phase strong {
-  display: block;
-  font-weight: 600;
-  margin-bottom: 3px;
-  font-size: 0.95rem;
-}
-
-.es-phase-desc {
-  display: block;
-  color: var(--text-muted);
-  font-size: 0.85rem;
-}
-
-/* Prompt suggestion chips */
 .es-prompts {
   display: flex;
   flex-wrap: wrap;
@@ -1827,7 +2139,6 @@ async function send() {
   width: 100%;
   justify-content: center;
 }
-
 .es-prompt {
   padding: 0.55rem 1rem;
   border: 1px solid var(--border, #d8dee4);
@@ -1838,90 +2149,18 @@ async function send() {
   cursor: pointer;
   transition: all 0.15s ease;
 }
-
 .es-prompt:hover {
   background: var(--bg-hover, #f3f4f6);
   border-color: #0969da;
   color: #0969da;
 }
-
-/* Sidebar suggested questions */
-.sidebar-questions {
-  margin-top: 6px;
-  border-top: 1px solid var(--border);
-  padding-top: 10px;
+.es-prompt--azure {
+  border-color: #0078d4;
+  color: #0078d4;
 }
-
-.sidebar-question {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  padding: 7px 10px;
-  border: none;
-  border-radius: 8px;
-  background: transparent;
-  font-size: 14px;
-  font-weight: 400;
-  color: var(--text);
-  cursor: pointer;
-  text-align: left;
-  line-height: 1.4;
-  transition: all 0.15s;
-  font-family: inherit;
+.es-prompt--azure:hover {
+  background: rgba(0, 120, 212, 0.06);
 }
-
-.sidebar-question-icon {
-  flex-shrink: 0;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: #18181b;
-  color: #fff;
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.3px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.sidebar-question:hover {
-  background: rgba(9, 105, 218, 0.06);
-  color: var(--accent);
-}
-
-.sidebar-question:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-
-/* Sidebar connected sources */
-.sidebar-sources {
-  margin-top: 6px;
-  border-top: 1px solid var(--border);
-  padding-top: 10px;
-}
-
-.sidebar-source {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 7px 10px;
-  font-size: 14px;
-  color: var(--text);
-}
-
-.sidebar-source-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  background: #2da44e;
-  box-shadow: 0 0 4px rgba(45, 164, 78, 0.45);
-}
-
-/* ── Messages ── */
 .message-row {
   display: flex;
   width: 100%;
@@ -1929,7 +2168,6 @@ async function send() {
   max-width: 100%;
   animation: messageSlideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
-
 @keyframes messageSlideIn {
   from {
     opacity: 0;
@@ -1940,15 +2178,12 @@ async function send() {
     transform: translateY(0);
   }
 }
-
 .message-row--user {
   justify-content: flex-end;
 }
-
 .message-row--ai {
   justify-content: flex-start;
 }
-
 .bubble--user {
   max-width: 80%;
   border-radius: 1rem;
@@ -1959,7 +2194,6 @@ async function send() {
   line-height: 1.5;
   word-wrap: break-word;
 }
-
 .ai-row {
   display: flex;
   flex-direction: column;
@@ -1968,7 +2202,6 @@ async function send() {
   width: 100%;
   min-width: 0;
 }
-
 .ai-avatar {
   flex-shrink: 0;
   width: 28px;
@@ -1982,21 +2215,17 @@ async function send() {
   align-items: center;
   justify-content: center;
   margin-top: 2px;
-  letter-spacing: 0.5px;
 }
-
 .ai-content {
   min-width: 0;
   max-width: 100%;
   overflow-x: auto;
 }
-
 .message-text {
   font-size: 0.9rem;
   line-height: 1.6;
   word-wrap: break-word;
 }
-
 .streaming-cursor {
   display: inline-block;
   width: 6px;
@@ -2007,7 +2236,6 @@ async function send() {
   vertical-align: text-bottom;
   animation: cursor-pulse 1s ease-in-out infinite;
 }
-
 @keyframes cursor-pulse {
   0%,
   100% {
@@ -2017,7 +2245,6 @@ async function send() {
     opacity: 0;
   }
 }
-
 .message-text :deep(pre) {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -2027,7 +2254,6 @@ async function send() {
   overflow-x: auto;
   font-size: 0.85rem;
 }
-
 .message-text :deep(code) {
   background: rgba(175, 184, 193, 0.2);
   padding: 0.15rem 0.35rem;
@@ -2035,12 +2261,10 @@ async function send() {
   font-size: 0.85em;
   font-family: "Cascadia Code", "Fira Code", "Consolas", monospace;
 }
-
 .message-text :deep(pre code) {
   background: none;
   padding: 0;
 }
-
 .message-text :deep(table) {
   border-collapse: collapse;
   width: 100%;
@@ -2049,31 +2273,26 @@ async function send() {
   display: block;
   overflow-x: auto;
 }
-
 .message-text :deep(th),
 .message-text :deep(td) {
   border: 1px solid var(--border);
   padding: 0.35rem 0.6rem;
   text-align: left;
 }
-
 .message-text :deep(th) {
   background: var(--surface);
   font-weight: 600;
   font-size: 0.78rem;
 }
-
 .message-text :deep(tr:nth-child(even)) {
   background: rgba(246, 248, 250, 0.5);
 }
-
 .message-text :deep(h2),
 .message-text :deep(h3),
 .message-text :deep(h4) {
   margin: 0.75rem 0 0.25rem;
   font-weight: 600;
 }
-
 .message-text :deep(h2) {
   font-size: 1.1rem;
 }
@@ -2083,27 +2302,13 @@ async function send() {
 .message-text :deep(h4) {
   font-size: 0.92rem;
 }
-
 .message-text :deep(ul) {
   margin: 0.25rem 0;
   padding-left: 1.5rem;
 }
-
 .message-text :deep(li) {
   margin: 0.15rem 0;
 }
-
-@media (max-width: 768px) {
-  .sidebar {
-    display: none;
-  }
-
-  .tool-popover {
-    display: none;
-  }
-}
-
-/* ── Chart containers ── */
 .chart-container {
   width: 100%;
   height: 340px;
@@ -2113,8 +2318,6 @@ async function send() {
   background: #fff;
   overflow: hidden;
 }
-
-/* ── Input area (pill style) ── */
 .input-area {
   flex-shrink: 0;
   padding: 0.75rem 1rem;
@@ -2123,7 +2326,6 @@ async function send() {
   width: 100%;
   padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
 }
-
 .input-wrapper {
   display: flex;
   align-items: center;
@@ -2134,11 +2336,13 @@ async function send() {
   background: #fff;
   transition: border-color 0.15s;
 }
-
 .input-wrapper:focus-within {
   border-color: #a1a1aa;
 }
-
+.input-wrapper--disabled {
+  background: #f9f9f9;
+  opacity: 0.6;
+}
 .input-field {
   flex: 1;
   background: transparent;
@@ -2150,12 +2354,9 @@ async function send() {
   outline: none;
   line-height: 1.5;
 }
-
 .input-field::placeholder {
   color: #a1a1aa;
 }
-
-/* Action buttons (send / stop) */
 .action-btn {
   flex-shrink: 0;
   width: 32px;
@@ -2168,31 +2369,25 @@ async function send() {
   cursor: pointer;
   transition: all 0.15s;
 }
-
 .action-btn--active {
   background: #18181b;
   color: #fff;
 }
-
 .action-btn--active:hover {
   background: #3f3f46;
 }
-
 .action-btn--disabled {
   background: #e4e4e7;
   color: #a1a1aa;
   cursor: default;
 }
-
 .action-btn--stop {
   background: #18181b;
   color: #fff;
 }
-
 .action-btn--stop:hover {
   background: #3f3f46;
 }
-
 .sidebar-footer {
   flex-shrink: 0;
   padding: 8px 10px;
@@ -2201,7 +2396,83 @@ async function send() {
   flex-direction: column;
   gap: 8px;
 }
-
+.login-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.15s;
+  justify-content: center;
+  border: none;
+}
+.login-btn--github {
+  background: #1f2328;
+  color: #fff;
+}
+.login-btn--github:hover {
+  background: #2da44e;
+}
+.azure-connect-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.15s;
+  justify-content: center;
+}
+.azure-connect-btn:hover {
+  border-color: #0078d4;
+  color: #0078d4;
+  background: rgba(0, 120, 212, 0.04);
+}
+.azure-status {
+  padding: 2px 0;
+}
+.azure-status-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: rgba(0, 120, 212, 0.04);
+  border: 1px solid rgba(0, 120, 212, 0.15);
+}
+.azure-status-text {
+  flex: 1;
+  font-size: 11px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.azure-disconnect-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+}
+.azure-disconnect-btn:hover {
+  color: #cf222e;
+}
 .new-chat-btn {
   display: flex;
   align-items: center;
@@ -2216,29 +2487,24 @@ async function send() {
   font-weight: 500;
   cursor: pointer;
   transition: all 0.15s;
-  flex-shrink: 0;
 }
-
 .new-chat-btn:hover {
   background: rgba(9, 105, 218, 0.06);
   border-color: #0969da;
   color: #0969da;
 }
-
 .sidebar-user {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 4px 4px;
 }
-
 .sidebar-user-avatar {
   width: 28px;
   height: 28px;
   border-radius: 50%;
   flex-shrink: 0;
 }
-
 .sidebar-user-info {
   display: flex;
   flex-direction: column;
@@ -2246,7 +2512,6 @@ async function send() {
   min-width: 0;
   line-height: 1.2;
 }
-
 .sidebar-user-name {
   font-size: 12px;
   font-weight: 500;
@@ -2255,7 +2520,6 @@ async function send() {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-
 .sidebar-user-login {
   font-size: 11px;
   color: var(--text-muted);
@@ -2263,7 +2527,6 @@ async function send() {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-
 .sidebar-logout-btn {
   flex-shrink: 0;
   background: transparent;
@@ -2277,18 +2540,15 @@ async function send() {
   justify-content: center;
   transition: all 0.15s;
 }
-
 .sidebar-logout-btn:hover {
   color: var(--red, #cf222e);
   background: rgba(207, 34, 46, 0.08);
 }
-
 .model-selector {
   padding: 4px 0 8px;
   border-bottom: 1px solid var(--border);
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
-
 .model-selector-label {
   display: block;
   font-size: 10px;
@@ -2298,7 +2558,6 @@ async function send() {
   letter-spacing: 0.5px;
   margin-bottom: 4px;
 }
-
 .model-selector-select {
   width: 100%;
   padding: 5px 8px;
@@ -2309,13 +2568,7 @@ async function send() {
   color: var(--text);
   cursor: pointer;
   outline: none;
-  transition: border-color 0.15s;
 }
-
-.model-selector-select:focus {
-  border-color: var(--accent, #0969da);
-}
-
 .build-badge {
   position: fixed;
   bottom: 8px;
@@ -2327,5 +2580,16 @@ async function send() {
   pointer-events: none;
   z-index: 1000;
   font-weight: 600;
+}
+@media (max-width: 768px) {
+  .sidebar {
+    display: none;
+  }
+  .tools-sidebar {
+    display: none;
+  }
+  .tool-popover {
+    display: none;
+  }
 }
 </style>

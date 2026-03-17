@@ -91,22 +91,40 @@ $prodSettings = Get-Content "$root\appsettings.Production.json" -Raw | ConvertFr
 $clientId = $prodSettings.GitHub.ClientId
 $clientSecret = $prodSettings.GitHub.ClientSecret
 
+# Microsoft Entra ID OAuth (optional — for Azure tenant data access)
+$msClientId = $prodSettings.Microsoft.ClientId
+$msClientSecret = $prodSettings.Microsoft.ClientSecret
+$msTenantId = if ($prodSettings.Microsoft.TenantId) { $prodSettings.Microsoft.TenantId } else { "common" }
+
 $buildSha = (git -C $root rev-parse --short HEAD 2>$null) ?? "unknown"
 $buildNumber = (git -C $root rev-list --count HEAD 2>$null) ?? "0"
 
 # Get App Insights connection string from Azure (if the resource exists)
 $appInsightsCs = az monitor app-insights component show --app $AppName --resource-group $ResourceGroup --query connectionString --output tsv 2>$null
 
+$settings = @(
+    "GitHub__ClientId=$clientId",
+    "GitHub__ClientSecret=$clientSecret",
+    "ASPNETCORE_ENVIRONMENT=Production",
+    "BUILD_SHA=$buildSha",
+    "BUILD_NUMBER=$buildNumber"
+)
+
+# Add Microsoft OAuth settings if configured
+if ($msClientId) {
+    $settings += "Microsoft__ClientId=$msClientId"
+    $settings += "Microsoft__ClientSecret=$msClientSecret"
+    $settings += "Microsoft__TenantId=$msTenantId"
+}
+
+if ($appInsightsCs) {
+    $settings += "ApplicationInsights__ConnectionString=$appInsightsCs"
+}
+
 az webapp config appsettings set `
     --name $AppName `
     --resource-group $ResourceGroup `
-    --settings `
-    "GitHub__ClientId=$clientId" `
-    "GitHub__ClientSecret=$clientSecret" `
-    "ASPNETCORE_ENVIRONMENT=Production" `
-    "BUILD_SHA=$buildSha" `
-    "BUILD_NUMBER=$buildNumber" `
-$(if ($appInsightsCs) { "ApplicationInsights__ConnectionString=$appInsightsCs" }) `
+    --settings @settings `
     --output none
 
 # Set startup script to install Python/tools before starting the app
@@ -117,6 +135,9 @@ az webapp config set `
     --output none
 
 Write-Host "  GitHub OAuth secrets configured (encrypted at rest)" -ForegroundColor Gray
+if ($msClientId) {
+    Write-Host "  Microsoft Entra ID OAuth configured (encrypted at rest)" -ForegroundColor Gray
+}
 Write-Host "  Build: #$buildNumber ($buildSha)" -ForegroundColor Gray
 
 # ── 4. Build Vue frontend ──

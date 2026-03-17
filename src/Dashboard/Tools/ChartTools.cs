@@ -13,9 +13,9 @@ public static class ChartTools
                 [Description("Chart type: bar, line, pie, scatter, funnel")] string type,
                 [Description("Chart title")] string title,
                 [Description("Series name for the legend")] string seriesName,
-                [Description("Data as JSON array string. " +
-                    "Single series: [[\"Apple\",100],[\"Banana\",200]] or [{\"name\":\"A\",\"value\":100}]. " +
-                    "Multi-series (grouped bar/line): [{\"name\":\"D2s_v5\",\"East US\":70,\"West Europe\":84},{\"name\":\"D4s_v5\",\"East US\":140,\"West Europe\":168}]")] string data,
+                [Description(@"Data as JSON array string.
+Single series: [[""Apple"",100],[""Banana"",200]] or [{""name"":""A"",""value"":100}].
+Multi-series (grouped bar/line): [{""name"":""D2s_v5"",""East US"":70,""West Europe"":84},{""name"":""D4s_v5"",""East US"":140,""West Europe"":168}]")] string data,
                 [Description("X-axis label (optional)")] string? xAxisName,
                 [Description("Y-axis label (optional)")] string? yAxisName
             ) =>
@@ -27,10 +27,10 @@ public static class ChartTools
 
         yield return AIFunctionFactory.Create(
             (
-                [Description("Full ECharts option object as JSON string. " +
-                    "For world maps: use series type 'map' with map:'world'. " +
-                    "Use Natural Earth country names (e.g. 'United States of America' not 'USA', 'Czechia' not 'Czech Republic'). " +
-                    "The frontend auto-registers world map GeoJSON.")] string options
+                [Description(@"Full ECharts option object as JSON string.
+For world maps: use series type 'map' with map:'world'.
+Use Natural Earth country names (e.g. 'United States of America' not 'USA', 'Czechia' not 'Czech Republic').
+The frontend auto-registers world map GeoJSON.")] string options
             ) =>
             {
                 return JsonSerializer.Serialize(new { raw = true, options });

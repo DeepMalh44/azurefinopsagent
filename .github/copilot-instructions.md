@@ -15,8 +15,8 @@ The agent acts as a frontend on top of Microsoft IQ and Microsoft Graph APIs to:
 - **Backend**: .NET 10 minimal API (`src/Dashboard/`)
 - **Frontend**: Vue 3 + Vite SPA (`src/Dashboard/client/`) with ECharts for data visualization
 - **AI**: GitHub Copilot SDK for agentic reasoning — sessions managed via `CopilotClient` / `CopilotSession`
-- **Auth**: GitHub App OAuth (no repo access — email read-only, user identity + Copilot) with automatic token refresh
-- **Data Sources**: Azure Retail Prices API (no auth), Azure Service Health (no auth), ECharts visualization, Microsoft IQ, Microsoft Graph APIs, Azure Cost Management APIs
+- **Auth**: GitHub App OAuth (no repo access — email read-only, user identity + Copilot) with automatic token refresh; Microsoft Entra ID OAuth (multi-tenant) for Azure ARM, Microsoft Graph, and Log Analytics APIs
+- **Data Sources**: Azure Retail Prices API (no auth), Azure Service Health (no auth), Azure Cost Management APIs, Microsoft Graph APIs, Azure Monitor / Log Analytics APIs, ECharts visualization
 - **Observability**: OpenTelemetry + Azure Monitor (Application Insights) — structured traces for chat requests, tool calls, and AI responses via `ActivitySource("AzureFinOps.AI")`
 - **Deployment**: Azure App Service (Linux, .NET 10 runtime) via zip deployment — `startup.sh` installs Python 3 and CLI tools at boot
 - **Custom Domain**: `https://www.azure-finops-agent.com` (Namecheap DNS → Azure App Service with managed SSL)
@@ -26,28 +26,32 @@ The agent acts as a frontend on top of Microsoft IQ and Microsoft Graph APIs to:
 
 ```
 src/Dashboard/
-├── Program.cs              # .NET backend: auth, SSE chat endpoint, models, version
+├── Program.cs              # .NET backend: auth (GitHub + Microsoft Entra ID), SSE chat endpoint, models, version
 ├── Dashboard.csproj        # .NET 10 project, GitHub.Copilot.SDK + Microsoft.Extensions.AI
 ├── Tools/
+│   ├── AzureQueryTools.cs  # QueryAzure — calls any Azure ARM REST API using user's delegated token
 │   ├── ChartTools.cs       # RenderChart + RenderAdvancedChart — ECharts visualization (bar, line, pie, scatter, funnel, world maps, heatmaps, treemaps, radar, gauge)
-│   ├── CodeExecutionTools.cs # RunScript — executes Python 3, bash, or SQLite scripts (⚠️ unsandboxed)
+│   ├── CodeExecutionTools.cs # RunScript — executes Python 3, bash, or SQLite scripts (⚠️ unsandboxed); passes Azure/Graph/LA tokens via env vars
+│   ├── GraphQueryTools.cs  # QueryGraph — calls Microsoft Graph API using user's delegated token
 │   ├── HealthTools.cs      # GetAzureServiceHealth — Azure Status RSS feed (no auth required)
-│   └── PricingTools.cs     # FetchUrl — minimal HTTP GET for allowed Azure API URLs (SSRF-protected)
+│   ├── LogAnalyticsQueryTools.cs # QueryLogAnalytics — runs KQL queries against Log Analytics workspaces or App Insights
+│   ├── PricingTools.cs     # FetchUrl — minimal HTTP GET for allowed Azure API URLs (SSRF-protected)
+│   └── TokenContext.cs     # AsyncLocal-based per-request token storage for concurrent user isolation
 ├── client/
 │   ├── index.html          # SPA entry point
 │   ├── package.json        # Vue 3, Vite, ECharts
 │   ├── vite.config.js      # Dev proxy to :5000, builds to ../wwwroot
 │   └── src/
 │       ├── main.js
-│       ├── App.vue          # Auth gate: LoginScreen vs Dashboard
+│       ├── App.vue          # Routes between LoginScreen and Dashboard (user can view Dashboard without login)
 │       └── components/
 │           ├── LoginScreen.vue   # GitHub OAuth login with animated SVG hub
 │           ├── Dashboard.vue     # Layout shell
-│           └── ChatView.vue      # Full chat UI: sidebar, messages, streaming, tool calls, ECharts
+│           └── ChatView.vue      # Full chat UI: left sidebar (prompts, APIs, subscriptions), center chat, right sidebar (tool calls), ECharts
 ├── appsettings.json              # Base config (empty GitHub secrets — safe to commit)
 ├── appsettings.Local.json        # Local dev GitHub OAuth secrets (GITIGNORED)
 ├── appsettings.Production.json   # Production GitHub OAuth secrets (GITIGNORED)
-├── .env.example                  # Documents env var pattern for CI/Azure deployment
+├── .env.example                  # Documents env var pattern for CI/Azure deployment (GitHub + Microsoft OAuth + App Insights)
 ├── deploy.ps1                    # PowerShell zip deployment script (az CLI)
 ├── startup.sh                    # App Service startup — installs Python 3, pip packages, jq, sqlite3
 ├── .gitignore                    # Excludes secrets, node_modules, bin/obj, wwwroot, publish
@@ -83,7 +87,11 @@ When creating tools for the Copilot SDK:
   }
   ```
 - **ChartTools** (`RenderChart` / `RenderAdvancedChart`) returns a serialized JSON object with chart config — the frontend detects `tool_done` for `RenderChart` or `RenderAdvancedChart` and emits a separate `chart` SSE event. `RenderAdvancedChart` accepts raw ECharts option JSON for world maps, heatmaps, treemaps, radar, gauge, etc.
-- **CodeExecutionTools** (`RunScript`) executes Python 3, bash, or SQLite scripts on the App Service. Runtimes are installed via `startup.sh` at container boot (not baked into a Docker image). **⚠️ This is a temporary, unsandboxed implementation — see Future Improvements below.**
+- **CodeExecutionTools** (`RunScript`) executes Python 3, bash, or SQLite scripts on the App Service. Runtimes are installed via `startup.sh` at container boot (not baked into a Docker image). Azure, Graph, and Log Analytics tokens are passed via per-process environment variables (`AZURE_TOKEN`, `GRAPH_TOKEN`, `LOG_ANALYTICS_TOKEN`) using `ProcessStartInfo.Environment` — not global env vars, to avoid race conditions between concurrent users. **⚠️ This is a temporary, unsandboxed implementation — see Future Improvements below.**
+- **AzureQueryTools** (`QueryAzure`) calls any Azure ARM REST API (GET/POST) using the user's delegated token from `TokenContext.AzureToken` (AsyncLocal). Returns raw JSON for the LLM to interpret. Covers Cost Management, Billing, Advisor, Resource Graph, Monitor, Reservations, Savings Plans, and more.
+- **GraphQueryTools** (`QueryGraph`) calls Microsoft Graph API (GET) using `TokenContext.GraphToken`. Used for license inventory, directory objects, org structure for FinOps chargebacks.
+- **LogAnalyticsQueryTools** (`QueryLogAnalytics`) runs KQL queries against Log Analytics workspaces or App Insights using `TokenContext.LogAnalyticsToken`. Used for VM/container metrics, diagnostics, and ingestion cost analysis.
+- **TokenContext** (`TokenContext.cs`) provides thread-safe, per-request token storage using `AsyncLocal<string?>`. Set in the `/api/chat` endpoint before tool execution begins. Avoids race conditions when multiple users hit the chat endpoint concurrently.
 
 ## GitHub App OAuth Setup
 
@@ -94,13 +102,41 @@ Two **GitHub Apps** (not classic OAuth Apps) are registered — this ensures the
 
 OAuth scopes: Not used — permissions are configured on the GitHub App itself (no repo access, email read-only + Copilot)
 
+## Microsoft Entra ID OAuth Setup
+
+A **multi-tenant** Microsoft Entra ID app registration is used for Azure tenant data access. The OAuth flow exchanges tokens for three separate resources:
+
+- **Azure ARM token** (`https://management.azure.com/user_impersonation`) — for Cost Management, Billing, Advisor, Resource Graph, Monitor, etc.
+- **Microsoft Graph token** (`https://graph.microsoft.com/.default`) — for license inventory, directory objects, org structure
+- **Log Analytics token** (`https://api.loganalytics.io/.default`) — for KQL queries against Log Analytics and App Insights
+
+The flow:
+
+1. User clicks "Connect Azure" in the sidebar → `/auth/microsoft` redirects to Microsoft login
+2. After consent, `/auth/microsoft/callback` exchanges the auth code for an ARM access token + refresh token
+3. The refresh token is immediately exchanged for Graph and Log Analytics tokens (separate resource scopes)
+4. All tokens are stored in the session with expiry tracking and auto-refresh
+5. Per-request, tokens are set via `TokenContext` (AsyncLocal) before tool execution
+
+Config in `appsettings.json`:
+
+```json
+"Microsoft": {
+    "ClientId": "",
+    "ClientSecret": "",
+    "TenantId": "common"
+}
+```
+
+For Azure App Service: `Microsoft__ClientId`, `Microsoft__ClientSecret`, `Microsoft__TenantId`
+
 ### Secrets Management
 
 - `appsettings.Local.json` — local dev secrets (gitignored), **only loaded in Development** (`builder.Environment.IsDevelopment()` guard in `Program.cs`)
 - `appsettings.Production.json` — production secrets (gitignored)
 - `appsettings.json` — base config with empty placeholders (committed)
 - For Azure App Service: secrets are set as app settings via `az webapp config appsettings set` (encrypted at rest)
-- Environment variable format: `GitHub__ClientId`, `GitHub__ClientSecret` (.NET auto-maps `__` to config sections)
+- Environment variable format: `GitHub__ClientId`, `GitHub__ClientSecret`, `Microsoft__ClientId`, `Microsoft__ClientSecret`, `Microsoft__TenantId` (.NET auto-maps `__` to config sections)
 - **Critical**: Never load `appsettings.Local.json` unconditionally — it will override production env vars on Azure
 
 ## Running Locally
@@ -139,7 +175,7 @@ The deploy script:
 
 1. Verifies `az login`
 2. Creates resource group + App Service plan (B1 Linux) + web app (.NET 10 runtime)
-3. Reads production secrets from `appsettings.Production.json` and sets as App Service settings; configures `startup.sh` for Python/tools
+3. Reads production secrets from `appsettings.Production.json` and sets as App Service settings (GitHub + Microsoft OAuth); configures `startup.sh` for Python/tools
 4. Builds Vue frontend via `npm ci && npm run build`
 5. Publishes .NET backend via `dotnet publish -r linux-x64 --self-contained false`
 6. Deploys via `az webapp deploy --type zip`
@@ -161,6 +197,30 @@ The deploy script:
 - **InfraOps**: Infrastructure operations — managing and optimizing cloud infrastructure.
 - **VBD**: Value-Based Delivery — a Microsoft Customer Success engagement model.
 - **MCAPS**: Microsoft Customer & Partner Solutions — the Microsoft org that delivers customer success.
+
+## Debugging with App Insights via Azure CLI
+
+When debugging production issues, use `az monitor app-insights query` to run KQL queries directly against Application Insights — no portal needed. The Azure CLI is already authenticated, so this works immediately.
+
+**App Insights App ID**: `89a08d0e-fb6e-4273-8a94-470699c7cfb2`
+
+Common queries:
+
+```powershell
+# Recent errors (traces with severityLevel >= 3)
+az monitor app-insights query --app "89a08d0e-fb6e-4273-8a94-470699c7cfb2" --analytics-query "traces | where timestamp > ago(1h) and severityLevel >= 3 | order by timestamp desc | take 20 | project timestamp, message, severityLevel"
+
+# Token/auth issues
+az monitor app-insights query --app "89a08d0e-fb6e-4273-8a94-470699c7cfb2" --analytics-query "traces | where timestamp > ago(1h) and message contains 'token' | order by timestamp desc | take 10 | project timestamp, message"
+
+# All recent traces
+az monitor app-insights query --app "89a08d0e-fb6e-4273-8a94-470699c7cfb2" --analytics-query "traces | where timestamp > ago(30m) | order by timestamp desc | take 50 | project timestamp, message, severityLevel"
+
+# Failed requests
+az monitor app-insights query --app "89a08d0e-fb6e-4273-8a94-470699c7cfb2" --analytics-query "requests | where timestamp > ago(1h) and success == false | order by timestamp desc | take 20 | project timestamp, name, resultCode, duration"
+```
+
+Always prefer this over downloading log files or tailing logs — it's faster, structured, and queryable.
 
 ## Playwright for Portal Operations
 

@@ -1,25 +1,25 @@
 <template>
   <div class="app">
-    <LoginScreen v-if="!user" />
-    <Dashboard v-else :user="user" @logout="logout" />
+    <Dashboard :user="user" @logout="logout" @login="checkAuth" />
   </div>
 </template>
 
 <script setup>
 import { onMounted, ref } from "vue";
 import Dashboard from "./components/Dashboard.vue";
-import LoginScreen from "./components/LoginScreen.vue";
 
 const user = ref(null);
 
-onMounted(async () => {
+async function checkAuth() {
   try {
     const res = await fetch("/auth/me");
     if (res.ok) {
       user.value = await res.json();
     }
   } catch {}
-});
+}
+
+onMounted(checkAuth);
 
 async function logout() {
   await fetch("/auth/logout", { method: "POST" });

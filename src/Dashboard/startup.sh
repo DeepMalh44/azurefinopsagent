@@ -22,6 +22,7 @@ export PYTHONPATH="$PIP_TARGET:$PYTHONPATH"
 if [ ! -f "$PIP_TARGET/.installed" ]; then
     echo "Installing Python packages to $PIP_TARGET..."
     pip3 install --no-cache-dir --break-system-packages --target "$PIP_TARGET" \
+        requests \
         pandas numpy \
         openpyxl \
         tabulate \

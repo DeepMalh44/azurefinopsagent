@@ -1,8 +1,11 @@
 <template>
   <div class="dashboard">
-    <!-- Main chat area -->
     <main class="main">
-      <ChatView :user="user" @logout="$emit('logout')" />
+      <ChatView
+        :user="user"
+        @logout="$emit('logout')"
+        @login="$emit('login')"
+      />
     </main>
   </div>
 </template>
@@ -11,10 +14,10 @@
 import ChatView from "./ChatView.vue";
 
 defineProps({
-  user: { type: Object, required: true },
+  user: { type: Object, default: null },
 });
 
-defineEmits(["logout"]);
+defineEmits(["logout", "login"]);
 </script>
 
 <style scoped>
