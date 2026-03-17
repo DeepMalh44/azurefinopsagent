@@ -1085,6 +1085,7 @@ async function send() {
 
   abortController = new AbortController();
   const toolCalls = [];
+  let hasDeltas = false;
   try {
     const res = await fetch("/api/chat", {
       method: "POST",
@@ -1115,12 +1116,13 @@ async function send() {
           switch (data.type) {
             case "delta":
               streamBuffer.value += data.content;
+              hasDeltas = true;
               break;
             case "message":
-              // Append rather than replace — the SDK may send a complete
-              // message after tool calls that would wipe out earlier streamed
-              // content (tables, analysis) if we overwrote the buffer.
-              if (data.content) {
+              // The SDK sends a complete message after streaming deltas.
+              // Only use it if no deltas were received (e.g. non-streamed
+              // response after tool calls), otherwise it duplicates content.
+              if (data.content && !hasDeltas) {
                 streamBuffer.value += data.content;
               }
               break;
