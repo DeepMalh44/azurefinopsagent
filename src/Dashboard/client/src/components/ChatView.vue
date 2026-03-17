@@ -898,6 +898,9 @@ function mountChart(el, chartData) {
           Array.isArray(option.series) &&
           option.series.some((s) => s.type === "map"));
       delete option._needsMap;
+      if (isMap) {
+        el.style.height = "520px";
+      }
       const instance = echarts.init(el, null, {
         renderer: isMap ? "canvas" : "svg",
       });
