@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Diagnostics.Metrics;
 using System.Net.Http.Headers;
 using System.Text.Json;
 using Azure.Monitor.OpenTelemetry.AspNetCore;
@@ -34,14 +35,32 @@ builder.Services.AddHttpClient();
 var appInsightsCs = builder.Configuration["ApplicationInsights:ConnectionString"];
 if (!string.IsNullOrEmpty(appInsightsCs))
 {
-    builder.Services.AddOpenTelemetry().UseAzureMonitor(o => o.ConnectionString = appInsightsCs);
+    builder.Services.AddOpenTelemetry()
+        .UseAzureMonitor(o => o.ConnectionString = appInsightsCs)
+        .WithTracing(t => t.AddSource("AzureFinOps.AI"))
+        .WithMetrics(m => m.AddMeter("AzureFinOps.AI"));
 }
 
 // ActivitySource for custom AI telemetry spans
 var aiActivitySource = new ActivitySource("AzureFinOps.AI");
+// Custom metrics
+var aiMeter = new Meter("AzureFinOps.AI");
+var chatRequestCounter = aiMeter.CreateCounter<long>("finops.chat.requests", description: "Total chat requests");
+var chatErrorCounter = aiMeter.CreateCounter<long>("finops.chat.errors", description: "Chat request errors");
+var sessionCreatedCounter = aiMeter.CreateCounter<long>("finops.session.created", description: "Copilot sessions created");
+var sessionExpiredCounter = aiMeter.CreateCounter<long>("finops.session.expired", description: "Copilot sessions expired and recreated");
+var tokenRefreshCounter = aiMeter.CreateCounter<long>("finops.auth.token_refreshes", description: "GitHub token refreshes");
+var tokenRefreshFailCounter = aiMeter.CreateCounter<long>("finops.auth.token_refresh_failures", description: "GitHub token refresh failures");
+var authCounter = aiMeter.CreateCounter<long>("finops.auth.logins", description: "Successful GitHub logins");
+var toolCallCounter = aiMeter.CreateCounter<long>("finops.tool.calls", description: "Tool call invocations");
+var toolErrorCounter = aiMeter.CreateCounter<long>("finops.tool.errors", description: "Tool call errors");
+var activeSessionsGauge = aiMeter.CreateUpDownCounter<long>("finops.sessions.active", description: "Currently active Copilot sessions");
+var chatDurationHistogram = aiMeter.CreateHistogram<double>("finops.chat.duration_ms", "ms", "Chat request duration");
 
 var app = builder.Build();
 var logger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("AzureFinOps.AI");
+
+logger.LogInformation("Application starting. AppInsights configured: {Configured}", !string.IsNullOrEmpty(appInsightsCs));
 
 // Trust forwarded headers from Azure App Service reverse proxy (X-Forwarded-Proto, X-Forwarded-For)
 var forwardedHeadersOptions = new ForwardedHeadersOptions
@@ -75,19 +94,25 @@ app.MapGet("/auth/github", (HttpContext ctx) =>
     // GitHub App OAuth — permissions are configured on the app itself, not via scopes.
     // This avoids the classic OAuth App consent screen that shows "access all repos".
     var url = $"https://github.com/login/oauth/authorize?client_id={gitHubClientId}&redirect_uri={Uri.EscapeDataString(callbackUrl)}&state={state}";
+    logger.LogInformation("OAuth redirect initiated from {Host}", ctx.Request.Host);
     return Results.Redirect(url);
 });
 
 // GitHub OAuth callback
 app.MapGet("/auth/github/callback", async (HttpContext ctx, IHttpClientFactory httpFactory) =>
 {
+    using var authActivity = aiActivitySource.StartActivity("GitHubOAuthCallback");
     try
     {
         var code = ctx.Request.Query["code"].ToString();
         var state = ctx.Request.Query["state"].ToString();
 
         if (state != ctx.Session.GetString("oauth_state"))
+        {
+            logger.LogWarning("OAuth state mismatch — possible CSRF attempt");
+            authActivity?.SetTag("auth.result", "state_mismatch");
             return Results.StatusCode(403);
+        }
 
         ctx.Session.Remove("oauth_state");
 
@@ -107,20 +132,33 @@ app.MapGet("/auth/github/callback", async (HttpContext ctx, IHttpClientFactory h
         var tokenBody = await tokenRes.Content.ReadAsStringAsync();
 
         if (!tokenRes.IsSuccessStatusCode)
+        {
+            logger.LogError("GitHub token exchange failed: status={Status} body={Body}", (int)tokenRes.StatusCode, tokenBody);
+            authActivity?.SetTag("auth.result", "token_exchange_failed");
             return Results.Problem($"GitHub token exchange returned {(int)tokenRes.StatusCode}: {tokenBody}");
+        }
 
         var tokenJson = JsonSerializer.Deserialize<JsonElement>(tokenBody);
 
         if (tokenJson.TryGetProperty("error", out var err))
+        {
+            logger.LogError("OAuth token exchange error: {Error}", err);
+            authActivity?.SetTag("auth.result", "oauth_error");
             return Results.Problem($"OAuth token exchange failed: {err}");
+        }
 
         if (!tokenJson.TryGetProperty("access_token", out var tokenProp))
+        {
+            logger.LogError("No access_token in GitHub response");
+            authActivity?.SetTag("auth.result", "no_access_token");
             return Results.Problem($"No access_token in GitHub response: {tokenBody}");
+        }
 
         var accessToken = tokenProp.GetString()!;
 
         // Store refresh token if provided (GitHub App tokens expire)
         var refreshToken = tokenJson.TryGetProperty("refresh_token", out var rtProp) ? rtProp.GetString() : null;
+        authActivity?.SetTag("auth.has_refresh_token", refreshToken is not null);
 
         // Validate token scopes
         var scopeReq = new HttpRequestMessage(HttpMethod.Head, "https://api.github.com/user");
@@ -130,7 +168,7 @@ app.MapGet("/auth/github/callback", async (HttpContext ctx, IHttpClientFactory h
         var grantedScopes = scopeRes.Headers.Contains("X-OAuth-Scopes")
             ? scopeRes.Headers.GetValues("X-OAuth-Scopes").FirstOrDefault() ?? ""
             : "";
-        Console.WriteLine($"[Auth] Token scopes: {grantedScopes}");
+        logger.LogInformation("OAuth token scopes granted: {Scopes}", grantedScopes);
         ctx.Session.SetString("token_scopes", grantedScopes);
 
         // Fetch user profile
@@ -142,10 +180,18 @@ app.MapGet("/auth/github/callback", async (HttpContext ctx, IHttpClientFactory h
         var userBody = await userRes.Content.ReadAsStringAsync();
 
         if (!userRes.IsSuccessStatusCode)
+        {
+            logger.LogError("GitHub user API failed: status={Status}", (int)userRes.StatusCode);
+            authActivity?.SetTag("auth.result", "user_api_failed");
             return Results.Problem($"GitHub user API returned {(int)userRes.StatusCode}: {userBody}");
+        }
 
         var userJson = JsonSerializer.Deserialize<JsonElement>(userBody);
         var login = userJson.GetProperty("login").GetString()!;
+        logger.LogInformation("GitHub OAuth login successful for {User}", login);
+        authActivity?.SetTag("auth.result", "success");
+        authActivity?.SetTag("auth.user", login);
+        authCounter.Add(1, new KeyValuePair<string, object?>("user", login));
 
         // Store in session
         ctx.Session.SetString("github_token", accessToken);
@@ -164,7 +210,9 @@ app.MapGet("/auth/github/callback", async (HttpContext ctx, IHttpClientFactory h
     }
     catch (Exception ex)
     {
-        Console.Error.WriteLine($"OAuth callback error: {ex}");
+        logger.LogError(ex, "OAuth callback failed");
+        authActivity?.SetTag("auth.result", "exception");
+        authActivity?.SetTag("auth.error", ex.Message);
         return Results.Problem($"OAuth callback failed: {ex.Message}");
     }
 });
@@ -194,6 +242,14 @@ app.MapGet("/auth/me", (HttpContext ctx) =>
 // Logout
 app.MapPost("/auth/logout", (HttpContext ctx) =>
 {
+    var userJson = ctx.Session.GetString("user");
+    if (userJson is not null)
+    {
+        var u = JsonSerializer.Deserialize<JsonElement>(userJson);
+        var uid = u.GetProperty("id").GetInt64();
+        var uLogin = u.TryGetProperty("login", out var lp) ? lp.GetString() : uid.ToString();
+        logger.LogInformation("User {User} logged out", uLogin);
+    }
     ctx.Session.Clear();
     return Results.Ok(new { ok = true });
 });
@@ -220,19 +276,35 @@ async Task<string?> RefreshGitHubTokenAsync(HttpContext ctx, IHttpClientFactory 
     });
 
     var res = await http.SendAsync(req);
-    if (!res.IsSuccessStatusCode) return null;
+    if (!res.IsSuccessStatusCode)
+    {
+        logger.LogWarning("GitHub token refresh failed: status={Status}", (int)res.StatusCode);
+        tokenRefreshFailCounter.Add(1);
+        return null;
+    }
 
     var body = await res.Content.ReadAsStringAsync();
     var json = JsonSerializer.Deserialize<JsonElement>(body);
-    if (json.TryGetProperty("error", out _)) return null;
-    if (!json.TryGetProperty("access_token", out var newToken)) return null;
+    if (json.TryGetProperty("error", out var refreshErr))
+    {
+        logger.LogWarning("GitHub token refresh error: {Error}", refreshErr);
+        tokenRefreshFailCounter.Add(1);
+        return null;
+    }
+    if (!json.TryGetProperty("access_token", out var newToken))
+    {
+        logger.LogWarning("GitHub token refresh: no access_token in response");
+        tokenRefreshFailCounter.Add(1);
+        return null;
+    }
 
     var newAccessToken = newToken.GetString()!;
     ctx.Session.SetString("github_token", newAccessToken);
     if (json.TryGetProperty("refresh_token", out var newRt))
         ctx.Session.SetString("github_refresh_token", newRt.GetString()!);
 
-    Console.WriteLine("[Auth] Token refreshed successfully");
+    logger.LogInformation("GitHub token refreshed successfully");
+    tokenRefreshCounter.Add(1);
     return newAccessToken;
 }
 
@@ -285,11 +357,15 @@ app.MapPost("/api/chat", (Delegate)(async (HttpContext ctx, IHttpClientFactory h
     var userId = user.GetProperty("id").GetInt64();
     var userLogin = user.TryGetProperty("login", out var loginProp) ? loginProp.GetString() : userId.ToString();
 
+    var chatSw = Stopwatch.StartNew();
+    chatRequestCounter.Add(1, new KeyValuePair<string, object?>("model", model), new KeyValuePair<string, object?>("user", userLogin));
+
     using var chatActivity = aiActivitySource.StartActivity("ChatRequest");
     chatActivity?.SetTag("ai.user", userLogin);
     chatActivity?.SetTag("ai.model", model);
-    chatActivity?.SetTag("ai.prompt", prompt!.Length > 500 ? prompt[..500] + "..." : prompt);
-    logger.LogInformation("Chat request from {User} model={Model} prompt={Prompt}", userLogin, model, prompt.Length > 200 ? prompt[..200] + "..." : prompt);
+    chatActivity?.SetTag("ai.prompt_length", prompt!.Length);
+    chatActivity?.SetTag("ai.prompt", prompt.Length > 500 ? prompt[..500] + "..." : prompt);
+    logger.LogInformation("Chat request from {User} model={Model} promptLen={PromptLen}", userLogin, model, prompt.Length);
 
     // Set GH_TOKEN BEFORE creating/starting the CopilotClient so the CLI child process
     // inherits it at spawn time.
@@ -309,9 +385,10 @@ app.MapPost("/api/chat", (Delegate)(async (HttpContext ctx, IHttpClientFactory h
 
         if (tokenChanged)
         {
-            Console.WriteLine($"[Chat] Token changed for user {userId}, recreating CopilotClient");
+            logger.LogInformation("Token changed for user {User}, recreating CopilotClient", userLogin);
+            chatActivity?.SetTag("ai.token_changed", true);
             if (clients.TryRemove(userId, out var old)) try { old.Dispose(); } catch { }
-            sessions.TryRemove(userId, out _);
+            if (sessions.TryRemove(userId, out _)) activeSessionsGauge.Add(-1);
         }
 
         var client = clients.GetOrAdd(userId,
@@ -338,18 +415,16 @@ app.MapPost("/api/chat", (Delegate)(async (HttpContext ctx, IHttpClientFactory h
             sessionModels.TryRemove(userId, out _);
         }
 
-        if (!sessions.TryGetValue(userId, out var session))
+        var sessionConfig = new SessionConfig
         {
-            session = await client.CreateSessionAsync(new SessionConfig
+            Model = model,
+            Streaming = true,
+            Tools = agentTools,
+            OnPermissionRequest = (_, _) => Task.FromResult(new PermissionRequestResult { Kind = PermissionRequestResultKind.Approved }),
+            SystemMessage = new SystemMessageConfig
             {
-                Model = model,
-                Streaming = true,
-                Tools = agentTools,
-                OnPermissionRequest = (_, _) => Task.FromResult(new PermissionRequestResult { Kind = PermissionRequestResultKind.Approved }),
-                SystemMessage = new SystemMessageConfig
-                {
-                    Mode = SystemMessageMode.Append,
-                    Content = @"
+                Mode = SystemMessageMode.Append,
+                Content = @"
 You are the Azure FinOps Agent — a concise, data-driven AI assistant for Azure cost optimization.
 
 ## Tools
@@ -382,10 +457,20 @@ Runs SQL against an in-memory database.
 4. Present results concisely. Use tables over prose. Visualize with RenderChart when helpful.
 5. Max ONE chart per response. Offer to show more.
 "
-                },
-            });
+            },
+        };
+
+        if (!sessions.TryGetValue(userId, out var session))
+        {
+            using var createSessionActivity = aiActivitySource.StartActivity("CreateCopilotSession");
+            createSessionActivity?.SetTag("ai.user", userLogin);
+            createSessionActivity?.SetTag("ai.model", model);
+            session = await client.CreateSessionAsync(sessionConfig);
             sessions[userId] = session;
             sessionModels[userId] = model!;
+            activeSessionsGauge.Add(1);
+            sessionCreatedCounter.Add(1, new KeyValuePair<string, object?>("model", model), new KeyValuePair<string, object?>("user", userLogin));
+            logger.LogInformation("Created new Copilot session for {User} model={Model} sessionId={SessionId}", userLogin, model, session.SessionId);
         }
 
         var done = new TaskCompletionSource();
@@ -403,8 +488,8 @@ Runs SQL against an in-memory database.
             }
         });
 
-        // Subscribe per-request event handler (IDisposable for cleanup after response)
-        using var subscription = session.On(async evt =>
+        // Event handler delegate — reused if session is recreated after expiry
+        SessionEventHandler handleEvent = async (SessionEvent evt) =>
         {
             if (cancelled) return;
 
@@ -423,6 +508,7 @@ Runs SQL against an in-memory database.
                 else if (evt is ToolExecutionStartEvent toolStart)
                 {
                     var toolId = toolStart.Data.ToolCallId ?? Guid.NewGuid().ToString();
+                    toolCallCounter.Add(1, new KeyValuePair<string, object?>("tool", toolStart.Data.ToolName), new KeyValuePair<string, object?>("user", userLogin));
                     var toolActivity = aiActivitySource.StartActivity($"Tool:{toolStart.Data.ToolName}");
                     toolActivity?.SetTag("ai.tool.name", toolStart.Data.ToolName);
                     toolActivity?.SetTag("ai.tool.id", toolId);
@@ -458,6 +544,8 @@ Runs SQL against an in-memory database.
                         resultText = toolDone.Data.Result.DetailedContent;
                     if (toolDone.Data.Error?.Message is not null)
                         errorText = toolDone.Data.Error.Message;
+                    if (!toolDone.Data.Success)
+                        toolErrorCounter.Add(1, new KeyValuePair<string, object?>("tool", toolName), new KeyValuePair<string, object?>("user", userLogin));
                     sseData = JsonSerializer.Serialize(new { type = "tool_done", tool = toolName, id = toolId, success = toolDone.Data.Success, durationMs, result = resultText, error = errorText });
                     logger.LogInformation("Tool done: {Tool} id={ToolId} success={Success} durationMs={Duration} resultLen={ResultLen}",
                         toolName, toolId, toolDone.Data.Success, durationMs, resultText?.Length ?? 0);
@@ -504,14 +592,54 @@ Runs SQL against an in-memory database.
                 cancelled = true;
                 done.TrySetResult();
             }
-        });
+        };
 
-        await session.SendAsync(new MessageOptions { Prompt = prompt });
-        await done.Task;
+        // Subscribe to session events
+        IDisposable activeSubscription = session.On(handleEvent);
+
+        try
+        {
+            await session.SendAsync(new MessageOptions { Prompt = prompt });
+        }
+        catch (Exception sendEx) when (sendEx.Message.Contains("Session not found", StringComparison.OrdinalIgnoreCase))
+        {
+            // Session expired on the Copilot CLI side (e.g. after prolonged inactivity).
+            // Remove stale session, create a fresh one, and retry transparently.
+            logger.LogWarning("Copilot session expired for user {User}, recreating session. Error: {Error}", userLogin, sendEx.Message);
+            chatActivity?.SetTag("ai.session_expired", true);
+            sessionExpiredCounter.Add(1, new KeyValuePair<string, object?>("user", userLogin), new KeyValuePair<string, object?>("model", model));
+            activeSubscription.Dispose();
+            if (sessions.TryRemove(userId, out _)) activeSessionsGauge.Add(-1);
+            sessionModels.TryRemove(userId, out _);
+
+            session = await client.CreateSessionAsync(sessionConfig);
+            sessions[userId] = session;
+            sessionModels[userId] = model!;
+            activeSessionsGauge.Add(1);
+            sessionCreatedCounter.Add(1, new KeyValuePair<string, object?>("model", model), new KeyValuePair<string, object?>("user", userLogin));
+            logger.LogInformation("Recreated Copilot session for {User} model={Model} sessionId={SessionId}", userLogin, model, session.SessionId);
+
+            activeSubscription = session.On(handleEvent);
+            await session.SendAsync(new MessageOptions { Prompt = prompt });
+        }
+
+        try { await done.Task; }
+        finally
+        {
+            activeSubscription.Dispose();
+            chatSw.Stop();
+            chatDurationHistogram.Record(chatSw.Elapsed.TotalMilliseconds, new KeyValuePair<string, object?>("model", model), new KeyValuePair<string, object?>("user", userLogin));
+            chatActivity?.SetTag("ai.duration_ms", chatSw.Elapsed.TotalMilliseconds);
+        }
     }
     catch (Exception ex)
     {
-        sessions.TryRemove(userId, out _);
+        chatSw.Stop();
+        chatErrorCounter.Add(1, new KeyValuePair<string, object?>("model", model), new KeyValuePair<string, object?>("user", userLogin), new KeyValuePair<string, object?>("error_type", ex.GetType().Name));
+        chatActivity?.SetTag("ai.error", ex.Message);
+        chatActivity?.SetTag("ai.error_type", ex.GetType().Name);
+        logger.LogError(ex, "Chat request failed for {User} model={Model}", userLogin, model);
+        if (sessions.TryRemove(userId, out _)) activeSessionsGauge.Add(-1);
         clients.TryRemove(userId, out _);
         var errorData = JsonSerializer.Serialize(new { type = "error", message = ex.Message });
         await ctx.Response.WriteAsync($"data: {errorData}\n\n");
@@ -536,15 +664,20 @@ app.MapPost("/api/chat/reset", async (HttpContext ctx) =>
     // DisposeAsync() alone only releases in-memory resources — disk data persists.
     if (sessions.TryRemove(userId, out var oldSession))
     {
+        activeSessionsGauge.Add(-1);
         try
         {
             var sessionId = oldSession.SessionId;
+            logger.LogInformation("Resetting session {SessionId} for user {UserId}", sessionId, userId);
             await oldSession.DisposeAsync();
             // Client must stay alive to call DeleteSessionAsync
             if (clients.TryGetValue(userId, out var client) && client.State == ConnectionState.Connected)
                 await client.DeleteSessionAsync(sessionId);
         }
-        catch { }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Error deleting Copilot session for user {UserId}", userId);
+        }
     }
     sessionModels.TryRemove(userId, out _);
 
@@ -597,6 +730,7 @@ app.MapGet("/api/models", async (HttpContext ctx, IHttpClientFactory httpFactory
     }
     catch (Exception ex)
     {
+        logger.LogError(ex, "Models endpoint failed for user {UserId}", userId);
         ctx.Response.StatusCode = 500;
         await ctx.Response.WriteAsJsonAsync(new { error = ex.Message });
     }

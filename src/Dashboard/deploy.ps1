@@ -94,6 +94,9 @@ $clientSecret = $prodSettings.GitHub.ClientSecret
 $buildSha = (git -C $root rev-parse --short HEAD 2>$null) ?? "unknown"
 $buildNumber = (git -C $root rev-list --count HEAD 2>$null) ?? "0"
 
+# Get App Insights connection string from Azure (if the resource exists)
+$appInsightsCs = az monitor app-insights component show --app $AppName --resource-group $ResourceGroup --query connectionString --output tsv 2>$null
+
 az webapp config appsettings set `
     --name $AppName `
     --resource-group $ResourceGroup `
@@ -103,6 +106,7 @@ az webapp config appsettings set `
     "ASPNETCORE_ENVIRONMENT=Production" `
     "BUILD_SHA=$buildSha" `
     "BUILD_NUMBER=$buildNumber" `
+$(if ($appInsightsCs) { "ApplicationInsights__ConnectionString=$appInsightsCs" }) `
     --output none
 
 # Set startup script to install Python/tools before starting the app
