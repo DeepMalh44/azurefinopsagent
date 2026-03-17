@@ -4,6 +4,10 @@ An AI-powered agent that helps Azure customers **optimize cloud costs** through 
 
 Built with .NET 10, Vue 3, and the GitHub Copilot SDK. Deploys to Azure App Service.
 
+**[Try it live →](https://azure-finops-agent.com/)**
+
+![Azure FinOps Agent](assets/screenshot.jpg)
+
 ## Getting Started
 
 ### Prerequisites
@@ -36,8 +40,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). This project has adopted the [Microsoft 
 
 - [Anders Ravnholt](https://github.com/aravnholt)
 - [Klaus Gjelstrup Nielsen](https://github.com/klausnielsen)
-- [Ali Farahnak](https://github.com/alfarahn)
 - [Abishek Narayan](https://github.com/abnaraya)
+- [Ali Farahnak](https://github.com/alfarahn)
 
 ## License
 
