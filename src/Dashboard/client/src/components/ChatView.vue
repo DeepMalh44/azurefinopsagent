@@ -868,11 +868,19 @@ function buildEChartsOption(raw) {
 }
 
 function needsMapRegistration(opts) {
-  if (!opts || !opts.series) return false;
-  const series = Array.isArray(opts.series) ? opts.series : [opts.series];
-  return series.some(
-    (s) => s.type === "map" && s.map === "world" && !worldMapLoaded,
-  );
+  if (!opts) return false;
+  if (worldMapLoaded) return false;
+  // Check for geo config (scatter on world map)
+  if (opts.geo) {
+    const geos = Array.isArray(opts.geo) ? opts.geo : [opts.geo];
+    if (geos.some((g) => g.map === "world")) return true;
+  }
+  // Check for map series
+  if (opts.series) {
+    const series = Array.isArray(opts.series) ? opts.series : [opts.series];
+    if (series.some((s) => s.type === "map" && s.map === "world")) return true;
+  }
+  return false;
 }
 
 function mountChart(el, chartData) {
@@ -885,6 +893,7 @@ function mountChart(el, chartData) {
     nextTick(() => {
       const isMap =
         option._needsMap ||
+        !!option.geo ||
         (option.series &&
           Array.isArray(option.series) &&
           option.series.some((s) => s.type === "map"));
