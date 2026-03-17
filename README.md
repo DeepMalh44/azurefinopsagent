@@ -8,6 +8,16 @@ Built with .NET 10, Vue 3, and the GitHub Copilot SDK. Deploys to Azure App Serv
 
 ![Azure FinOps Agent](assets/screenshot.jpg)
 
+## Features
+
+- **Conversational cost analysis** — ask questions about Azure pricing, compare VM families, and explore cost scenarios in natural language
+- **Interactive data visualizations** — ECharts-powered charts (bar, line, pie, scatter, funnel, world maps, heatmaps, treemaps, radar, gauge) rendered inline in chat
+- **Live Azure data** — real-time pricing from the Azure Retail Prices API and service health from the Azure Status RSS feed
+- **Code execution** — runs Python 3, bash, and SQLite scripts for data processing and analysis (pandas, numpy available)
+- **Streaming responses** — Server-Sent Events (SSE) for real-time streaming text, tool call status, and chart rendering
+- **Model selection** — choose from available GitHub Copilot models (Claude, GPT, etc.)
+- **Observability** — OpenTelemetry + Azure Monitor (Application Insights) with structured traces for chat requests, tool calls, and AI responses
+
 ## Getting Started
 
 ### Prerequisites

@@ -14,6 +14,15 @@ This project has adopted the [Microsoft Open Source Code of Conduct](https://ope
 4. Push to the branch (`git push origin feature/my-feature`).
 5. Open a Pull Request.
 
+## Development Setup
+
+- **Backend**: .NET 10 minimal API in `src/Dashboard/`
+- **Frontend**: Vue 3 + Vite SPA in `src/Dashboard/client/`
+- **Build frontend**: `cd src/Dashboard/client && npm install && npm run build`
+- **Run backend**: Set `ASPNETCORE_ENVIRONMENT=Development` then `dotnet run --urls "http://localhost:5000"` from `src/Dashboard/`
+
+See the [README](README.md) for full prerequisites and setup instructions.
+
 ## Reporting Issues
 
 Please use [GitHub Issues](https://github.com/Azure-Samples/azure-finops-agent/issues) to report bugs or request features.
