@@ -532,14 +532,21 @@ app.MapPost("/api/chat/reset", async (HttpContext ctx) =>
     var user = JsonSerializer.Deserialize<JsonElement>(userJson);
     var userId = user.GetProperty("id").GetInt64();
 
+    // Delete session permanently (wipes conversation history from disk)
+    // DisposeAsync() alone only releases in-memory resources — disk data persists.
     if (sessions.TryRemove(userId, out var oldSession))
     {
-        try { await oldSession.DisposeAsync(); } catch { }
+        try
+        {
+            var sessionId = oldSession.SessionId;
+            await oldSession.DisposeAsync();
+            // Client must stay alive to call DeleteSessionAsync
+            if (clients.TryGetValue(userId, out var client) && client.State == ConnectionState.Connected)
+                await client.DeleteSessionAsync(sessionId);
+        }
+        catch { }
     }
-    if (clients.TryRemove(userId, out var old))
-    {
-        try { await old.DisposeAsync(); } catch { }
-    }
+    sessionModels.TryRemove(userId, out _);
 
     ctx.Response.StatusCode = 204;
 });
