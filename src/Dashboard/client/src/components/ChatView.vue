@@ -509,13 +509,13 @@
 <script setup>
 import * as echarts from "echarts";
 import {
-  computed,
-  nextTick,
-  onBeforeUnmount,
-  onMounted,
-  reactive,
-  ref,
-  watch,
+    computed,
+    nextTick,
+    onBeforeUnmount,
+    onMounted,
+    reactive,
+    ref,
+    watch,
 } from "vue";
 
 const props = defineProps({
@@ -533,6 +533,7 @@ const streamCharts = ref([]);
 const messagesEl = ref(null);
 const inputEl = ref(null);
 const chartInstances = [];
+let intentAnimTimer = null;
 const expandedToolIds = ref(new Set());
 const hoveredTool = ref(null);
 const collapsedSections = reactive({
@@ -783,6 +784,8 @@ function buildEChartsOption(raw) {
           : parsed.options;
       // Normalize country names in map series so they match the GeoJSON feature names
       normalizeMapSeriesData(opts);
+      // Force white/light map styling to match page background
+      applyMapDefaults(opts);
       // Mark as needing map registration
       opts._needsMap = needsMapRegistration(opts);
       return opts;
@@ -947,6 +950,31 @@ function needsMapRegistration(opts) {
     if (series.some((s) => s.type === "map" && s.map === "world")) return true;
   }
   return false;
+}
+
+function applyMapDefaults(opts) {
+  if (!opts) return;
+  const lightArea = { areaColor: "#f0f0f0", borderColor: "#ccc" };
+  // Map series
+  if (opts.series) {
+    const series = Array.isArray(opts.series) ? opts.series : [opts.series];
+    for (const s of series) {
+      if (s.type === "map") {
+        s.itemStyle = { ...lightArea, ...(s.itemStyle || {}) };
+      }
+    }
+  }
+  // Geo config
+  if (opts.geo) {
+    const geos = Array.isArray(opts.geo) ? opts.geo : [opts.geo];
+    for (const g of geos) {
+      g.itemStyle = { ...lightArea, ...(g.itemStyle || {}) };
+    }
+  }
+  // Transparent background so page white shows through
+  if (!opts.backgroundColor) {
+    opts.backgroundColor = "transparent";
+  }
 }
 
 function mountChart(el, chartData) {
@@ -1184,6 +1212,10 @@ async function send() {
           const data = JSON.parse(payload);
           switch (data.type) {
             case "delta":
+              if (intentAnimTimer) {
+                clearInterval(intentAnimTimer);
+                intentAnimTimer = null;
+              }
               streamBuffer.value += data.content;
               hasDeltas = true;
               break;
@@ -1210,6 +1242,35 @@ async function send() {
               };
               toolCalls.push(tc);
               streamToolCalls.value = [...toolCalls];
+              // Animate intent text letter-by-letter
+              if (data.tool === "report_intent" && data.args) {
+                try {
+                  const parsed =
+                    typeof data.args === "string"
+                      ? JSON.parse(data.args)
+                      : data.args;
+                  const intentText = parsed.intent;
+                  if (intentText) {
+                    clearInterval(intentAnimTimer);
+                    const prefix = streamBuffer.value;
+                    let i = 0;
+                    streamBuffer.value = prefix + "*" + intentText.charAt(0);
+                    i = 1;
+                    intentAnimTimer = setInterval(() => {
+                      if (i < intentText.length) {
+                        streamBuffer.value =
+                          prefix + "*" + intentText.slice(0, i + 1);
+                        i++;
+                      } else {
+                        streamBuffer.value =
+                          prefix + "*" + intentText + "…*\n\n";
+                        clearInterval(intentAnimTimer);
+                        intentAnimTimer = null;
+                      }
+                    }, 25);
+                  }
+                } catch {}
+              }
               break;
             }
             case "tool_done": {
@@ -1263,6 +1324,8 @@ async function send() {
       });
     }
   } finally {
+    clearInterval(intentAnimTimer);
+    intentAnimTimer = null;
     streaming.value = false;
     streamBuffer.value = "";
     activeTools.value = [];

@@ -22,19 +22,14 @@ public static class CodeExecutionTools
     public static IEnumerable<AIFunction> Create()
     {
         yield return AIFunctionFactory.Create(RunScript, "RunScript",
-            "Executes a script on the server and returns stdout + stderr. " +
-            "Supported languages: python (python3 with pandas, numpy, openpyxl, tabulate, python-dateutil), " +
-            "bash (with jq, sqlite3, awk, sed, grep), " +
-            "sqlite (sqlite3 in-memory). " +
-            "Scripts have a 30-second timeout and 50KB output limit. " +
-            "For Python: write complete scripts that print results to stdout. " +
-            "For bash: pipe commands, use jq for JSON. " +
-            "For SQLite: pass SQL statements that will run against an in-memory database.");
+            "Executes a script and returns stdout + stderr. 30s timeout, 50KB output limit. " +
+            "Languages: python (pandas, numpy, openpyxl, tabulate, python-dateutil available), " +
+            "bash (jq, sqlite3, awk, sed, grep available), sqlite (in-memory).");
     }
 
     private static async Task<string> RunScript(
         [Description("The language to execute: python, bash, or sqlite")] string language,
-        [Description("The script/code to execute. For Python, write a complete script. For bash, write shell commands. For SQLite, write SQL statements.")] string code)
+        [Description("The script/code to execute.")] string code)
     {
         if (!AllowedLanguages.Contains(language))
             return $"Error: Unsupported language '{language}'. Allowed: {string.Join(", ", AllowedLanguages)}";

@@ -23,27 +23,19 @@ public static class ChartTools
                 return JsonSerializer.Serialize(new { type, title, seriesName, data, xAxisName, yAxisName });
             },
             "RenderChart",
-            "Renders a simple ECharts chart (bar, line, pie, scatter, funnel). Use for straightforward data visualization.");
+            "Renders an interactive ECharts chart. Use for straightforward single-series or multi-series data visualization.");
 
         yield return AIFunctionFactory.Create(
             (
                 [Description("Full ECharts option object as JSON string. " +
-                    "Can include any ECharts configuration: title, tooltip, visualMap, xAxis, yAxis, series, etc. " +
-                    "For world map charts, set series type to 'map' with map:'world' and data as [{name:'United States of America',value:100},...]. " +
-                    "IMPORTANT: Use Natural Earth country names for map data — e.g. 'United States of America' (NOT 'United States' or 'USA'), " +
-                    "'Czechia' (NOT 'Czech Republic'), 'Dem. Rep. Congo' (NOT 'DR Congo'), 'Côte d\'Ivoire' (NOT 'Ivory Coast'), " +
-                    "'United Republic of Tanzania' (NOT 'Tanzania'), 'Lao PDR' (NOT 'Laos'), 'Myanmar' (NOT 'Burma'). " +
-                    "Most other common country names (India, Brazil, France, Japan, etc.) are fine as-is. " +
-                    "The frontend will auto-register the world map GeoJSON. " +
-                    "For scatter on map, use series type 'scatter' with coordinateSystem:'geo'. " +
-                    "Example map: {title:{text:'VM Pricing by Region'},tooltip:{trigger:'item'},visualMap:{min:0,max:100,inRange:{color:['#50a3ba','#eac736','#d94e5d']}},series:[{type:'map',map:'world',data:[{name:'United States of America',value:50}]}]}")] string options
+                    "For world maps: use series type 'map' with map:'world'. " +
+                    "Use Natural Earth country names (e.g. 'United States of America' not 'USA', 'Czechia' not 'Czech Republic'). " +
+                    "The frontend auto-registers world map GeoJSON.")] string options
             ) =>
             {
                 return JsonSerializer.Serialize(new { raw = true, options });
             },
             "RenderAdvancedChart",
-            "Renders any ECharts visualization using raw ECharts options JSON. Use for advanced charts like world maps, heatmaps, treemaps, radar, gauge, or any chart that needs full ECharts configuration. " +
-            "For geographic maps (e.g. show pricing by Azure region on a world map), use series type 'map' with map:'world'. The frontend auto-loads the world map GeoJSON. " +
-            "CRITICAL: Use Natural Earth country names in map data — 'United States of America' not 'United States', 'Czechia' not 'Czech Republic', etc.");
+            "Renders any ECharts visualization using raw options JSON. Use for world maps, heatmaps, treemaps, radar, gauge, or charts needing full ECharts config.");
     }
 }

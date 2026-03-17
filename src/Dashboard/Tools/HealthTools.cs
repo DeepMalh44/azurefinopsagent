@@ -12,9 +12,7 @@ public static class HealthTools
     public static IEnumerable<AIFunction> Create()
     {
         yield return AIFunctionFactory.Create(GetAzureServiceHealth, "GetAzureServiceHealth",
-            "Gets the current Azure service health status from the public Azure Status RSS feed. " +
-            "Returns any active incidents, outages, or service issues affecting Azure services globally. " +
-            "No authentication required. Use this to check if any Azure services are currently experiencing problems.");
+            "Returns current Azure service health status and active incidents from the public Azure Status RSS feed.");
     }
 
     private static async Task<string> GetAzureServiceHealth()

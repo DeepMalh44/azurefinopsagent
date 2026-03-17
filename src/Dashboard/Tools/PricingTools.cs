@@ -14,10 +14,7 @@ public static class PricingTools
     public static IEnumerable<AIFunction> Create()
     {
         yield return AIFunctionFactory.Create(FetchUrl, "FetchUrl",
-            "Fetches data from an allowed Azure API URL and returns the raw response. " +
-            "Allowed hosts: prices.azure.com. " +
-            "You construct the full URL with any query parameters. The tool just fetches and returns the raw JSON. " +
-            "Use the RunScript tool to process, filter, or transform large results with Python, bash, or SQL.");
+            "HTTP GET an allowed Azure API URL and returns raw JSON. Allowed hosts: prices.azure.com.");
     }
 
     private static async Task<string> FetchUrl(
