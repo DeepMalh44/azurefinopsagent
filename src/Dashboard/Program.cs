@@ -714,6 +714,7 @@ agentTools.AddRange(CodeExecutionTools.Create());
 agentTools.AddRange(AzureQueryTools.Create());
 agentTools.AddRange(GraphQueryTools.Create());
 agentTools.AddRange(LogAnalyticsQueryTools.Create());
+agentTools.AddRange(PresentationTools.Create());
 
 app.MapPost("/api/chat", (Delegate)(async (HttpContext ctx, IHttpClientFactory httpFactory) =>
 {
@@ -839,6 +840,7 @@ You are the Azure FinOps Agent — a concise, data-driven AI assistant for Azure
 - **FetchUrl** — fetch Azure Retail Prices and other public HTTP URLs.
 - **GetAzureServiceHealth** — get Azure service health incidents.
 - **RenderChart / RenderAdvancedChart** — render ECharts visualizations.
+- **GeneratePresentation** — generate a FinOps PowerPoint (.pptx) from structured slide data. Use when the user wants to export findings as a presentation. Suggest a FinOps-standard slide structure and ask the user to confirm before generating.
 - **RunScript** — execute Python 3, bash, or SQLite code for data processing.
 - **QueryAzure** — call any Azure ARM REST API using the signed-in user's token. Use for all Azure management queries (GET/POST only).
 - **QueryGraph** — call Microsoft Graph API for license inventory, directory objects, org structure.
@@ -848,6 +850,7 @@ You are the Azure FinOps Agent — a concise, data-driven AI assistant for Azure
 1. Use FetchUrl for public pricing data, QueryAzure for Azure tenant data.
 2. Process results with RunScript if needed.
 3. Visualize with RenderChart/RenderAdvancedChart.
+4. Export to PowerPoint with GeneratePresentation when asked.
 4. FetchUrl output starts with a 'Current UTC time: ...' line before the JSON. When parsing in RunScript, skip the first line.
 
 ## QueryAzure API Reference
@@ -1004,6 +1007,35 @@ Scope = /subscriptions/{subId} or /subscriptions/{subId}/resourceGroups/{rg}
                                     await ctx.Response.Body.FlushAsync();
                                     sseData = null;
                                     break; // Only one chart per response
+                                }
+                            }
+                        }
+                        catch { }
+                    }
+                    // Detect __PPTX_READY__ marker in GeneratePresentation tool output
+                    if (toolDone.Data.Success && resultText is not null && resultText.Contains("__PPTX_READY__:"))
+                    {
+                        try
+                        {
+                            foreach (var line in resultText.Split('\n'))
+                            {
+                                var trimmed = line.Trim();
+                                if (trimmed.StartsWith("__PPTX_READY__:"))
+                                {
+                                    var parts = trimmed["__PPTX_READY__:".Length..].Split(':', 3);
+                                    if (parts.Length >= 2)
+                                    {
+                                        var pptxPayload = JsonSerializer.Serialize(new { type = "pptx_ready", fileId = parts[0], fileName = parts[1], slideCount = parts.Length > 2 ? parts[2] : "" });
+                                        if (sseData is not null)
+                                        {
+                                            await ctx.Response.WriteAsync($"data: {sseData}\n\n");
+                                            await ctx.Response.Body.FlushAsync();
+                                        }
+                                        await ctx.Response.WriteAsync($"data: {pptxPayload}\n\n");
+                                        await ctx.Response.Body.FlushAsync();
+                                        sseData = null;
+                                    }
+                                    break;
                                 }
                             }
                         }
@@ -1197,6 +1229,32 @@ if (string.IsNullOrEmpty(buildNumber))
     catch { buildNumber = "0"; }
 }
 app.MapGet("/api/version", () => Results.Ok(new { sha = buildSha, build = buildNumber, started = DateTime.UtcNow.ToString("o") }));
+
+// ──────────────────────────────────────────────
+// PRESENTATION DOWNLOAD
+// ──────────────────────────────────────────────
+app.MapGet("/api/download/pptx/{fileId}", (string fileId, HttpContext ctx) =>
+{
+    if (!PresentationTools.GeneratedFiles.TryGetValue(fileId, out var entry))
+        return Results.NotFound(new { error = "File not found or expired" });
+
+    if (!File.Exists(entry.Path))
+    {
+        PresentationTools.GeneratedFiles.TryRemove(fileId, out _);
+        return Results.NotFound(new { error = "File no longer available" });
+    }
+
+    var fileName = Path.GetFileName(entry.Path);
+    // Remove the fileId prefix from the download name
+    var downloadName = fileName.Contains('_') ? fileName[(fileName.IndexOf('_') + 1)..] : fileName;
+    var bytes = File.ReadAllBytes(entry.Path);
+
+    // Clean up after serving
+    try { File.Delete(entry.Path); } catch { }
+    PresentationTools.GeneratedFiles.TryRemove(fileId, out _);
+
+    return Results.File(bytes, "application/vnd.openxmlformats-officedocument.presentationml.presentation", downloadName);
+});
 
 // ──────────────────────────────────────────────
 // SPA FALLBACK

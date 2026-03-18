@@ -27,6 +27,8 @@ if [ ! -f "$PIP_TARGET/.installed" ]; then
         openpyxl \
         tabulate \
         python-dateutil \
+        python-pptx \
+        matplotlib \
         2>/dev/null || true
     touch "$PIP_TARGET/.installed"
     echo "Python packages installed and cached."

@@ -532,6 +532,33 @@
                   class="message-text"
                   v-html="renderContent(msg.content)"
                 ></div>
+                <div v-if="msg.pptx" class="pptx-inline-download">
+                  <a
+                    :href="'/api/download/pptx/' + msg.pptx.fileId"
+                    class="pptx-download-btn"
+                    download
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="7 10 12 15 17 10" />
+                      <line x1="12" y1="15" x2="12" y2="3" />
+                    </svg>
+                    Download {{ msg.pptx.fileName }} ({{
+                      msg.pptx.slideCount
+                    }}
+                    slides)
+                  </a>
+                </div>
               </div>
             </div>
           </div>
@@ -558,6 +585,57 @@
             </div>
           </div>
         </div>
+      </div>
+
+      <!-- Generate Presentation button -->
+      <div
+        v-if="user && messages.length >= 2 && !streaming"
+        class="pptx-suggest"
+      >
+        <button class="pptx-suggest-btn" @click="requestPresentation">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="15"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <rect x="2" y="3" width="20" height="14" rx="2" />
+            <line x1="8" y1="21" x2="16" y2="21" />
+            <line x1="12" y1="17" x2="12" y2="21" />
+          </svg>
+          Generate a presentation of the findings?
+        </button>
+      </div>
+
+      <!-- PPTX download (streaming) -->
+      <div v-if="pptxReady" class="pptx-download-bar">
+        <a
+          :href="'/api/download/pptx/' + pptxReady.fileId"
+          class="pptx-download-btn"
+          download
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+          Download {{ pptxReady.fileName }} ({{ pptxReady.slideCount }} slides)
+        </a>
       </div>
 
       <!-- Input bar -->
@@ -736,13 +814,13 @@
 <script setup>
 import * as echarts from "echarts";
 import {
-  computed,
-  nextTick,
-  onBeforeUnmount,
-  onMounted,
-  reactive,
-  ref,
-  watch,
+    computed,
+    nextTick,
+    onBeforeUnmount,
+    onMounted,
+    reactive,
+    ref,
+    watch,
 } from "vue";
 
 const props = defineProps({
@@ -757,6 +835,8 @@ const streamBuffer = ref("");
 const activeTools = ref([]);
 const streamToolCalls = ref([]);
 const streamCharts = ref([]);
+const pptxReady = ref(null);
+const pptxDownloads = ref([]);
 const messagesEl = ref(null);
 const inputEl = ref(null);
 const chartInstances = [];
@@ -900,6 +980,8 @@ async function clearMessages() {
   streamBuffer.value = "";
   streamToolCalls.value = [];
   streamCharts.value = [];
+  pptxReady.value = null;
+  pptxDownloads.value = [];
   activeTools.value = [];
   chartInstances.forEach((c) => {
     try {
@@ -1712,6 +1794,12 @@ function sendPrompt(text) {
   send();
 }
 
+function requestPresentation() {
+  input.value =
+    "Generate a FinOps presentation from our conversation findings. Suggest a slide structure with the data we've discussed, and ask me if I want to customize anything before generating.";
+  send();
+}
+
 async function send() {
   if (!props.user) return;
   const prompt = input.value.trim();
@@ -1838,6 +1926,15 @@ async function send() {
               scrollToBottom();
               break;
             }
+            case "pptx_ready": {
+              pptxReady.value = {
+                fileId: data.fileId,
+                fileName: data.fileName,
+                slideCount: data.slideCount,
+              };
+              scrollToBottom();
+              break;
+            }
             case "error":
               streamBuffer.value += `\n⚠️ Error: ${data.message}`;
               break;
@@ -1846,12 +1943,18 @@ async function send() {
       }
     }
 
-    messages.value.push({
+    const msgObj = {
       role: "assistant",
       content: streamBuffer.value,
       toolCalls: toolCalls.map((tc) => ({ ...tc, expanded: false })),
       charts: [...streamCharts.value],
-    });
+    };
+    if (pptxReady.value) {
+      msgObj.pptx = { ...pptxReady.value };
+      pptxDownloads.value.push({ ...pptxReady.value });
+      pptxReady.value = null;
+    }
+    messages.value.push(msgObj);
   } catch (err) {
     if (err.name === "AbortError") {
       if (streamBuffer.value) {
@@ -1876,6 +1979,7 @@ async function send() {
     activeTools.value = [];
     streamToolCalls.value = [];
     streamCharts.value = [];
+    pptxReady.value = null;
     abortController = null;
     nextTick(() => inputEl.value?.focus());
     if (availableModels.value.length <= 1) {
@@ -2829,5 +2933,63 @@ async function send() {
   .tool-popover {
     display: none;
   }
+}
+
+/* ── Presentation Generate / Download ── */
+.pptx-suggest {
+  display: flex;
+  justify-content: center;
+  padding: 0 1rem 0.25rem;
+  max-width: 800px;
+  margin: 0 auto;
+  width: 100%;
+}
+.pptx-suggest-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 16px;
+  border-radius: 9999px;
+  border: 1px solid #d4d4d8;
+  background: #fff;
+  color: #3f3f46;
+  font-size: 0.8rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.pptx-suggest-btn:hover {
+  border-color: #0078d4;
+  color: #0078d4;
+  background: rgba(0, 120, 212, 0.04);
+}
+.pptx-download-bar {
+  display: flex;
+  justify-content: center;
+  padding: 0 1rem 0.5rem;
+  max-width: 800px;
+  margin: 0 auto;
+  width: 100%;
+}
+.pptx-download-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 18px;
+  border-radius: 8px;
+  background: #0078d4;
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.15s;
+  border: none;
+}
+.pptx-download-btn:hover {
+  background: #106ebe;
+}
+.pptx-inline-download {
+  margin-top: 0.5rem;
 }
 </style>
