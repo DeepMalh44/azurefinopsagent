@@ -116,9 +116,10 @@ TEXT_DARK = RGBColor(0x1A, 0x1A, 0x2E)
 TEXT_MED = RGBColor(0x60, 0x5E, 0x5C)
 TEXT_LIGHT = RGBColor(0x8A, 0x8A, 0x8A)
 
-# Modern Azure-inspired chart palette — soft pastels, light, professional
-CHART_COLORS = ['#5B9BD5', '#A9D18E', '#FFC000', '#ED7D31', '#70AD47',
-                '#9DC3E6', '#F4B183', '#C5E0B4', '#BDD7EE', '#D6A2E8']
+# Official Azure brand colors for data visualization
+CHART_COLORS = ['#0078D4', '#50E6FF', '#008575', '#D83B01', '#8661C5',
+                '#0063B1', '#00B7C3', '#E3008C', '#FFB900', '#107C10',
+                '#B4009E', '#002050', '#4F6BED', '#C239B3', '#767676']
 
 slides_data = json.loads('{escapedJson}')
 output_path = r'{outputPath.Replace("\\", "\\\\")}'

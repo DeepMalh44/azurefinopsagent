@@ -553,9 +553,7 @@
                       <polyline points="7 10 12 15 17 10" />
                       <line x1="12" y1="15" x2="12" y2="3" />
                     </svg>
-                    Download {{ msg.pptx.fileName }} ({{
-                      msg.pptx.slideCount
-                    }}
+                    Download {{ msg.pptx.fileName }} ({{ msg.pptx.slideCount }}
                     slides)
                   </a>
                 </div>
@@ -1481,17 +1479,23 @@ function buildEChartsOption(raw) {
   const xAxisName = parsed.xAxisName || "";
   const yAxisName = parsed.yAxisName || "";
 
+  // Official Azure brand colors for data visualization
   const colors = [
-    "#42A5F5",
-    "#66BB6A",
-    "#EF5350",
-    "#FFA726",
-    "#AB47BC",
-    "#26C6DA",
-    "#EC407A",
-    "#8D6E63",
-    "#78909C",
-    "#D4E157",
+    "#0078D4", // Azure Blue (primary)
+    "#50E6FF", // Azure Cyan
+    "#008575", // Azure Teal
+    "#D83B01", // Azure Orange
+    "#8661C5", // Azure Purple
+    "#0063B1", // Azure Dark Blue
+    "#00B7C3", // Azure Light Teal
+    "#E3008C", // Azure Magenta
+    "#FFB900", // Azure Yellow
+    "#107C10", // Azure Green
+    "#B4009E", // Azure Purple (alt)
+    "#002050", // Azure Navy
+    "#4F6BED", // Azure Indigo
+    "#C239B3", // Azure Orchid
+    "#767676", // Azure Gray
   ];
 
   if (chartType === "pie" || chartType === "funnel") {
@@ -1502,18 +1506,45 @@ function buildEChartsOption(raw) {
       title: {
         text: title,
         left: "center",
+        top: 0,
         textStyle: { fontSize: 14, color: "#1f2328" },
       },
       tooltip: { trigger: "item", formatter: "{b}: {c} ({d}%)" },
-      legend: { bottom: 0, textStyle: { color: "#656d76", fontSize: 11 } },
+      legend: {
+        bottom: 0,
+        left: "center",
+        orient: "horizontal",
+        type: "scroll",
+        textStyle: { color: "#656d76", fontSize: 11 },
+      },
       color: colors,
       series: [
         {
           name: seriesName,
           type: chartType,
-          radius: chartType === "pie" ? "60%" : undefined,
+          radius: chartType === "pie" ? ["35%", "60%"] : undefined,
+          center: ["50%", "50%"],
+          avoidLabelOverlap: false,
+          itemStyle: {
+            borderRadius: 10,
+            borderColor: "#fff",
+            borderWidth: 2,
+          },
+          label: {
+            show: false,
+            position: "center",
+          },
+          emphasis: {
+            label: {
+              show: true,
+              fontSize: 24,
+              fontWeight: "bold",
+            },
+          },
+          labelLine: {
+            show: false,
+          },
           data: pieData,
-          label: { fontSize: 11 },
         },
       ],
     };
