@@ -1,5 +1,20 @@
 <template>
   <div class="chat-view">
+    <!-- Auth loading overlay -->
+    <div v-if="authLoading" class="auth-overlay">
+      <div class="auth-overlay-card">
+        <div class="auth-overlay-spinner"></div>
+        <p class="auth-overlay-text">
+          {{
+            authLoading === "github"
+              ? "Connecting to GitHub..."
+              : "Connecting to Azure..."
+          }}
+        </p>
+        <p class="auth-overlay-sub">You will be redirected to sign in</p>
+      </div>
+    </div>
+
     <!-- Left sidebar -->
     <aside class="sidebar">
       <div class="sidebar-scroll">
@@ -2900,6 +2915,56 @@ async function send() {
   to {
     transform: rotate(360deg);
   }
+}
+
+/* Full-screen auth overlay */
+.auth-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(4px);
+  animation: auth-overlay-in 0.2s ease;
+}
+@keyframes auth-overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.auth-overlay-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 2.5rem 3rem;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+.auth-overlay-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(0, 120, 212, 0.15);
+  border-top-color: #0078d4;
+  border-radius: 50%;
+  animation: auth-spin 0.7s linear infinite;
+}
+.auth-overlay-text {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2328;
+  margin: 0;
+}
+.auth-overlay-sub {
+  font-size: 13px;
+  color: #656d76;
+  margin: 0;
 }
 .azure-connect-btn {
   display: flex;
