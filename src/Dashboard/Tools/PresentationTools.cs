@@ -116,9 +116,9 @@ TEXT_DARK = RGBColor(0x1A, 0x1A, 0x2E)
 TEXT_MED = RGBColor(0x60, 0x5E, 0x5C)
 TEXT_LIGHT = RGBColor(0x8A, 0x8A, 0x8A)
 
-# Modern Azure-inspired chart palette — light, distinct, accessible
-CHART_COLORS = ['#0078D4', '#50E6FF', '#00B7C3', '#2D7D46', '#FFB900',
-                '#D83B01', '#8764B8', '#E3008C', '#4F6BED', '#009E49']
+# Modern Azure-inspired chart palette — soft pastels, light, professional
+CHART_COLORS = ['#5B9BD5', '#A9D18E', '#FFC000', '#ED7D31', '#70AD47',
+                '#9DC3E6', '#F4B183', '#C5E0B4', '#BDD7EE', '#D6A2E8']
 
 slides_data = json.loads('{escapedJson}')
 output_path = r'{outputPath.Replace("\\", "\\\\")}'
@@ -192,49 +192,50 @@ def render_chart_image(chart_cfg, path):
         if other_val > 0:
             main_labels.append('Other')
             main_values.append(other_val)
-            main_colors.append('#AAAAAA')
+            main_colors.append('#D0D0D0')
 
-        def make_autopct(vals):
-            def autopct(pct):
-                return f'${{sum(vals)*pct/100:,.0f}}\n({{pct:.1f}}%)'
-            return autopct
-
-        wedges, texts, autotexts = ax.pie(main_values, labels=main_labels, colors=main_colors,
-                                           autopct=make_autopct(main_values), startangle=90,
-                                           pctdistance=0.75, labeldistance=1.12,
-                                           textprops={{'fontsize': 9}})
-        for t in autotexts:
-            t.set_fontsize(8)
-        for t in texts:
-            t.set_fontsize(9)
+        # Donut-style pie with external legend for clarity
+        wedges, autotexts = ax.pie(main_values, colors=main_colors,
+                                    autopct='', startangle=90,
+                                    pctdistance=0.8, wedgeprops={{'width': 0.55, 'edgecolor': 'white', 'linewidth': 2}})[0:2]
+        # Add center circle for donut effect
+        centre = plt.Circle((0, 0), 0.45, fc='#FAFAFA')
+        ax.add_artist(centre)
+        # Add total in center
+        ax.text(0, 0, f'${{total:,.0f}}', ha='center', va='center', fontsize=16, fontweight='bold', color='#323130')
+        ax.text(0, -0.15, 'Total (USD)', ha='center', va='center', fontsize=9, color='#605E5C')
+        # Build legend labels with value and percentage
+        legend_labels = [f'{{lbl}}  ${{val:,.0f}} ({{val/total*100:.1f}}%)' for lbl, val in zip(main_labels, main_values)]
+        ax.legend(wedges, legend_labels, loc='center left', bbox_to_anchor=(1.05, 0.5),
+                  fontsize=9, frameon=False, labelspacing=1.0)
     elif ctype == 'horizontal_bar':
         y_pos = range(len(labels))
-        bars = ax.barh(y_pos, values, color=colors[:len(labels)])
+        bars = ax.barh(y_pos, values, color=colors[:len(labels)], height=0.6, edgecolor='white', linewidth=0.5)
         ax.set_yticks(y_pos)
-        ax.set_yticklabels(labels, fontsize=10)
+        ax.set_yticklabels(labels, fontsize=10, color='#323130')
         ax.invert_yaxis()
         for bar, val in zip(bars, values):
-            ax.text(bar.get_width() + max(values)*0.01, bar.get_y() + bar.get_height()/2,
-                    f'${{val:,.0f}}', va='center', fontsize=9)
+            ax.text(bar.get_width() + max(values)*0.02, bar.get_y() + bar.get_height()/2,
+                    f'${{val:,.0f}}', va='center', fontsize=9, color='#605E5C')
     elif ctype == 'line':
-        ax.plot(labels, values, color=colors[0] if colors else '#0078D4',
-                marker='o', linewidth=2, markersize=6)
-        ax.fill_between(range(len(labels)), values, alpha=0.1, color=colors[0] if colors else '#0078D4')
-        plt.xticks(rotation=45, ha='right', fontsize=9)
+        ax.plot(labels, values, color=colors[0] if colors else '#5B9BD5',
+                marker='o', linewidth=2.5, markersize=6, markerfacecolor='white', markeredgewidth=2, markeredgecolor=colors[0] if colors else '#5B9BD5')
+        ax.fill_between(range(len(labels)), values, alpha=0.08, color=colors[0] if colors else '#5B9BD5')
+        plt.xticks(rotation=45, ha='right', fontsize=9, color='#605E5C')
     else:  # bar
-        bars = ax.bar(labels, values, color=colors[:len(labels)])
-        plt.xticks(rotation=45, ha='right', fontsize=9)
+        bars = ax.bar(labels, values, color=colors[:len(labels)], width=0.65, edgecolor='white', linewidth=0.5)
+        plt.xticks(rotation=45, ha='right', fontsize=9, color='#605E5C')
         for bar, val in zip(bars, values):
             ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + max(values)*0.01,
-                    f'${{val:,.0f}}', ha='center', va='bottom', fontsize=9)
+                    f'${{val:,.0f}}', ha='center', va='bottom', fontsize=9, color='#605E5C')
 
     if title:
-        ax.set_title(title, fontsize=13, fontweight='bold', pad=12)
+        ax.set_title(title, fontsize=14, fontweight='600', pad=15, color='#323130')
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
-    ax.spines['left'].set_color('#E0E0E0')
-    ax.spines['bottom'].set_color('#E0E0E0')
-    ax.tick_params(colors='#605E5C')
+    ax.spines['left'].set_color('#E8E8E8')
+    ax.spines['bottom'].set_color('#E8E8E8')
+    ax.tick_params(colors='#605E5C', labelsize=9)
     if ctype != 'pie':
         ax.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, p: f'${{x:,.0f}}'))
     plt.tight_layout()
