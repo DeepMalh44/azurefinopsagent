@@ -18,22 +18,23 @@ PIP_TARGET="/home/site/pip-packages"
 mkdir -p "$PIP_TARGET"
 export PYTHONPATH="$PIP_TARGET:$PYTHONPATH"
 
-# Only install if marker file is missing (skip on subsequent restarts)
-if [ ! -f "$PIP_TARGET/.installed" ]; then
-    echo "Installing Python packages to $PIP_TARGET..."
+# Package list — bump PKG_VERSION when adding/removing packages to force reinstall
+PACKAGES="requests pandas numpy openpyxl tabulate python-dateutil python-pptx matplotlib"
+PKG_VERSION="3"
+
+# Only install if marker version differs (forces reinstall on package list changes)
+if [ ! -f "$PIP_TARGET/.installed_v$PKG_VERSION" ]; then
+    echo "Installing Python packages (v$PKG_VERSION) to $PIP_TARGET..."
+    # Clean stale markers and conflicting packages
+    rm -f "$PIP_TARGET/.installed"* 2>/dev/null
+    rm -rf "$PIP_TARGET/numpy"* "$PIP_TARGET/numpy.libs" 2>/dev/null
     pip3 install --no-cache-dir --break-system-packages --target "$PIP_TARGET" \
-        requests \
-        pandas numpy \
-        openpyxl \
-        tabulate \
-        python-dateutil \
-        python-pptx \
-        matplotlib \
+        $PACKAGES \
         2>/dev/null || true
-    touch "$PIP_TARGET/.installed"
+    touch "$PIP_TARGET/.installed_v$PKG_VERSION"
     echo "Python packages installed and cached."
 else
-    echo "Python packages already cached, skipping install."
+    echo "Python packages already cached (v$PKG_VERSION), skipping install."
 fi
 
 # Export PYTHONPATH so the .NET app's child processes (RunScript) inherit it

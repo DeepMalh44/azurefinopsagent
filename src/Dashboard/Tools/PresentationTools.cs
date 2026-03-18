@@ -79,6 +79,11 @@ Example: [{""layout"":""title"",""title"":""Azure FinOps Review"",""subtitle"":"
         var pythonScript = $@"
 import json, os, sys, io
 
+# Ensure pip packages from startup.sh are discoverable (Azure App Service)
+_pip = '/home/site/pip-packages'
+if os.path.isdir(_pip) and _pip not in sys.path:
+    sys.path.insert(0, _pip)
+
 try:
     from pptx import Presentation
     from pptx.util import Inches, Pt, Emu
@@ -86,8 +91,8 @@ try:
     from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
     from pptx.enum.chart import XL_CHART_TYPE, XL_LEGEND_POSITION
     from pptx.chart.data import CategoryChartData
-except ImportError:
-    print('Error: python-pptx not installed. Run: pip install python-pptx')
+except ImportError as e:
+    print(f'Error: python-pptx not installed ({{e}}). sys.path={{sys.path}}')
     sys.exit(1)
 
 try:
@@ -344,6 +349,17 @@ print(f'SLIDES:{{len(slides_data)}}')
             psi.ArgumentList.Add("-c");
             psi.ArgumentList.Add(pythonScript);
 
+            // Ensure pip packages installed by startup.sh are discoverable (Azure: /home/site/pip-packages)
+            // On local dev (Windows/macOS), packages are in the default site-packages — no override needed
+            var pipTarget = "/home/site/pip-packages";
+            if (Directory.Exists(pipTarget))
+            {
+                var existingPythonPath = Environment.GetEnvironmentVariable("PYTHONPATH") ?? "";
+                psi.Environment["PYTHONPATH"] = string.IsNullOrEmpty(existingPythonPath)
+                    ? pipTarget
+                    : $"{pipTarget}:{existingPythonPath}";
+            }
+
             using var process = new Process { StartInfo = psi };
             process.Start();
 
@@ -361,10 +377,10 @@ print(f'SLIDES:{{len(slides_data)}}')
             var stderr = await stderrTask;
 
             if (process.ExitCode != 0)
-                return $"Error generating presentation: {Truncate(stderr, MaxOutputChars)}";
+                return $"Error generating presentation (exit={process.ExitCode}): stdout=[{Truncate(stdout, 500)}] stderr=[{Truncate(stderr, MaxOutputChars)}]";
 
             if (!stdout.Contains("OK:"))
-                return $"Error: Unexpected output: {Truncate(stdout + "\n" + stderr, MaxOutputChars)}";
+                return $"Error: No OK marker in output. stdout=[{Truncate(stdout, 500)}] stderr=[{Truncate(stderr, 500)}] exit={process.ExitCode}";
 
             // Register the file for download
             GeneratedFiles[fileId] = (outputPath, DateTime.UtcNow);

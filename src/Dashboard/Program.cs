@@ -972,6 +972,11 @@ Scope = /subscriptions/{subId} or /subscriptions/{subId}/resourceGroups/{rg}
                     sseData = JsonSerializer.Serialize(new { type = "tool_done", tool = toolName, id = toolId, success = toolDone.Data.Success, durationMs, result = resultText, error = errorText });
                     logger.LogInformation("Tool done: {Tool} id={ToolId} success={Success} durationMs={Duration} resultLen={ResultLen}",
                         toolName, toolId, toolDone.Data.Success, durationMs, resultText?.Length ?? 0);
+                    // Log short results or errors in full for diagnostics (e.g. GeneratePresentation failures)
+                    if (resultText is not null && (resultText.Length < 200 || resultText.StartsWith("Error")))
+                        logger.LogInformation("Tool result [{Tool}]: {Result}", toolName, resultText);
+                    if (errorText is not null)
+                        logger.LogWarning("Tool error [{Tool}]: {Error}", toolName, errorText);
 
                     // If this is a RenderChart or RenderAdvancedChart tool completion, also emit a chart event
                     // Also detect __CHART__: marker in any tool output for inline chart rendering
