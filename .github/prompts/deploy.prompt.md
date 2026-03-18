@@ -14,25 +14,32 @@ cd src/Dashboard
 Remove-Item -Recurse -Force bin, obj, publish, deploy.zip, wwwroot, client/node_modules -ErrorAction SilentlyContinue
 ```
 
-3. Build and push the Docker image to ACR (cloud build — no local Docker needed). Use `--no-logs` to avoid the Azure CLI Unicode crash on Windows:
+3. Get the git short SHA and commit count for build metadata:
 
 ```powershell
-az acr build --registry crfinopsagent --image finops-agent:latest --platform linux/amd64 --no-logs .
+$buildSha = git rev-parse --short HEAD
+$buildNumber = git rev-list --count HEAD
 ```
 
-4. Restart the container app to pull the new image:
+4. Build and push the Docker image to ACR (cloud build — no local Docker needed). Use `--no-logs` to avoid the Azure CLI Unicode crash on Windows. Pass build args for version tracking:
+
+```powershell
+az acr build --registry crfinopsagent --image finops-agent:latest --platform linux/amd64 --no-logs --build-arg BUILD_SHA=$buildSha --build-arg BUILD_NUMBER=$buildNumber .
+```
+
+5. Restart the container app to pull the new image:
 
 ```powershell
 az webapp restart --name finops-agent-container --resource-group rg-finops-agent
 ```
 
-5. Wait ~30 seconds, then confirm the app is running:
+6. Wait ~30 seconds, then confirm the app is running:
 
 ```powershell
 Invoke-RestMethod "https://finops-agent-container.azurewebsites.net/api/version"
 ```
 
-6. Verify the custom domain:
+7. Verify the custom domain:
 
 ```powershell
 Invoke-RestMethod "https://azure-finops-agent.com/api/version"

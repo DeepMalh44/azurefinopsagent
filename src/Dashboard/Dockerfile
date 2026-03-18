@@ -32,6 +32,12 @@ RUN apt-get update -qq && \
 WORKDIR /app
 COPY --from=build /app/publish .
 
+# Build metadata baked into the image
+ARG BUILD_SHA=dev
+ARG BUILD_NUMBER=0
+ENV BUILD_SHA=${BUILD_SHA}
+ENV BUILD_NUMBER=${BUILD_NUMBER}
+
 # App Service expects port 8080 by default for containers
 ENV ASPNETCORE_URLS=http://+:8080
 EXPOSE 8080

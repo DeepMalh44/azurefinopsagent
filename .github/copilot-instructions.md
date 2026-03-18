@@ -175,11 +175,16 @@ The app is deployed as a Docker container to Azure App Service via Azure Contain
 ```powershell
 cd src/Dashboard
 
-# 1. Build & push image to ACR (cloud build — no local Docker needed)
-#    Uses --no-logs to avoid Azure CLI Unicode crash on Windows
-az acr build --registry crfinopsagent --image finops-agent:latest --platform linux/amd64 --no-logs .
+# 1. Get build metadata from git
+$buildSha = git rev-parse --short HEAD
+$buildNumber = git rev-list --count HEAD
 
-# 2. Restart the container app to pull the new image
+# 2. Build & push image to ACR (cloud build — no local Docker needed)
+#    Uses --no-logs to avoid Azure CLI Unicode crash on Windows
+#    Passes BUILD_SHA and BUILD_NUMBER as build args baked into the image
+az acr build --registry crfinopsagent --image finops-agent:latest --platform linux/amd64 --no-logs --build-arg BUILD_SHA=$buildSha --build-arg BUILD_NUMBER=$buildNumber .
+
+# 3. Restart the container app to pull the new image
 az webapp restart --name finops-agent-container --resource-group rg-finops-agent
 ```
 
