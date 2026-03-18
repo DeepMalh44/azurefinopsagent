@@ -168,6 +168,8 @@ def render_chart_image(chart_cfg, path):
     ctype = chart_cfg.get('type', 'bar')
     labels = chart_cfg.get('labels', [])
     values = chart_cfg.get('values', [])
+    if not labels or not values:
+        return False
     title = chart_cfg.get('title', '')
     colors = chart_cfg.get('colors', CHART_COLORS[:len(labels)])
     if len(colors) < len(labels):
@@ -175,6 +177,11 @@ def render_chart_image(chart_cfg, path):
 
     if ctype == 'pie':
         fig, ax = plt.subplots(figsize=(10, 5))
+    elif ctype == 'horizontal_bar':
+        fig_h = max(4, len(labels) * 0.55)
+        fig, ax = plt.subplots(figsize=(8, fig_h))
+    elif len(labels) > 15:
+        fig, ax = plt.subplots(figsize=(10, 4.5))
     else:
         fig, ax = plt.subplots(figsize=(8, 4.5))
     fig.patch.set_facecolor('#FAFAFA')
@@ -223,10 +230,14 @@ def render_chart_image(chart_cfg, path):
             ax.text(bar.get_width() + max(values)*0.02, bar.get_y() + bar.get_height()/2,
                     f'${{val:,.0f}}', va='center', fontsize=9, color='#605E5C')
     elif ctype == 'line':
-        ax.plot(labels, values, color=colors[0] if colors else '#5B9BD5',
-                marker='o', linewidth=2.5, markersize=6, markerfacecolor='white', markeredgewidth=2, markeredgecolor=colors[0] if colors else '#5B9BD5')
-        ax.fill_between(range(len(labels)), values, alpha=0.08, color=colors[0] if colors else '#5B9BD5')
-        plt.xticks(rotation=45, ha='right', fontsize=9, color='#605E5C')
+        line_color = colors[0] if colors else '#0078D4'
+        x_pos = range(len(labels))
+        ax.plot(x_pos, values, color=line_color,
+                marker='o', linewidth=2.5, markersize=5, markerfacecolor='white', markeredgewidth=2, markeredgecolor=line_color)
+        ax.fill_between(x_pos, values, alpha=0.12, color=line_color)
+        ax.set_xticks(x_pos)
+        ax.set_xticklabels(labels, rotation=45, ha='right', fontsize=9, color='#605E5C')
+        ax.set_xlim(-0.5, len(labels) - 0.5)
     else:  # bar
         bars = ax.bar(labels, values, color=colors[:len(labels)], width=0.65, edgecolor='white', linewidth=0.5)
         plt.xticks(rotation=45, ha='right', fontsize=9, color='#605E5C')
@@ -241,7 +252,9 @@ def render_chart_image(chart_cfg, path):
     ax.spines['left'].set_color('#E8E8E8')
     ax.spines['bottom'].set_color('#E8E8E8')
     ax.tick_params(colors='#605E5C', labelsize=9)
-    if ctype != 'pie':
+    if ctype == 'horizontal_bar':
+        ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x, p: f'${{x:,.0f}}'))
+    elif ctype != 'pie':
         ax.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, p: f'${{x:,.0f}}'))
     plt.tight_layout()
     fig.savefig(path, dpi=150, bbox_inches='tight', facecolor='#FAFAFA')
