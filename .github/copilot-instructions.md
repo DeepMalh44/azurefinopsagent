@@ -50,7 +50,6 @@ src/Dashboard/
 │       ├── main.js
 │       ├── App.vue          # Always renders Dashboard — handles auth state, login/logout
 │       └── components/
-│           ├── LoginScreen.vue   # GitHub OAuth login card (shown via sidebar when not logged in)
 │           ├── Dashboard.vue     # Layout shell
 │           └── ChatView.vue      # Full chat UI: left sidebar (prompts, APIs, subscriptions), center chat, right sidebar (tool calls), ECharts
 ├── appsettings.json              # Base config (empty GitHub secrets — safe to commit)

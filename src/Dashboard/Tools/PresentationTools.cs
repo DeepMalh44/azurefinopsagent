@@ -173,11 +173,15 @@ def render_chart_image(chart_cfg, path):
     if len(colors) < len(labels):
         colors = colors + CHART_COLORS[len(colors):len(labels)]
 
-    fig, ax = plt.subplots(figsize=(8, 4.5))
+    if ctype == 'pie':
+        fig, ax = plt.subplots(figsize=(10, 5))
+    else:
+        fig, ax = plt.subplots(figsize=(8, 4.5))
     fig.patch.set_facecolor('#FAFAFA')
     ax.set_facecolor('#FAFAFA')
 
     if ctype == 'pie':
+        ax.set_aspect('equal')
         # Group small slices (< 3%) into 'Other' to avoid label overlap
         total = sum(values)
         threshold = 0.03 * total if total > 0 else 0

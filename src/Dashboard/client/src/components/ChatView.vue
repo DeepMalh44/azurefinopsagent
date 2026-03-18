@@ -299,29 +299,56 @@
       <div class="sidebar-footer">
         <!-- Not logged in: show GitHub login -->
         <template v-if="!user">
-          <a href="/auth/github" class="login-btn login-btn--github">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+          <button
+            class="login-btn login-btn--github"
+            :disabled="authLoading === 'github'"
+            @click="startAuth('github', '/auth/github')"
+          >
+            <span v-if="authLoading === 'github'" class="auth-spinner"></span>
+            <svg
+              v-else
+              width="16"
+              height="16"
+              viewBox="0 0 16 16"
+              fill="currentColor"
+            >
               <path
                 d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"
               />
             </svg>
-            Sign in with GitHub
-          </a>
+            {{
+              authLoading === "github" ? "Connecting..." : "Sign in with GitHub"
+            }}
+          </button>
         </template>
 
         <!-- Logged in -->
         <template v-else>
           <!-- Azure connect/status -->
           <div v-if="!azureConnected" class="azure-connect">
-            <a href="/auth/microsoft" class="azure-connect-btn">
-              <svg width="16" height="16" viewBox="0 0 21 21" fill="none">
+            <button
+              class="azure-connect-btn"
+              :disabled="authLoading === 'azure'"
+              @click="startAuth('azure', '/auth/microsoft')"
+            >
+              <span
+                v-if="authLoading === 'azure'"
+                class="auth-spinner auth-spinner--azure"
+              ></span>
+              <svg
+                v-else
+                width="16"
+                height="16"
+                viewBox="0 0 21 21"
+                fill="none"
+              >
                 <rect width="10" height="10" fill="#f25022" />
                 <rect x="11" width="10" height="10" fill="#7fba00" />
                 <rect y="11" width="10" height="10" fill="#00a4ef" />
                 <rect x="11" y="11" width="10" height="10" fill="#ffb900" />
               </svg>
-              Connect Azure
-            </a>
+              {{ authLoading === "azure" ? "Connecting..." : "Connect Azure" }}
+            </button>
           </div>
           <div v-else class="azure-status">
             <div class="azure-status-info">
@@ -861,6 +888,9 @@ const buildNumber = ref("0");
 const availableModels = ref(["claude-sonnet-4.6"]);
 const selectedModel = ref("claude-sonnet-4.6");
 
+// Auth loading state
+const authLoading = ref(""); // "" | "github" | "azure"
+
 // Azure connection state
 const azureConnected = ref(false);
 const azureUserEmail = ref("");
@@ -883,6 +913,13 @@ async function checkAzureStatus() {
       }
     }
   } catch {}
+}
+
+function startAuth(provider, url) {
+  authLoading.value = provider;
+  setTimeout(() => {
+    window.location.href = url;
+  }, 100);
 }
 
 async function disconnectAzure() {
@@ -2838,8 +2875,31 @@ async function send() {
   background: #1f2328;
   color: #fff;
 }
-.login-btn--github:hover {
+.login-btn--github:hover:not(:disabled) {
   background: #2da44e;
+}
+.login-btn:disabled,
+.azure-connect-btn:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+.auth-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: auth-spin 0.6s linear infinite;
+  flex-shrink: 0;
+}
+.auth-spinner--azure {
+  border-color: rgba(0, 120, 212, 0.2);
+  border-top-color: #0078d4;
+}
+@keyframes auth-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 .azure-connect-btn {
   display: flex;
