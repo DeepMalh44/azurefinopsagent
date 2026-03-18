@@ -812,13 +812,13 @@
 <script setup>
 import * as echarts from "echarts";
 import {
-    computed,
-    nextTick,
-    onBeforeUnmount,
-    onMounted,
-    reactive,
-    ref,
-    watch,
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  reactive,
+  ref,
+  watch,
 } from "vue";
 
 const props = defineProps({
@@ -1562,6 +1562,56 @@ function buildEChartsOption(raw) {
     !Array.isArray(firstItem) &&
     !("value" in firstItem) &&
     Object.keys(firstItem).filter((k) => k !== "name").length > 1;
+
+  // Race line chart: multi-series line with end labels and animation
+  if (chartType === "race" && isMultiSeries) {
+    const seriesKeys = Object.keys(firstItem).filter((k) => k !== "name");
+    return {
+      animationDuration: 5000,
+      title: {
+        text: title,
+        left: "center",
+        textStyle: { fontSize: 14, color: "#1f2328" },
+      },
+      tooltip: { trigger: "axis", order: "valueDesc" },
+      legend: {
+        data: seriesKeys,
+        bottom: 0,
+        type: "scroll",
+        textStyle: { color: "#656d76", fontSize: 11 },
+      },
+      color: colors,
+      grid: { left: 60, right: 140, bottom: 40, top: 50 },
+      xAxis: {
+        type: "category",
+        data: categories,
+        name: xAxisName,
+        nameLocation: "center",
+        nameGap: 30,
+        axisLabel: { fontSize: 10, rotate: categories.length > 10 ? 45 : 0 },
+      },
+      yAxis: {
+        type: "value",
+        name: yAxisName,
+        nameLocation: "center",
+        nameGap: 45,
+        axisLabel: { fontSize: 10 },
+      },
+      series: seriesKeys.map((key) => ({
+        name: key,
+        type: "line",
+        showSymbol: false,
+        data: dataArr.map((d) => d[key]),
+        endLabel: {
+          show: true,
+          formatter: (params) => `${params.seriesName}: ${params.value}`,
+          fontSize: 11,
+        },
+        labelLayout: { moveOverlap: "shiftY" },
+        emphasis: { focus: "series" },
+      })),
+    };
+  }
 
   if (isMultiSeries) {
     const seriesKeys = Object.keys(firstItem).filter((k) => k !== "name");
