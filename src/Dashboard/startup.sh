@@ -19,16 +19,18 @@ mkdir -p "$PIP_TARGET"
 export PYTHONPATH="$PIP_TARGET:$PYTHONPATH"
 
 # Package list — bump PKG_VERSION when adding/removing packages to force reinstall
-PACKAGES="requests pandas numpy openpyxl tabulate python-dateutil python-pptx matplotlib"
-PKG_VERSION="3"
+PACKAGES="requests pandas numpy openpyxl tabulate python-dateutil python-pptx matplotlib lxml"
+PKG_VERSION="4"
 
 # Only install if marker version differs (forces reinstall on package list changes)
 if [ ! -f "$PIP_TARGET/.installed_v$PKG_VERSION" ]; then
     echo "Installing Python packages (v$PKG_VERSION) to $PIP_TARGET..."
-    # Clean stale markers and conflicting packages
+    # Clean stale markers and broken packages (lxml C extensions, numpy conflicts)
     rm -f "$PIP_TARGET/.installed"* 2>/dev/null
     rm -rf "$PIP_TARGET/numpy"* "$PIP_TARGET/numpy.libs" 2>/dev/null
+    rm -rf "$PIP_TARGET/lxml"* 2>/dev/null
     pip3 install --no-cache-dir --break-system-packages --target "$PIP_TARGET" \
+        --upgrade \
         $PACKAGES \
         2>/dev/null || true
     touch "$PIP_TARGET/.installed_v$PKG_VERSION"

@@ -1,37 +1,60 @@
 ---
 mode: agent
-description: "Deploy Azure FinOps Agent to Azure App Service via az CLI"
+description: "Deploy Azure FinOps Agent container to Azure App Service via ACR"
 ---
 
-## Deploy to Azure
+## Deploy to Azure (Docker Container)
 
 1. Run `az account show` to confirm the active Azure subscription. Show the subscription name and ID.
 
-2. Run `az webapp list --query "[].{name:name, group:resourceGroup, state:state}" -o table` to find existing web apps.
-
-3. If an existing app is found in step 2, use it automatically — do NOT ask the user for confirmation. Only ask if no app exists or multiple apps are found.
-
-4. Run the deploy script:
+2. Clean build artifacts to keep the Docker context small (~76 KB):
 
 ```powershell
 cd src/Dashboard
-.\deploy.ps1 -ResourceGroup "<resource-group>" -AppName "<app-name>"
+Remove-Item -Recurse -Force bin, obj, publish, deploy.zip, wwwroot, client/node_modules -ErrorAction SilentlyContinue
 ```
 
-Use `-SkipInfra` if the resource group and app service already exist.
+3. Build and push the Docker image to ACR (cloud build — no local Docker needed). Use `--no-logs` to avoid the Azure CLI Unicode crash on Windows:
 
-5. After deployment, confirm the app is running by checking `https://<app-name>.azurewebsites.net/api/version`.
+```powershell
+az acr build --registry crfinopsagent --image finops-agent:latest --platform linux/amd64 --no-logs .
+```
 
-6. If a custom domain is configured, also verify `https://azure-finops-agent.com/api/version`.
+4. Restart the container app to pull the new image:
+
+```powershell
+az webapp restart --name finops-agent-container --resource-group rg-finops-agent
+```
+
+5. Wait ~30 seconds, then confirm the app is running:
+
+```powershell
+Invoke-RestMethod "https://finops-agent-container.azurewebsites.net/api/version"
+```
+
+6. Verify the custom domain:
+
+```powershell
+Invoke-RestMethod "https://azure-finops-agent.com/api/version"
+```
 
 ### Rules
 
-- **Always deploy to the existing app** if one is found in step 2 — use `-SkipInfra` automatically. Only create new infrastructure if no app exists or if I explicitly ask.
-- **Never ask for confirmation** — proceed with deployment immediately after identifying the target app.
+- **Never ask for confirmation** — proceed with build and deploy immediately.
+- **Always clean** `bin/`, `obj/`, `node_modules/` before building to keep context under 100 KB.
+- **Always use `--no-logs`** — the Azure CLI on Windows crashes on vite's `✓` Unicode character without it.
+- The ACR build output JSON includes `status: "Succeeded"` when the image is pushed successfully.
+
+### Infrastructure
+
+- **ACR**: `crfinopsagent.azurecr.io` (Basic SKU, admin enabled)
+- **Container App**: `finops-agent-container` on `ASP-rgfinopsagent-b74f` (P0v3 Premium plan)
+- **Custom Domain**: `https://www.azure-finops-agent.com` and `https://azure-finops-agent.com`
+- **Container startup timeout**: `WEBSITES_CONTAINER_START_TIME_LIMIT=600`
 
 ### Notes
 
-- The deploy script publishes with `-r linux-x64` — required for the Copilot SDK native binary on Linux App Service.
-- `appsettings.Local.json` is only loaded in Development mode — it will NOT override production env vars on Azure.
-- GitHub OAuth callback URL must match the custom domain: `https://azure-finops-agent.com/auth/github/callback`.
-- GitHub OAuth callback URL must match the custom domain: `https://www.azure-finops-agent.com/auth/github/callback`.
+- Multi-stage Dockerfile: node:22 (frontend) → dotnet/sdk:10.0 (build) → dotnet/aspnet:10.0 (runtime + Python 3 + pip packages)
+- All Python dependencies (python-pptx, matplotlib, lxml, pandas, numpy) are baked into the image — no `startup.sh` needed.
+- `appsettings.Local.json` is excluded via `.dockerignore` — it will NOT be in the container.
+- GitHub OAuth callbacks: `https://azure-finops-agent.com/auth/github/callback`, `https://finops-agent-container.azurewebsites.net/auth/github/callback`

@@ -18,7 +18,9 @@ The agent acts as a frontend on top of Microsoft IQ and Microsoft Graph APIs to:
 - **Auth**: GitHub App OAuth (no repo access — email read-only, user identity + Copilot) with automatic token refresh; Microsoft Entra ID OAuth (multi-tenant) for Azure ARM, Microsoft Graph, and Log Analytics APIs
 - **Data Sources**: Azure Retail Prices API (no auth), Azure Service Health (no auth), Azure Cost Management APIs, Microsoft Graph APIs, Azure Monitor / Log Analytics APIs, ECharts visualization
 - **Observability**: OpenTelemetry + Azure Monitor (Application Insights) — structured traces via `ActivitySource("AzureFinOps.AI")` and custom metrics via `Meter("AzureFinOps.AI")` (chat requests, tool calls, errors, token refreshes, session lifecycle, duration histograms)
-- **Deployment**: Azure App Service (Linux, .NET 10 runtime) via zip deployment — `startup.sh` installs Python 3 and CLI tools at boot
+- **Deployment**: Azure App Service (Linux, P0v3 Premium) via Docker container image from Azure Container Registry (ACR). Multi-stage Dockerfile bakes Python 3, pip packages (python-pptx, matplotlib, pandas, numpy, lxml), and CLI tools into the image — no runtime install needed. Legacy zip deployment via `deploy.ps1` still supported for the original `finops-agent` app.
+- **Container Registry**: Azure Container Registry (`crfinopsagent.azurecr.io`) — Basic SKU, admin credentials, images built via `az acr build`
+- **Container App (staging)**: `finops-agent-container.azurewebsites.net` — Docker container on same P0v3 plan, used for testing before swapping to production
 - **Custom Domain**: `https://www.azure-finops-agent.com` (Namecheap DNS → Azure App Service with managed SSL)
 - **License**: MIT
 
@@ -38,6 +40,8 @@ src/Dashboard/
 │   ├── PricingTools.cs     # FetchUrl — minimal HTTP GET for allowed Azure API URLs (SSRF-protected)
 │   ├── PresentationTools.cs # GeneratePresentation — generates FinOps PowerPoint (.pptx) using python-pptx + matplotlib
 │   └── TokenContext.cs     # AsyncLocal-based per-request token storage for concurrent user isolation
+├── Dockerfile              # Multi-stage Docker build (node:22 + dotnet/sdk:10.0 + dotnet/aspnet:10.0 + Python 3)
+├── .dockerignore           # Excludes bin/, obj/, node_modules/, wwwroot/ from Docker context
 ├── client/
 │   ├── index.html          # SPA entry point
 │   ├── package.json        # Vue 3, Vite, ECharts
@@ -88,7 +92,7 @@ When creating tools for the Copilot SDK:
   }
   ```
 - **ChartTools** (`RenderChart` / `RenderAdvancedChart`) returns a serialized JSON object with chart config — the frontend detects `tool_done` for `RenderChart` or `RenderAdvancedChart` and emits a separate `chart` SSE event. `RenderAdvancedChart` accepts raw ECharts option JSON for world maps, heatmaps, treemaps, radar, gauge, etc.
-- **CodeExecutionTools** (`RunScript`) executes Python 3, bash, or SQLite scripts on the App Service. Runtimes are installed via `startup.sh` at container boot (not baked into a Docker image). Azure, Graph, and Log Analytics tokens are passed via per-process environment variables (`AZURE_TOKEN`, `GRAPH_TOKEN`, `LOG_ANALYTICS_TOKEN`) using `ProcessStartInfo.Environment` — not global env vars, to avoid race conditions between concurrent users. **⚠️ This is a temporary, unsandboxed implementation — see Future Improvements below.**
+- **CodeExecutionTools** (`RunScript`) executes Python 3, bash, or SQLite scripts on the App Service. In the Docker container deployment, all runtimes and pip packages are baked into the image (no `startup.sh` needed). For legacy zip deployment, runtimes are installed via `startup.sh` at container boot. Azure, Graph, and Log Analytics tokens are passed via per-process environment variables (`AZURE_TOKEN`, `GRAPH_TOKEN`, `LOG_ANALYTICS_TOKEN`) using `ProcessStartInfo.Environment` — not global env vars, to avoid race conditions between concurrent users. **⚠️ This is a temporary, unsandboxed implementation — see Future Improvements below.**
 - **PresentationTools** (`GeneratePresentation`) generates FinOps PowerPoint (.pptx) presentations using python-pptx + matplotlib (Charts are rendered as images via matplotlib and embedded in slides). The LLM passes structured JSON slide data (title, content, chart, two_column, section layouts). Returns a `__PPTX_READY__:{fileId}:{fileName}:{slideCount}` marker. The SSE handler emits a `pptx_ready` event, and the frontend shows a download button. Files are served via `/api/download/pptx/{fileId}` and auto-cleaned after 30 minutes.
 - **AzureQueryTools** (`QueryAzure`) calls any Azure ARM REST API (GET/POST) using the user's delegated token from `TokenContext.AzureToken` (AsyncLocal). Returns raw JSON for the LLM to interpret. Covers Cost Management (queries, forecasts, cost details report, reservation details report, exports, scheduled actions, views), Budgets, Billing, Consumption (pricesheets, reservation summaries/recommendations/transactions, lots, credits, balances, charges), Reservations, Savings Plans, Advisor, Resource Graph, Monitor, Activity Log, Compute/VMs/VMSS, AKS, Network (ExpressRoute, VPN, public IPs, App Gateways, NAT Gateways), Storage, SQL, App Service, Resource Health, Defender for Cloud (security assessments, secure scores), RBAC (role assignments), Locks, Quota, Carbon, Policy/PolicyInsights, Management Groups, Tags, Migrate, and Support. Note: Consumption usageDetails/marketplaces are deprecated — prefer Cost Details API (2025-03-01) or Exports. Consumption reservationDetails is deprecated — prefer generateReservationDetailsReport (Microsoft.CostManagement).
 - **GraphQueryTools** (`QueryGraph`) calls Microsoft Graph API (GET) using `TokenContext.GraphToken`. Used for license inventory, M365 usage reports (Exchange, Teams, OneDrive, SharePoint), M365 Copilot seat usage, M365 app-level usage, Intune device management, directory objects, org structure for FinOps chargebacks.
@@ -100,7 +104,7 @@ When creating tools for the Copilot SDK:
 Two **GitHub Apps** (not classic OAuth Apps) are registered — this ensures the consent screen only shows the permissions configured on the app (no "access all repos" prompt):
 
 - **Local dev**: `Azure FinOps Agent (Local)` (App ID: 3109880) — callback `http://localhost:5000/auth/github/callback`
-- **Production**: `Azure FinOps Agent` (App ID: 3109861) — callback `https://azure-finops-agent.com/auth/github/callback`
+- **Production**: `Azure FinOps Agent` (App ID: 3109861) — callbacks: `https://azure-finops-agent.com/auth/github/callback`, `https://finops-agent-container.azurewebsites.net/auth/github/callback`
 
 OAuth scopes: Not used — permissions are configured on the GitHub App itself (no repo access, email read-only + Copilot)
 
@@ -164,6 +168,35 @@ dotnet run --project Dashboard.csproj --urls "http://localhost:5000"
 
 ## Deploying to Azure
 
+### Docker Container Deployment (Recommended)
+
+The app is deployed as a Docker container to Azure App Service via Azure Container Registry (ACR).
+
+```powershell
+cd src/Dashboard
+
+# 1. Build & push image to ACR (cloud build — no local Docker needed)
+#    Uses --no-logs to avoid Azure CLI Unicode crash on Windows
+az acr build --registry crfinopsagent --image finops-agent:latest --platform linux/amd64 --no-logs .
+
+# 2. Restart the container app to pull the new image
+az webapp restart --name finops-agent-container --resource-group rg-finops-agent
+```
+
+**Key points**:
+
+- Multi-stage Dockerfile: node:22 (frontend) → dotnet/sdk:10.0 (build) → dotnet/aspnet:10.0 (runtime + Python 3 + pip packages)
+- All Python dependencies (python-pptx, matplotlib, lxml, pandas, numpy) baked into the image
+- Build context is ~76 KB (clean `bin/`, `obj/`, `node_modules/` before building, or rely on `.dockerignore`)
+- Use `--no-logs` flag to avoid Azure CLI Unicode crash from vite’s `✓` character on Windows
+- ACR: `crfinopsagent.azurecr.io` (Basic SKU, admin enabled)
+- Container app: `finops-agent-container` on same `ASP-rgfinopsagent-b74f` P0v3 plan
+- Container startup timeout: `WEBSITES_CONTAINER_START_TIME_LIMIT=600`
+
+### Legacy Zip Deployment
+
+Still available for the original `finops-agent` app:
+
 ```powershell
 # First deploy (creates infrastructure)
 cd src/Dashboard
@@ -176,7 +209,7 @@ cd src/Dashboard
 The deploy script:
 
 1. Verifies `az login`
-2. Creates resource group + App Service plan (B1 Linux) + web app (.NET 10 runtime)
+2. Creates resource group + App Service plan (P0v3 Linux) + web app (.NET 10 runtime)
 3. Reads production secrets from `appsettings.Production.json` and sets as App Service settings (GitHub + Microsoft OAuth); configures `startup.sh` for Python/tools
 4. Builds Vue frontend via `npm ci && npm run build`
 5. Publishes .NET backend via `dotnet publish -r linux-x64 --self-contained false`
@@ -245,7 +278,7 @@ The production app is available at `https://www.azure-finops-agent.com` and `htt
   - `ALIAS` `@` → `finops-agent-bagwe9fdayepd7ed.canadacentral-01.azurewebsites.net.`
   - `TXT` `asuid` → Azure domain verification token
 - **SSL**: Azure Managed Certificates (auto-renewed) bound via SNI for both `www` and root domain
-- **GitHub OAuth callback** must match the custom domain: `https://azure-finops-agent.com/auth/github/callback`
+- **GitHub OAuth callback** must match the custom domain: `https://azure-finops-agent.com/auth/github/callback`\n- **Container app callback**: `https://finops-agent-container.azurewebsites.net/auth/github/callback`\n- **Microsoft Entra ID callbacks**: `https://azure-finops-agent.com/auth/microsoft/callback`, `https://www.azure-finops-agent.com/auth/microsoft/callback`, `http://localhost:5000/auth/microsoft/callback`, `https://finops-agent-container.azurewebsites.net/auth/microsoft/callback`
 
 ## Self-Maintenance
 
