@@ -20,7 +20,10 @@ public static class GraphQueryTools
         yield return AIFunctionFactory.Create(QueryGraph, "QueryGraph", @"Calls Microsoft Graph API (https://graph.microsoft.com) using the signed-in user's token.
 Provide path starting with /. Returns raw JSON.
 LICENSES: GET /v1.0/subscribedSkus — tenant license inventory (M365, EMS, etc.); GET /v1.0/users?$select=displayName,assignedLicenses — license assignments per user; GET /v1.0/reports/getOffice365ActiveUserDetail(period='D30') — active usage vs assigned.
+M365 USAGE REPORTS: GET /v1.0/reports/getMailboxUsageDetail(period='D30') — Exchange mailbox usage (find unused mailboxes = license waste); GET /v1.0/reports/getTeamsUserActivityUserDetail(period='D30') — Teams activity vs assigned licenses; GET /v1.0/reports/getOneDriveUsageAccountDetail(period='D30') — OneDrive storage usage per user; GET /v1.0/reports/getSharePointSiteUsageDetail(period='D30') — SharePoint site storage and activity; GET /v1.0/reports/getOffice365ActiveUserCounts(period='D30') — overall M365 active user trends.
+DEVICE MGMT: GET /beta/deviceManagement/managedDevices — Intune managed devices for license reconciliation; GET /beta/deviceManagement/deviceCompliancePolicySettingStateSummaries — compliance posture.
 DIRECTORY: GET /v1.0/organization — tenant info; GET /v1.0/groups — groups for chargeback mapping; GET /v1.0/users?$select=displayName,department,companyName — org structure for cost allocation.
+M365 COPILOT USAGE: GET /v1.0/reports/getM365AppUserDetail(period='D30') — per-user M365 app usage for license optimization; GET /beta/copilot/reports/microsoft365CopilotUsageUserDetail — Copilot seat usage vs assigned (identify unused Copilot licenses).
 APPS: GET /v1.0/applications — app registrations; GET /v1.0/servicePrincipals — service principals.");
     }
 

@@ -25,25 +25,39 @@ public static class AzureQueryTools
     {
         yield return AIFunctionFactory.Create(QueryAzure, "QueryAzure", @"Calls any Azure ARM REST API using the signed-in user's token and returns raw JSON.
 Base: https://management.azure.com — provide path starting with /.
-COST MGMT (Microsoft.CostManagement): POST /{scope}/.../query — cost analysis; /.../forecast; /.../generateCostDetailsReport — line-item; GET /.../alerts; /.../dimensions; /.../benefitUtilizationSummaries; /.../benefitRecommendations.
+COST MGMT (Microsoft.CostManagement): POST /{scope}/.../query — cost analysis; /.../forecast; /.../generateCostDetailsReport — line-item cost data (replaces Consumption usageDetails); /.../generateReservationDetailsReport — reservation utilization line-item (replaces Consumption reservationDetails); GET /.../alerts; /.../dimensions; /.../benefitUtilizationSummaries; /.../benefitRecommendations.
+BUDGETS (Microsoft.Consumption): GET /{scope}/.../budgets — list budgets and spend-vs-budget status; PUT to create/update budgets with thresholds and alert rules.
+COST EXPORTS (Microsoft.CostManagement): GET /{scope}/.../exports — list scheduled cost data exports to storage; PUT to create/update.
+SCHEDULED ACTIONS (Microsoft.CostManagement): GET /{scope}/.../scheduledActions — scheduled cost alert emails and reports.
+COST VIEWS (Microsoft.CostManagement): GET /{scope}/.../views — pre-saved cost analysis views.
 BILLING (Microsoft.Billing): GET .../billingAccounts; .../billingProfiles; .../invoiceSections; .../invoices; .../transactions; .../billingSubscriptions; .../departments; .../enrollmentAccounts; .../customers.
-CONSUMPTION (Microsoft.Consumption): GET /{scope}/.../usageDetails; .../marketplaces; .../pricesheets; .../reservationSummaries; .../reservationDetails; .../reservationRecommendations; .../reservationTransactions; .../lots; .../credits; .../balances; .../charges.
+CONSUMPTION (Microsoft.Consumption): GET /{scope}/.../pricesheets; .../reservationSummaries; .../reservationRecommendations; .../reservationTransactions; .../lots; .../credits; .../balances; .../charges. NOTE: usageDetails and marketplaces are deprecated — prefer generateCostDetailsReport (Cost Details API 2025-03-01) or Exports for line-item cost data. reservationDetails is deprecated — prefer generateReservationDetailsReport (Microsoft.CostManagement).
 RESERVATIONS (Microsoft.Capacity): GET .../reservationOrders; .../reservations; .../catalog; POST .../calculatePrice.
 SAVINGS PLANS (Microsoft.BillingBenefits): GET .../savingsPlanOrders; .../savingsPlans.
 ADVISOR (Microsoft.Advisor): GET /subscriptions/{id}/.../recommendations?$filter=Category eq 'Cost'.
 RESOURCE GRAPH (Microsoft.ResourceGraph): POST .../resources — KQL across subs (body: {query,subscriptions}).
 MONITOR (Microsoft.Insights): GET /{resourceId}/.../metrics; .../metricDefinitions; .../metricBaselines; .../diagnosticSettings.
-COMPUTE: GET /subscriptions/{id}/.../skus — VM sizes per region.
+ACTIVITY LOG (Microsoft.Insights): GET /{scope}/.../eventtypes/management/values?$filter=eventTimestamp ge '...' — who created/deleted/modified resources (cost attribution audit trail).
+COMPUTE: GET /subscriptions/{id}/.../virtualMachines — list VMs; .../virtualMachineScaleSets — VMSS instances for right-sizing; .../skus — VM sizes per region.
+AKS (Microsoft.ContainerService): GET /subscriptions/{id}/.../managedClusters — AKS clusters and node pool sizing for cost optimization.
+NETWORK (Microsoft.Network): GET /subscriptions/{id}/.../virtualNetworks; .../publicIPAddresses; .../loadBalancers; .../applicationGateways; .../expressRouteCircuits; .../vpnGateways; .../natGateways — high-cost network resources.
+STORAGE (Microsoft.Storage): GET /subscriptions/{id}/.../storageAccounts — storage tier optimization, lifecycle policies, access tier analysis.
+SQL (Microsoft.Sql): GET /subscriptions/{id}/.../servers — SQL servers; .../servers/{name}/databases — DTU/vCore right-sizing.
+APP SERVICE (Microsoft.Web): GET /subscriptions/{id}/.../serverfarms — App Service plans for right-sizing; .../sites — web apps.
 RESOURCE HEALTH (Microsoft.ResourceHealth): GET /{resourceId}/.../availabilityStatuses.
+SECURITY (Microsoft.Security): GET /subscriptions/{id}/.../assessments — Defender for Cloud security assessments (identify exposed idle resources); .../secureScores — security posture.
 SUBSCRIPTIONS: GET /subscriptions.
 QUOTA (Microsoft.Quota): GET /{scope}/.../quotas.
 CARBON (Microsoft.Carbon): POST .../carbonEmissionReports (preview).
 POLICY (Microsoft.Authorization): GET /{scope}/.../policyDefinitions; .../policyAssignments; (Microsoft.PolicyInsights) .../policyStates/latest/summarize.
+RBAC (Microsoft.Authorization): GET /{scope}/.../roleAssignments — role assignments for cost governance audit; .../roleDefinitions.
+LOCKS (Microsoft.Authorization): GET /{scope}/.../locks — resource locks to prevent accidental deletion of critical resources.
 MGMT GROUPS (Microsoft.Management): GET .../managementGroups; .../descendants; POST .../getEntities.
 TAGS (Microsoft.Resources): GET /subscriptions/{id}/tagNames.
 MIGRATE (Microsoft.Migrate): GET .../migrateProjects; .../assessments; .../assessedMachines.
 SUPPORT (Microsoft.Support): GET .../supportTickets; .../services.
 Scope = /subscriptions/{subId} or /subscriptions/{subId}/resourceGroups/{rg}.
+For retail pricing use the FetchUrl tool with https://prices.azure.com (no auth required) instead of the deprecated Microsoft.Commerce/RateCard API.
 Note: Only GET and POST methods are supported.");
     }
 

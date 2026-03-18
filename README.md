@@ -19,7 +19,7 @@ Built with .NET 10, Vue 3, and the GitHub Copilot SDK. Deploys to Azure App Serv
 - **Code execution** — runs Python 3, bash, and SQLite scripts for data processing and analysis (pandas, numpy, requests available)
 - **Streaming responses** — Server-Sent Events (SSE) for real-time streaming text, tool call status, and chart rendering
 - **Model selection** — choose from available GitHub Copilot models (Claude, GPT, etc.)
-- **Observability** — OpenTelemetry + Azure Monitor (Application Insights) with structured traces and custom metrics for chat requests, tool calls, and AI responses
+- **Observability** — OpenTelemetry + Azure Monitor (Application Insights) with structured traces, custom metrics (chat requests, tool calls, errors, token refreshes, session lifecycle, duration histograms), and activity spans for chat requests, tool calls, and AI responses
 
 ## Architecture
 
@@ -106,7 +106,7 @@ src/Dashboard/
 ├── client/                    # Vue 3 + Vite SPA
 │   ├── src/components/
 │   │   ├── ChatView.vue       # Chat UI, tool sidebar, ECharts rendering
-│   │   ├── LoginScreen.vue    # GitHub OAuth login
+│   │   ├── LoginScreen.vue    # GitHub OAuth login card
 │   │   └── Dashboard.vue      # Layout shell
 ├── deploy.ps1                 # Azure App Service deployment script
 ├── startup.sh                 # App Service startup — installs Python/tools

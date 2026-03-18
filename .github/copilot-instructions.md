@@ -17,7 +17,7 @@ The agent acts as a frontend on top of Microsoft IQ and Microsoft Graph APIs to:
 - **AI**: GitHub Copilot SDK for agentic reasoning — sessions managed via `CopilotClient` / `CopilotSession`
 - **Auth**: GitHub App OAuth (no repo access — email read-only, user identity + Copilot) with automatic token refresh; Microsoft Entra ID OAuth (multi-tenant) for Azure ARM, Microsoft Graph, and Log Analytics APIs
 - **Data Sources**: Azure Retail Prices API (no auth), Azure Service Health (no auth), Azure Cost Management APIs, Microsoft Graph APIs, Azure Monitor / Log Analytics APIs, ECharts visualization
-- **Observability**: OpenTelemetry + Azure Monitor (Application Insights) — structured traces for chat requests, tool calls, and AI responses via `ActivitySource("AzureFinOps.AI")`
+- **Observability**: OpenTelemetry + Azure Monitor (Application Insights) — structured traces via `ActivitySource("AzureFinOps.AI")` and custom metrics via `Meter("AzureFinOps.AI")` (chat requests, tool calls, errors, token refreshes, session lifecycle, duration histograms)
 - **Deployment**: Azure App Service (Linux, .NET 10 runtime) via zip deployment — `startup.sh` installs Python 3 and CLI tools at boot
 - **Custom Domain**: `https://www.azure-finops-agent.com` (Namecheap DNS → Azure App Service with managed SSL)
 - **License**: MIT
@@ -43,9 +43,9 @@ src/Dashboard/
 │   ├── vite.config.js      # Dev proxy to :5000, builds to ../wwwroot
 │   └── src/
 │       ├── main.js
-│       ├── App.vue          # Routes between LoginScreen and Dashboard (user can view Dashboard without login)
+│       ├── App.vue          # Always renders Dashboard — handles auth state, login/logout
 │       └── components/
-│           ├── LoginScreen.vue   # GitHub OAuth login with animated SVG hub
+│           ├── LoginScreen.vue   # GitHub OAuth login card (shown via sidebar when not logged in)
 │           ├── Dashboard.vue     # Layout shell
 │           └── ChatView.vue      # Full chat UI: left sidebar (prompts, APIs, subscriptions), center chat, right sidebar (tool calls), ECharts
 ├── appsettings.json              # Base config (empty GitHub secrets — safe to commit)
@@ -88,9 +88,9 @@ When creating tools for the Copilot SDK:
   ```
 - **ChartTools** (`RenderChart` / `RenderAdvancedChart`) returns a serialized JSON object with chart config — the frontend detects `tool_done` for `RenderChart` or `RenderAdvancedChart` and emits a separate `chart` SSE event. `RenderAdvancedChart` accepts raw ECharts option JSON for world maps, heatmaps, treemaps, radar, gauge, etc.
 - **CodeExecutionTools** (`RunScript`) executes Python 3, bash, or SQLite scripts on the App Service. Runtimes are installed via `startup.sh` at container boot (not baked into a Docker image). Azure, Graph, and Log Analytics tokens are passed via per-process environment variables (`AZURE_TOKEN`, `GRAPH_TOKEN`, `LOG_ANALYTICS_TOKEN`) using `ProcessStartInfo.Environment` — not global env vars, to avoid race conditions between concurrent users. **⚠️ This is a temporary, unsandboxed implementation — see Future Improvements below.**
-- **AzureQueryTools** (`QueryAzure`) calls any Azure ARM REST API (GET/POST) using the user's delegated token from `TokenContext.AzureToken` (AsyncLocal). Returns raw JSON for the LLM to interpret. Covers Cost Management, Billing, Advisor, Resource Graph, Monitor, Reservations, Savings Plans, and more.
-- **GraphQueryTools** (`QueryGraph`) calls Microsoft Graph API (GET) using `TokenContext.GraphToken`. Used for license inventory, directory objects, org structure for FinOps chargebacks.
-- **LogAnalyticsQueryTools** (`QueryLogAnalytics`) runs KQL queries against Log Analytics workspaces or App Insights using `TokenContext.LogAnalyticsToken`. Used for VM/container metrics, diagnostics, and ingestion cost analysis.
+- **AzureQueryTools** (`QueryAzure`) calls any Azure ARM REST API (GET/POST) using the user's delegated token from `TokenContext.AzureToken` (AsyncLocal). Returns raw JSON for the LLM to interpret. Covers Cost Management (queries, forecasts, cost details report, reservation details report, exports, scheduled actions, views), Budgets, Billing, Consumption (pricesheets, reservation summaries/recommendations/transactions, lots, credits, balances, charges), Reservations, Savings Plans, Advisor, Resource Graph, Monitor, Activity Log, Compute/VMs/VMSS, AKS, Network (ExpressRoute, VPN, public IPs, App Gateways, NAT Gateways), Storage, SQL, App Service, Resource Health, Defender for Cloud (security assessments, secure scores), RBAC (role assignments), Locks, Quota, Carbon, Policy/PolicyInsights, Management Groups, Tags, Migrate, and Support. Note: Consumption usageDetails/marketplaces are deprecated — prefer Cost Details API (2025-03-01) or Exports. Consumption reservationDetails is deprecated — prefer generateReservationDetailsReport (Microsoft.CostManagement).
+- **GraphQueryTools** (`QueryGraph`) calls Microsoft Graph API (GET) using `TokenContext.GraphToken`. Used for license inventory, M365 usage reports (Exchange, Teams, OneDrive, SharePoint), M365 Copilot seat usage, M365 app-level usage, Intune device management, directory objects, org structure for FinOps chargebacks.
+- **LogAnalyticsQueryTools** (`QueryLogAnalytics`) runs KQL queries against Log Analytics workspaces or App Insights using `TokenContext.LogAnalyticsToken`. Used for VM/container metrics, diagnostics, cost attribution (AzureActivity table), and ingestion cost analysis.
 - **TokenContext** (`TokenContext.cs`) provides thread-safe, per-request token storage using `AsyncLocal<string?>`. Set in the `/api/chat` endpoint before tool execution begins. Avoids race conditions when multiple users hit the chat endpoint concurrently.
 
 ## GitHub App OAuth Setup
@@ -104,7 +104,7 @@ OAuth scopes: Not used — permissions are configured on the GitHub App itself (
 
 ## Microsoft Entra ID OAuth Setup
 
-A **multi-tenant** Microsoft Entra ID app registration is used for Azure tenant data access. The OAuth flow exchanges tokens for three separate resources:
+A single **multi-tenant** Microsoft Entra ID app registration (`Azure FinOps Agent`) is shared between local development and production — both use the same ClientId/ClientSecret. The OAuth flow exchanges tokens for three separate resources:
 
 - **Azure ARM token** (`https://management.azure.com/user_impersonation`) — for Cost Management, Billing, Advisor, Resource Graph, Monitor, etc.
 - **Microsoft Graph token** (`https://graph.microsoft.com/.default`) — for license inventory, directory objects, org structure
