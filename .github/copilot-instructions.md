@@ -165,6 +165,11 @@ dotnet run --project Dashboard.csproj --urls "http://localhost:5000"
 # 3. Open http://localhost:5000
 ```
 
+Prompt shortcuts are available in `.github/prompts/`:
+
+- `debug-local.prompt.md` for non-container local debugging
+- `debug-local-docker.prompt.md` for Docker-based local debugging
+
 ## Deploying to Azure
 
 ### Docker Container Deployment (Recommended)
