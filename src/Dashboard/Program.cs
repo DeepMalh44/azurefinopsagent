@@ -71,6 +71,22 @@ forwardedHeadersOptions.KnownIPNetworks.Clear();
 forwardedHeadersOptions.KnownProxies.Clear();
 app.UseForwardedHeaders(forwardedHeadersOptions);
 
+// Redirect www to bare domain so OAuth callbacks and all links use the canonical host
+app.Use(async (ctx, next) =>
+{
+    var host = ctx.Request.Host.Host;
+    if (host.StartsWith("www.", StringComparison.OrdinalIgnoreCase))
+    {
+        var bare = host[4..];
+        var port = ctx.Request.Host.Port;
+        var newHost = port.HasValue ? $"{bare}:{port}" : bare;
+        var url = $"{ctx.Request.Scheme}://{newHost}{ctx.Request.Path}{ctx.Request.QueryString}";
+        ctx.Response.Redirect(url, permanent: true);
+        return;
+    }
+    await next();
+});
+
 app.UseSession();
 
 // Serve Vue SPA from wwwroot
