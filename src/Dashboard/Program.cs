@@ -84,6 +84,12 @@ var msClientId = app.Configuration["Microsoft:ClientId"] ?? "";
 var msClientSecret = app.Configuration["Microsoft:ClientSecret"] ?? "";
 var msTenantId = app.Configuration["Microsoft:TenantId"] ?? "common";
 
+// Per-user CopilotClient + CopilotSession cache (declared early so auth endpoints can reference them)
+var clients = new ConcurrentDictionary<long, CopilotClient>();
+var sessions = new ConcurrentDictionary<long, CopilotSession>();
+var clientTokens = new ConcurrentDictionary<long, string>();
+var sessionModels = new ConcurrentDictionary<long, string>();
+
 // ──────────────────────────────────────────────
 // AUTH ENDPOINTS
 // ──────────────────────────────────────────────
@@ -244,7 +250,7 @@ app.MapGet("/auth/me", (HttpContext ctx) =>
 });
 
 // Logout
-app.MapPost("/auth/logout", (HttpContext ctx) =>
+app.MapPost("/auth/logout", async (HttpContext ctx) =>
 {
     var userJson = ctx.Session.GetString("user");
     if (userJson is not null)
@@ -253,6 +259,18 @@ app.MapPost("/auth/logout", (HttpContext ctx) =>
         var uid = u.GetProperty("id").GetInt64();
         var uLogin = u.TryGetProperty("login", out var lp) ? lp.GetString() : uid.ToString();
         logger.LogInformation("User {User} logged out", uLogin);
+
+        // Clear cached CopilotClient, session, and per-user tokens
+        if (sessions.TryRemove(uid, out var oldSession))
+        {
+            activeSessionsGauge.Add(-1);
+            try { await oldSession.DisposeAsync(); } catch { }
+        }
+        sessionModels.TryRemove(uid, out _);
+        if (clients.TryRemove(uid, out var oldClient))
+            try { oldClient.Dispose(); } catch { }
+        clientTokens.TryRemove(uid, out _);
+        TokenContext.ClearUser(uid);
     }
     ctx.Session.Clear();
     return Results.Ok(new { ok = true });
@@ -631,6 +649,20 @@ app.MapGet("/auth/azure/status", async (HttpContext ctx, IHttpClientFactory http
 // Disconnect Azure
 app.MapPost("/auth/azure/disconnect", (HttpContext ctx) =>
 {
+    // Clear per-user cached tokens
+    var userJson = ctx.Session.GetString("user");
+    if (userJson is not null)
+    {
+        var u = JsonSerializer.Deserialize<JsonElement>(userJson);
+        var uid = u.GetProperty("id").GetInt64();
+        TokenContext.ClearUser(uid);
+        logger.LogInformation("Azure disconnected for user {UserId}", uid);
+    }
+    else
+    {
+        logger.LogInformation("Azure disconnected (no user context)");
+    }
+
     ctx.Session.Remove("azure_token");
     ctx.Session.Remove("azure_refresh_token");
     ctx.Session.Remove("azure_token_expiry");
@@ -639,7 +671,6 @@ app.MapPost("/auth/azure/disconnect", (HttpContext ctx) =>
     ctx.Session.Remove("graph_token_expiry");
     ctx.Session.Remove("loganalytics_token");
     ctx.Session.Remove("loganalytics_token_expiry");
-    logger.LogInformation("Azure disconnected");
     return Results.Ok(new { ok = true });
 });
 
@@ -697,14 +728,6 @@ async Task<string?> RefreshGitHubTokenAsync(HttpContext ctx, IHttpClientFactory 
     return newAccessToken;
 }
 
-// Per-user CopilotClient + CopilotSession cache
-var clients = new ConcurrentDictionary<long, CopilotClient>();
-var sessions = new ConcurrentDictionary<long, CopilotSession>();
-// Track which token each client was created with (so we can detect changes and recreate)
-var clientTokens = new ConcurrentDictionary<long, string>();
-// Track which model each session was created with
-var sessionModels = new ConcurrentDictionary<long, string>();
-
 // ── Register all AI tools ──
 var agentTools = new List<AIFunction>();
 agentTools.AddRange(ChartTools.Create());
@@ -760,11 +783,10 @@ app.MapPost("/api/chat", (Delegate)(async (HttpContext ctx, IHttpClientFactory h
     chatActivity?.SetTag("ai.prompt", prompt.Length > 500 ? prompt[..500] + "..." : prompt);
     logger.LogInformation("Chat request from {User} model={Model} promptLen={PromptLen}", userLogin, model, prompt.Length);
 
-    // Set GH_TOKEN BEFORE creating/starting the CopilotClient so the CLI child process
-    // inherits it at spawn time.
-    Environment.SetEnvironmentVariable("GH_TOKEN", githubToken);
+    // Set per-request user context for token isolation (keyed by userId)
+    TokenContext.CurrentUserId = userId;
 
-    // Set per-request tokens via AsyncLocal + volatile fallback (for SDK tool execution)
+    // Set per-request tokens via AsyncLocal + per-user fallback (for SDK tool execution)
     var azureToken = await GetAzureTokenAsync(ctx, httpFactory);
     TokenContext.AzureToken = azureToken;
     var graphToken = await GetGraphTokenAsync(ctx, httpFactory);
@@ -1191,8 +1213,6 @@ app.MapGet("/api/models", async (HttpContext ctx, IHttpClientFactory httpFactory
 
     try
     {
-        Environment.SetEnvironmentVariable("GH_TOKEN", githubToken);
-
         var client = clients.GetOrAdd(userId,
             _ => new CopilotClient(new CopilotClientOptions { GitHubToken = githubToken }));
         clientTokens[userId] = githubToken;
