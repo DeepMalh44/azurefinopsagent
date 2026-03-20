@@ -10,7 +10,7 @@ namespace AzureFinOps.Dashboard.Tools;
 /// The LLM constructs the URL and optional body; this tool executes the HTTP request.
 /// All calls are traced via OpenTelemetry → Application Insights for analysis.
 /// </summary>
-public static class AzureQueryTools
+public class AzureQueryTools
 {
     private static readonly HttpClient Http = new()
     {
@@ -21,7 +21,11 @@ public static class AzureQueryTools
 
     private const int MaxResponseChars = 80_000;
 
-    public static IEnumerable<AIFunction> Create()
+    private readonly UserTokens _tokens;
+
+    public AzureQueryTools(UserTokens tokens) => _tokens = tokens;
+
+    public IEnumerable<AIFunction> Create()
     {
         yield return AIFunctionFactory.Create(QueryAzure, "QueryAzure", @"Calls any Azure ARM REST API using the signed-in user's token and returns raw JSON.
 Base: https://management.azure.com — provide path starting with /.
@@ -61,7 +65,7 @@ For retail pricing use the FetchUrl tool with https://prices.azure.com (no auth 
 Note: Only GET and POST methods are supported.");
     }
 
-    private static async Task<string> QueryAzure(
+    private async Task<string> QueryAzure(
         [Description("HTTP method: GET or POST")] string method,
         [Description("API path starting with /, e.g. /subscriptions?api-version=2022-12-01")] string path,
         [Description("Optional JSON request body for POST requests. Omit or leave empty for GET.")] string? body = null)
@@ -73,7 +77,7 @@ Note: Only GET and POST methods are supported.");
         if (!string.IsNullOrWhiteSpace(body))
             activity?.SetTag("azure.body", body.Length > 2000 ? body[..2000] + "..." : body);
 
-        var token = TokenContext.AzureToken;
+        var token = _tokens.AzureToken;
         if (string.IsNullOrEmpty(token))
         {
             activity?.SetTag("azure.result", "not_connected");

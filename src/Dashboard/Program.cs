@@ -89,6 +89,18 @@ var clients = new ConcurrentDictionary<long, CopilotClient>();
 var sessions = new ConcurrentDictionary<long, CopilotSession>();
 var clientTokens = new ConcurrentDictionary<long, string>();
 var sessionModels = new ConcurrentDictionary<long, string>();
+var userTokens = new ConcurrentDictionary<long, UserTokens>();
+var userTools = new ConcurrentDictionary<long, List<AIFunction>>();
+
+// Normalize host for OAuth callbacks — strip "www." so callbacks always match
+// the registered redirect URIs (e.g. azure-finops-agent.com, not www.azure-finops-agent.com)
+string NormalizeCallbackHost(HttpContext ctx)
+{
+    var host = ctx.Request.Host.ToString();
+    if (host.StartsWith("www.", StringComparison.OrdinalIgnoreCase))
+        host = host[4..];
+    return $"{ctx.Request.Scheme}://{host}";
+}
 
 // ──────────────────────────────────────────────
 // AUTH ENDPOINTS
@@ -100,7 +112,7 @@ app.MapGet("/auth/github", (HttpContext ctx) =>
     var state = Guid.NewGuid().ToString("N");
     ctx.Session.SetString("oauth_state", state);
 
-    var callbackUrl = $"{ctx.Request.Scheme}://{ctx.Request.Host}/auth/github/callback";
+    var callbackUrl = $"{NormalizeCallbackHost(ctx)}/auth/github/callback";
     // GitHub App OAuth — permissions are configured on the app itself, not via scopes.
     // This avoids the classic OAuth App consent screen that shows "access all repos".
     var url = $"https://github.com/login/oauth/authorize?client_id={gitHubClientId}&redirect_uri={Uri.EscapeDataString(callbackUrl)}&state={state}";
@@ -270,7 +282,8 @@ app.MapPost("/auth/logout", async (HttpContext ctx) =>
         if (clients.TryRemove(uid, out var oldClient))
             try { oldClient.Dispose(); } catch { }
         clientTokens.TryRemove(uid, out _);
-        TokenContext.ClearUser(uid);
+        userTokens.TryRemove(uid, out _);
+        userTools.TryRemove(uid, out _);
     }
     ctx.Session.Clear();
     return Results.Ok(new { ok = true });
@@ -289,7 +302,7 @@ app.MapGet("/auth/microsoft", (HttpContext ctx) =>
     var state = Guid.NewGuid().ToString("N");
     ctx.Session.SetString("ms_oauth_state", state);
 
-    var redirectUri = $"{ctx.Request.Scheme}://{ctx.Request.Host}/auth/microsoft/callback";
+    var redirectUri = $"{NormalizeCallbackHost(ctx)}/auth/microsoft/callback";
     var scope = "openid profile email offline_access https://management.azure.com/user_impersonation https://graph.microsoft.com/User.Read https://graph.microsoft.com/Organization.Read.All https://graph.microsoft.com/Directory.Read.All";
     var url = $"https://login.microsoftonline.com/{Uri.EscapeDataString(msTenantId)}/oauth2/v2.0/authorize" +
               $"?client_id={Uri.EscapeDataString(msClientId)}" +
@@ -328,7 +341,7 @@ app.MapGet("/auth/microsoft/callback", async (HttpContext ctx, IHttpClientFactor
         ctx.Session.Remove("ms_oauth_state");
 
         var http = httpFactory.CreateClient();
-        var redirectUri = $"{ctx.Request.Scheme}://{ctx.Request.Host}/auth/microsoft/callback";
+        var redirectUri = $"{NormalizeCallbackHost(ctx)}/auth/microsoft/callback";
 
         using var tokenReq = new HttpRequestMessage(HttpMethod.Post,
             $"https://login.microsoftonline.com/{Uri.EscapeDataString(msTenantId)}/oauth2/v2.0/token");
@@ -655,7 +668,12 @@ app.MapPost("/auth/azure/disconnect", (HttpContext ctx) =>
     {
         var u = JsonSerializer.Deserialize<JsonElement>(userJson);
         var uid = u.GetProperty("id").GetInt64();
-        TokenContext.ClearUser(uid);
+        if (userTokens.TryGetValue(uid, out var tokens))
+        {
+            tokens.AzureToken = null;
+            tokens.GraphToken = null;
+            tokens.LogAnalyticsToken = null;
+        }
         logger.LogInformation("Azure disconnected for user {UserId}", uid);
     }
     else
@@ -728,16 +746,29 @@ async Task<string?> RefreshGitHubTokenAsync(HttpContext ctx, IHttpClientFactory 
     return newAccessToken;
 }
 
-// ── Register all AI tools ──
-var agentTools = new List<AIFunction>();
-agentTools.AddRange(ChartTools.Create());
-agentTools.AddRange(PricingTools.Create());
-agentTools.AddRange(HealthTools.Create());
-agentTools.AddRange(CodeExecutionTools.Create());
-agentTools.AddRange(AzureQueryTools.Create());
-agentTools.AddRange(GraphQueryTools.Create());
-agentTools.AddRange(LogAnalyticsQueryTools.Create());
-agentTools.AddRange(PresentationTools.Create());
+// ── Shared (stateless) AI tools — safe to share across all users ──
+var sharedTools = new List<AIFunction>();
+sharedTools.AddRange(ChartTools.Create());
+sharedTools.AddRange(PricingTools.Create());
+sharedTools.AddRange(HealthTools.Create());
+sharedTools.AddRange(PresentationTools.Create());
+
+// Per-user token holders and tool lists — tools capture the UserTokens instance
+// via closure, so they always read the latest tokens regardless of thread.
+
+List<AIFunction> GetOrCreateUserTools(long userId)
+{
+    return userTools.GetOrAdd(userId, uid =>
+    {
+        var tokens = userTokens.GetOrAdd(uid, _ => new UserTokens());
+        var tools = new List<AIFunction>(sharedTools);
+        tools.AddRange(new CodeExecutionTools(tokens).Create());
+        tools.AddRange(new AzureQueryTools(tokens).Create());
+        tools.AddRange(new GraphQueryTools(tokens).Create());
+        tools.AddRange(new LogAnalyticsQueryTools(tokens).Create());
+        return tools;
+    });
+}
 
 app.MapPost("/api/chat", (Delegate)(async (HttpContext ctx, IHttpClientFactory httpFactory) =>
 {
@@ -783,19 +814,14 @@ app.MapPost("/api/chat", (Delegate)(async (HttpContext ctx, IHttpClientFactory h
     chatActivity?.SetTag("ai.prompt", prompt.Length > 500 ? prompt[..500] + "..." : prompt);
     logger.LogInformation("Chat request from {User} model={Model} promptLen={PromptLen}", userLogin, model, prompt.Length);
 
-    // Set per-request user context for token isolation (keyed by userId)
-    TokenContext.CurrentUserId = userId;
-
-    // Set per-request tokens via AsyncLocal + per-user fallback (for SDK tool execution)
-    var azureToken = await GetAzureTokenAsync(ctx, httpFactory);
-    TokenContext.AzureToken = azureToken;
-    var graphToken = await GetGraphTokenAsync(ctx, httpFactory);
-    TokenContext.GraphToken = graphToken;
-    var logAnalyticsToken = await GetLogAnalyticsTokenAsync(ctx, httpFactory);
-    TokenContext.LogAnalyticsToken = logAnalyticsToken;
+    // Set per-request user context and update per-user token holder
+    var tokens = userTokens.GetOrAdd(userId, _ => new UserTokens());
+    tokens.AzureToken = await GetAzureTokenAsync(ctx, httpFactory);
+    tokens.GraphToken = await GetGraphTokenAsync(ctx, httpFactory);
+    tokens.LogAnalyticsToken = await GetLogAnalyticsTokenAsync(ctx, httpFactory);
 
     logger.LogInformation("Chat tokens: azure={HasAzure} graph={HasGraph} la={HasLA}",
-        azureToken is not null, graphToken is not null, logAnalyticsToken is not null);
+        tokens.AzureToken is not null, tokens.GraphToken is not null, tokens.LogAnalyticsToken is not null);
 
     // SSE headers
     ctx.Response.Headers.ContentType = "text/event-stream";
@@ -845,7 +871,7 @@ app.MapPost("/api/chat", (Delegate)(async (HttpContext ctx, IHttpClientFactory h
         {
             Model = model,
             Streaming = true,
-            Tools = agentTools,
+            Tools = GetOrCreateUserTools(userId),
             OnPermissionRequest = (_, _) => Task.FromResult(new PermissionRequestResult { Kind = PermissionRequestResultKind.Approved }),
             SystemMessage = new SystemMessageConfig
             {

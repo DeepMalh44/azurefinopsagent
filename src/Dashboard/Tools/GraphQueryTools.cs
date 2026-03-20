@@ -9,13 +9,17 @@ namespace AzureFinOps.Dashboard.Tools;
 /// Queries Microsoft Graph API using the user's delegated Graph token.
 /// Used for license inventory, directory objects, and org structure for FinOps chargebacks.
 /// </summary>
-public static class GraphQueryTools
+public class GraphQueryTools
 {
     private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(30) };
     private static readonly ActivitySource Telemetry = new("AzureFinOps.AI");
     private const int MaxResponseChars = 80_000;
 
-    public static IEnumerable<AIFunction> Create()
+    private readonly UserTokens _tokens;
+
+    public GraphQueryTools(UserTokens tokens) => _tokens = tokens;
+
+    public IEnumerable<AIFunction> Create()
     {
         yield return AIFunctionFactory.Create(QueryGraph, "QueryGraph", @"Calls Microsoft Graph API (https://graph.microsoft.com) using the signed-in user's token.
 Provide path starting with /. Returns raw JSON.
@@ -27,13 +31,13 @@ M365 COPILOT USAGE: GET /v1.0/reports/getM365AppUserDetail(period='D30') — per
 APPS: GET /v1.0/applications — app registrations; GET /v1.0/servicePrincipals — service principals.");
     }
 
-    private static async Task<string> QueryGraph(
+    private async Task<string> QueryGraph(
         [Description("API path starting with /, e.g. /v1.0/subscribedSkus")] string path)
     {
         using var activity = Telemetry.StartActivity("QueryGraph");
         activity?.SetTag("graph.path", path);
 
-        var token = TokenContext.GraphToken;
+        var token = _tokens.GraphToken;
         if (string.IsNullOrEmpty(token))
         {
             activity?.SetTag("graph.result", "not_connected");

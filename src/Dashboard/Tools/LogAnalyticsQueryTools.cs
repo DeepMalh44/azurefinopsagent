@@ -11,13 +11,17 @@ namespace AzureFinOps.Dashboard.Tools;
 /// Queries Log Analytics workspaces and Application Insights via their direct query APIs.
 /// Uses a Log Analytics-scoped token (also accepted by App Insights query API).
 /// </summary>
-public static class LogAnalyticsQueryTools
+public class LogAnalyticsQueryTools
 {
     private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(60) };
     private static readonly ActivitySource Telemetry = new("AzureFinOps.AI");
     private const int MaxResponseChars = 80_000;
 
-    public static IEnumerable<AIFunction> Create()
+    private readonly UserTokens _tokens;
+
+    public LogAnalyticsQueryTools(UserTokens tokens) => _tokens = tokens;
+
+    public IEnumerable<AIFunction> Create()
     {
         yield return AIFunctionFactory.Create(QueryLogAnalytics, "QueryLogAnalytics", @"Runs a KQL query against a Log Analytics workspace or Application Insights component.
 Use for VM/container metrics, network logs, diagnostics, and ingestion cost analysis.
@@ -25,7 +29,7 @@ LOG ANALYTICS: Specify workspaceId (GUID). APP INSIGHTS: Specify appId (GUID) an
 FinOps-relevant tables: Perf — VM CPU/memory/disk; InsightsMetrics — VM/container insights; ContainerInventory/KubePodInventory — AKS resource requests vs usage; AzureMetrics — PaaS platform metrics; AzureDiagnostics — App Gateway/SQL/Firewall throughput; AzureActivity — who created/deleted/modified resources (cost attribution); Usage/_BilledSize — Log Analytics ingestion volume (meta-cost: cost of observability).");
     }
 
-    private static async Task<string> QueryLogAnalytics(
+    private async Task<string> QueryLogAnalytics(
         [Description("The workspace GUID (Log Analytics) or app GUID (App Insights)")] string id,
         [Description("KQL query to execute")] string query,
         [Description("Optional timespan, e.g. PT1H, P1D, P7D, P30D. Default: P1D")] string? timespan = "P1D",
@@ -37,7 +41,7 @@ FinOps-relevant tables: Perf — VM CPU/memory/disk; InsightsMetrics — VM/cont
         activity?.SetTag("la.query", query?.Length > 500 ? query[..500] + "..." : query);
         activity?.SetTag("la.timespan", timespan);
 
-        var token = TokenContext.LogAnalyticsToken;
+        var token = _tokens.LogAnalyticsToken;
         if (string.IsNullOrEmpty(token))
         {
             activity?.SetTag("la.result", "not_connected");

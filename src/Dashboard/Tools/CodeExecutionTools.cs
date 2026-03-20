@@ -9,7 +9,7 @@ namespace AzureFinOps.Dashboard.Tools;
 /// ⚠️ TEMPORARY: This runs code directly on the App Service with no sandboxing.
 /// TODO: Migrate to Azure Container Apps dynamic sessions for secure, isolated execution.
 /// </summary>
-public static class CodeExecutionTools
+public class CodeExecutionTools
 {
     private const int TimeoutSeconds = 30;
     private const int MaxOutputChars = 50_000;
@@ -19,7 +19,11 @@ public static class CodeExecutionTools
         "python", "bash", "sqlite"
     };
 
-    public static IEnumerable<AIFunction> Create()
+    private readonly UserTokens _tokens;
+
+    public CodeExecutionTools(UserTokens tokens) => _tokens = tokens;
+
+    public IEnumerable<AIFunction> Create()
     {
         yield return AIFunctionFactory.Create(RunScript, "RunScript", @"Executes a script and returns stdout + stderr. 30s timeout, 50KB output limit.
 Languages: python (requests, pandas, numpy, openpyxl, tabulate, python-dateutil available), bash (curl, jq, sqlite3, awk, sed, grep available), sqlite (in-memory).
@@ -31,7 +35,7 @@ For App Insights KQL use https://api.applicationinsights.io/v1/apps/{appId}/quer
 Public (no auth): https://prices.azure.com/api/retail/prices?$filter=... — retail pricing.");
     }
 
-    private static async Task<string> RunScript(
+    private async Task<string> RunScript(
         [Description("The language to execute: python, bash, or sqlite")] string language,
         [Description("The script/code to execute.")] string code)
     {
@@ -63,12 +67,12 @@ Public (no auth): https://prices.azure.com/api/retail/prices?$filter=... — ret
 
             // Set tokens per-process (not global env vars) to avoid race conditions
             // between concurrent users
-            if (TokenContext.AzureToken is not null)
-                psi.Environment["AZURE_TOKEN"] = TokenContext.AzureToken;
-            if (TokenContext.GraphToken is not null)
-                psi.Environment["GRAPH_TOKEN"] = TokenContext.GraphToken;
-            if (TokenContext.LogAnalyticsToken is not null)
-                psi.Environment["LOG_ANALYTICS_TOKEN"] = TokenContext.LogAnalyticsToken;
+            if (_tokens.AzureToken is not null)
+                psi.Environment["AZURE_TOKEN"] = _tokens.AzureToken;
+            if (_tokens.GraphToken is not null)
+                psi.Environment["GRAPH_TOKEN"] = _tokens.GraphToken;
+            if (_tokens.LogAnalyticsToken is not null)
+                psi.Environment["LOG_ANALYTICS_TOKEN"] = _tokens.LogAnalyticsToken;
 
             if (language == "sqlite")
             {
