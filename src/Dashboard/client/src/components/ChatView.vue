@@ -319,9 +319,6 @@
         <div class="messages-inner">
           <div v-if="messages.length === 0" class="empty-state">
             <h1 class="es-headline">Azure FinOps Agent</h1>
-            <p class="es-tagline">
-              AI-powered cloud cost optimization for Azure
-            </p>
             <p v-if="!user" class="es-sub">
               Sign in with GitHub to get started. Connect your Azure tenant to
               unlock real-time cost analysis, optimization recommendations,
@@ -333,111 +330,6 @@
               infrastructure. I query your Azure tenant APIs in real time and
               visualize the results.
             </p>
-
-            <!-- Feature cards -->
-            <div class="es-features">
-              <div class="es-feature">
-                <div class="es-feature-icon">
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-                  </svg>
-                </div>
-                <div class="es-feature-text">
-                  <strong>Real Azure APIs</strong>
-                  <span
-                    >Calls Cost Management, Advisor, Resource Graph, Billing,
-                    Monitor, Microsoft Graph &amp; Log Analytics with your
-                    delegated token — not canned responses</span
-                  >
-                </div>
-              </div>
-              <div class="es-feature">
-                <div class="es-feature-icon">
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <rect x="3" y="3" width="7" height="7" />
-                    <rect x="14" y="3" width="7" height="7" />
-                    <rect x="14" y="14" width="7" height="7" />
-                    <rect x="3" y="14" width="7" height="7" />
-                  </svg>
-                </div>
-                <div class="es-feature-text">
-                  <strong>Multi-step analysis</strong>
-                  <span
-                    >Chains queries across APIs, processes data with Python,
-                    builds interactive ECharts visualizations, and identifies
-                    cost anomalies automatically</span
-                  >
-                </div>
-              </div>
-              <div class="es-feature">
-                <div class="es-feature-icon">
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <rect x="2" y="3" width="20" height="14" rx="2" />
-                    <line x1="8" y1="21" x2="16" y2="21" />
-                    <line x1="12" y1="17" x2="12" y2="21" />
-                  </svg>
-                </div>
-                <div class="es-feature-text">
-                  <strong>PowerPoint generation</strong>
-                  <span
-                    >Generates a first-draft FinOps presentation with charts and
-                    data tables — ready to discuss with stakeholders and
-                    leadership</span
-                  >
-                </div>
-              </div>
-              <div class="es-feature">
-                <div class="es-feature-icon es-feature-icon--safe">
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                  </svg>
-                </div>
-                <div class="es-feature-text">
-                  <strong>100% read-only</strong>
-                  <span
-                    >Uses only read-only APIs — will never create, modify, or
-                    delete any resource in your Azure tenant. Completely safe to
-                    run on production</span
-                  >
-                </div>
-              </div>
-            </div>
 
             <!-- Comparison table -->
             <div class="es-compare">
