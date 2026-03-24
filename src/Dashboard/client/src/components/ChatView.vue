@@ -319,16 +319,13 @@
         <div class="messages-inner">
           <div v-if="messages.length === 0" class="empty-state">
             <h1 class="es-headline">Azure FinOps Agent</h1>
-            <p v-if="!user" class="es-sub">
-              Sign in with GitHub to get started. Connect your Azure tenant to
-              unlock real-time cost analysis, optimization recommendations,
-              interactive charts, and executive-ready PowerPoint reports — all
-              through natural conversation.
-            </p>
-            <p v-else class="es-sub">
-              Ask about costs, pricing, reservations, licensing, or
-              infrastructure. I query your Azure tenant APIs in real time and
-              visualize the results.
+            <p class="es-sub">
+              Agentic FinOps for Azure — tenant-wide cost optimization,
+              reservation analysis, chargeback reporting, M365 license audits,
+              security insights, carbon tracking, and interactive
+              visualizations. Generate ready-to-present PowerPoint decks in
+              seconds to drive action with operations and business stakeholders.
+              One conversation. Zero portal hopping.
             </p>
 
             <!-- Comparison table -->
@@ -347,7 +344,7 @@
                     <td>Single subscription in portal context</td>
                     <td class="es-compare-us">
                       All subscriptions + management groups — Resource Graph KQL
-                      across entire tenant in one query
+                      across entire tenant
                     </td>
                   </tr>
                   <tr>
@@ -355,15 +352,15 @@
                     <td>Basic portal summaries</td>
                     <td class="es-compare-us">
                       Deep multi-dimensional — by service, RG, tag,
-                      subscription, region, with interactive charts
+                      subscription, region + interactive charts
                     </td>
                   </tr>
                   <tr>
                     <td>VM &amp; resource right-sizing</td>
                     <td>Shows Advisor tips</td>
                     <td class="es-compare-us">
-                      Queries CPU/memory metrics via Monitor + Advisor,
-                      cross-references with pricing to quantify savings per VM
+                      Queries CPU/memory via Monitor + Advisor, cross-references
+                      pricing to quantify savings
                     </td>
                   </tr>
                   <tr>
@@ -371,7 +368,7 @@
                     <td>Limited visibility</td>
                     <td class="es-compare-us">
                       Utilization audit, expiring RI alerts, exchange analysis,
-                      coverage gap detection, SP vs RI comparison
+                      coverage gaps, SP vs RI comparison
                     </td>
                   </tr>
                   <tr>
@@ -395,7 +392,7 @@
                     <td>Manual Cost Management views</td>
                     <td class="es-compare-us">
                       Auto-generates chargeback reports by tag/owner, audits
-                      tagging gaps, quantifies cost of untagged resources
+                      tagging gaps, quantifies untagged cost
                     </td>
                   </tr>
                   <tr>
@@ -410,8 +407,8 @@
                     <td>Infrastructure deep-dive</td>
                     <td>Not available</td>
                     <td class="es-compare-us">
-                      KQL on Log Analytics — ingestion costs, VM perf metrics,
-                      container insights, activity audit trail
+                      KQL on Log Analytics — ingestion costs, VM perf, container
+                      insights, activity audit trail
                     </td>
                   </tr>
                   <tr>
@@ -793,13 +790,13 @@
 <script setup>
 import * as echarts from "echarts";
 import {
-  computed,
-  nextTick,
-  onBeforeUnmount,
-  onMounted,
-  reactive,
-  ref,
-  watch,
+    computed,
+    nextTick,
+    onBeforeUnmount,
+    onMounted,
+    reactive,
+    ref,
+    watch,
 } from "vue";
 
 const props = defineProps({
@@ -2686,7 +2683,7 @@ async function send() {
   flex-direction: column;
   align-items: center;
   padding: 0.5rem 2rem 1.5rem;
-  max-width: 720px;
+  max-width: 960px;
   margin: 0 auto;
   width: 100%;
   animation: fadeSlideIn 0.4s ease;
