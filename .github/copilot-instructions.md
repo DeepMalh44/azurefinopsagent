@@ -281,11 +281,16 @@ Always use Playwright when portal interaction is required rather than asking the
 
 The production app is available at `https://www.azure-finops-agent.com` and `https://azure-finops-agent.com`.
 
-- **DNS Provider**: Namecheap (BasicDNS)
-- **DNS Records**:
-  - `CNAME` `www` → `finops-agent-bagwe9fdayepd7ed.canadacentral-01.azurewebsites.net.`
-  - `ALIAS` `@` → `finops-agent-bagwe9fdayepd7ed.canadacentral-01.azurewebsites.net.`
+- **Domain Registrar**: Namecheap (domain registration + WHOIS privacy only)
+- **DNS Provider**: Azure DNS (zone: `azure-finops-agent.com` in `rg-finops-agent`)
+  - Migrated from Namecheap BasicDNS to Azure DNS for better corporate proxy trust scoring (shared `registrar-servers.com` nameservers are low-trust)
+- **Azure DNS Nameservers**: `ns1-04.azure-dns.com`, `ns2-04.azure-dns.net`, `ns3-04.azure-dns.org`, `ns4-04.azure-dns.info`
+- **DNS Records** (managed in Azure DNS zone):
+  - `A` `@` → `52.228.84.33` (App Service IP)
+  - `CNAME` `www` → `finops-agent-container.azurewebsites.net`
   - `TXT` `asuid` → Azure domain verification token
+  - `TXT` `_dmarc` → `v=DMARC1; p=none; rua=mailto:alifarahnak@gmail.com` (domain reputation)
+- **Security Headers** (in `Program.cs`): HSTS (1 year, preload), X-Content-Type-Options, X-Frame-Options, Referrer-Policy, Permissions-Policy, Content-Security-Policy, HTTPS redirection
 - **SSL**: Azure Managed Certificates (auto-renewed) bound via SNI for both `www` and root domain
 - **GitHub OAuth callback** must match the custom domain: `https://azure-finops-agent.com/auth/github/callback`\n- **Container app callback**: `https://finops-agent-container.azurewebsites.net/auth/github/callback`\n- **Microsoft Entra ID callbacks**: `https://azure-finops-agent.com/auth/microsoft/callback`, `https://www.azure-finops-agent.com/auth/microsoft/callback`, `http://localhost:5000/auth/microsoft/callback`, `https://finops-agent-container.azurewebsites.net/auth/microsoft/callback`
 

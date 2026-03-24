@@ -31,6 +31,10 @@ builder.Services.AddSession(options =>
 
 builder.Services.AddHttpClient();
 
+// HTTPS redirection (respects X-Forwarded-Proto via forwarded headers middleware)
+if (!builder.Environment.IsDevelopment())
+    builder.Services.AddHttpsRedirection(options => options.HttpsPort = 443);
+
 // OpenTelemetry + Application Insights
 var appInsightsCs = builder.Configuration["ApplicationInsights:ConnectionString"];
 if (!string.IsNullOrEmpty(appInsightsCs))
@@ -70,6 +74,39 @@ var forwardedHeadersOptions = new ForwardedHeadersOptions
 forwardedHeadersOptions.KnownIPNetworks.Clear();
 forwardedHeadersOptions.KnownProxies.Clear();
 app.UseForwardedHeaders(forwardedHeadersOptions);
+
+// HTTPS redirect (production only — App Service terminates TLS at the LB,
+// forwarded headers middleware ensures Request.Scheme reflects the original protocol)
+if (!app.Environment.IsDevelopment())
+    app.UseHttpsRedirection();
+
+// Security headers — corporate proxies (Zscaler, Cisco Umbrella, Palo Alto) flag/block
+// sites missing these headers as "uncategorized" or "potentially unsafe".
+app.Use(async (ctx, next) =>
+{
+    var headers = ctx.Response.Headers;
+
+    // HSTS — 1 year, include subdomains, allow preload list submission
+    if (!app.Environment.IsDevelopment())
+        headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload";
+
+    headers["X-Content-Type-Options"] = "nosniff";
+    headers["X-Frame-Options"] = "DENY";
+    headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+    headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()";
+    // CSP — restrictive but allows the Vue SPA, ECharts (inline styles + canvas data URIs),
+    // GitHub avatars, SSE to self, and GitHub OAuth flow
+    headers["Content-Security-Policy"] =
+        "default-src 'self'; " +
+        "script-src 'self'; " +
+        "style-src 'self' 'unsafe-inline'; " +
+        "img-src 'self' data: https://avatars.githubusercontent.com; " +
+        "connect-src 'self' https://github.com https://api.github.com; " +
+        "font-src 'self'; " +
+        "frame-ancestors 'none'";
+
+    await next();
+});
 
 // Redirect www to bare domain so OAuth callbacks and all links use the canonical host
 app.Use(async (ctx, next) =>
