@@ -319,6 +319,9 @@
         <div class="messages-inner">
           <div v-if="messages.length === 0" class="empty-state">
             <h1 class="es-headline">Azure FinOps Agent</h1>
+            <p class="es-tagline-mobile">
+              AI-powered cost optimization for Azure
+            </p>
             <p class="es-sub">
               Agentic FinOps for Azure — tenant-wide cost optimization,
               reservation analysis, chargeback reporting, M365 license audits,
@@ -614,6 +617,116 @@
         </a>
       </div>
 
+      <!-- Mobile auth bar (hidden on desktop, shown on mobile) -->
+      <div class="mobile-auth-bar">
+        <template v-if="!user">
+          <button
+            class="mobile-auth-btn mobile-auth-btn--github"
+            :disabled="authLoading === 'github'"
+            @click="startAuth('github', '/auth/github')"
+          >
+            <span v-if="authLoading === 'github'" class="auth-spinner"></span>
+            <svg
+              v-else
+              width="14"
+              height="14"
+              viewBox="0 0 16 16"
+              fill="currentColor"
+            >
+              <path
+                d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"
+              />
+            </svg>
+            {{ authLoading === "github" ? "Connecting..." : "Sign in" }}
+          </button>
+        </template>
+        <template v-else>
+          <div v-if="!azureConnected" class="mobile-auth-item">
+            <button
+              class="mobile-auth-btn mobile-auth-btn--azure"
+              :disabled="authLoading === 'azure'"
+              @click="startAuth('azure', '/auth/microsoft')"
+            >
+              <span
+                v-if="authLoading === 'azure'"
+                class="auth-spinner auth-spinner--azure"
+              ></span>
+              <svg
+                v-else
+                width="14"
+                height="14"
+                viewBox="0 0 21 21"
+                fill="none"
+              >
+                <rect width="10" height="10" fill="#f25022" />
+                <rect x="11" width="10" height="10" fill="#7fba00" />
+                <rect y="11" width="10" height="10" fill="#00a4ef" />
+                <rect x="11" y="11" width="10" height="10" fill="#ffb900" />
+              </svg>
+              {{ authLoading === "azure" ? "Connecting..." : "Azure" }}
+            </button>
+          </div>
+          <div v-else class="mobile-auth-item mobile-azure-status">
+            <svg width="12" height="12" viewBox="0 0 21 21" fill="none">
+              <rect width="10" height="10" fill="#f25022" />
+              <rect x="11" width="10" height="10" fill="#7fba00" />
+              <rect y="11" width="10" height="10" fill="#00a4ef" />
+              <rect x="11" y="11" width="10" height="10" fill="#ffb900" />
+            </svg>
+            <span class="mobile-azure-email">{{
+              azureUserEmail || "Azure"
+            }}</span>
+            <button
+              class="azure-disconnect-btn"
+              @click="disconnectAzure"
+              title="Disconnect"
+            >
+              <svg
+                width="10"
+                height="10"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
+          <div class="mobile-auth-item mobile-user-info">
+            <img
+              :src="user.avatar"
+              :alt="user.login"
+              class="mobile-user-avatar"
+            />
+            <span class="mobile-user-name">{{ user.name || user.login }}</span>
+            <button
+              class="sidebar-logout-btn"
+              @click="emit('logout')"
+              title="Sign out"
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <polyline points="16 17 21 12 16 7" />
+                <line x1="21" y1="12" x2="9" y2="12" />
+              </svg>
+            </button>
+          </div>
+        </template>
+      </div>
+
       <!-- Input bar -->
       <div class="input-area">
         <div
@@ -790,13 +903,13 @@
 <script setup>
 import * as echarts from "echarts";
 import {
-    computed,
-    nextTick,
-    onBeforeUnmount,
-    onMounted,
-    reactive,
-    ref,
-    watch,
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  reactive,
+  ref,
+  watch,
 } from "vue";
 
 const props = defineProps({
@@ -3388,6 +3501,35 @@ async function send() {
   .tool-popover {
     display: none;
   }
+  .build-badge {
+    display: none;
+  }
+  .es-compare {
+    display: none;
+  }
+  .es-sub {
+    display: none;
+  }
+  .es-tagline-mobile {
+    display: block;
+  }
+  .es-headline {
+    font-size: 1.5rem;
+  }
+  .empty-state {
+    padding: 1rem 1rem 0.5rem;
+    justify-content: center;
+    flex: 1;
+  }
+  .messages-inner {
+    padding: 0.75rem 0.75rem;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+  .input-area {
+    padding: 0.5rem 0.75rem;
+  }
 }
 
 /* ── Presentation Generate / Download ── */
@@ -3446,5 +3588,106 @@ async function send() {
 }
 .pptx-inline-download {
   margin-top: 0.5rem;
+}
+/* ── Mobile auth bar ── */
+.mobile-auth-bar {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  padding: 0 0.75rem 0.25rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.mobile-auth-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 22px;
+  border-radius: 9999px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s;
+  border: none;
+  min-height: 40px;
+}
+.mobile-auth-btn--github {
+  background: #1f2328;
+  color: #fff;
+}
+.mobile-auth-btn--github:hover:not(:disabled) {
+  background: #2da44e;
+}
+.mobile-auth-btn--azure {
+  background: var(--surface, #f6f8fa);
+  color: var(--text, #1f2328);
+  border: 1px solid var(--border, #d8dee4);
+}
+.mobile-auth-btn--azure:hover:not(:disabled) {
+  border-color: #0078d4;
+  color: #0078d4;
+}
+.mobile-auth-btn:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+.mobile-auth-item {
+  display: flex;
+  align-items: center;
+}
+.mobile-azure-status {
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  background: rgba(0, 120, 212, 0.06);
+  border: 1px solid rgba(0, 120, 212, 0.15);
+  font-size: 0.75rem;
+  color: var(--text);
+}
+.mobile-azure-email {
+  max-width: 100px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mobile-user-info {
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 9999px;
+  background: var(--surface, #f6f8fa);
+  border: 1px solid var(--border, #d8dee4);
+}
+.mobile-user-avatar {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+}
+.mobile-user-name {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text);
+  max-width: 80px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.es-tagline-mobile {
+  display: none;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin: 0.5rem 1rem 0;
+  padding: 0 1rem;
+  text-align: center;
+  line-height: 1.5;
+}
+/* Mobile overrides — must come after base rules */
+@media (max-width: 768px) {
+  .mobile-auth-bar {
+    display: flex !important;
+  }
+  .es-tagline-mobile {
+    display: block !important;
+  }
 }
 </style>
