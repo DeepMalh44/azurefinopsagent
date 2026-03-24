@@ -793,13 +793,13 @@
 <script setup>
 import * as echarts from "echarts";
 import {
-    computed,
-    nextTick,
-    onBeforeUnmount,
-    onMounted,
-    reactive,
-    ref,
-    watch,
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  reactive,
+  ref,
+  watch,
 } from "vue";
 
 const props = defineProps({
@@ -831,6 +831,9 @@ const collapsedSections = reactive({
   finops_governance: true,
   finops_pricing: true,
   finops_infra: true,
+  finops_ai_data: true,
+  finops_advanced: true,
+  finops_pricing_public: true,
 });
 function toggleSection(key) {
   collapsedSections[key] = !collapsedSections[key];
@@ -1028,11 +1031,6 @@ const finopsCategories = [
           "What are my top 10 most expensive Azure resources this month? Show a chart.",
       },
       {
-        label: "Cost anomaly detection",
-        prompt:
-          "Identify any cost anomalies or unexpected spikes in my Azure spend over the past 14 days. Show me the daily cost trend and flag the days with abnormal spend.",
-      },
-      {
         label: "Budget vs actual",
         prompt:
           "Show my Azure budgets vs actual spend for the current billing period. Which budgets are at risk of being exceeded? Show a gauge chart per budget.",
@@ -1201,11 +1199,6 @@ const finopsCategories = [
         prompt:
           "Analyze my Log Analytics workspace ingestion costs. Show data volume by table (e.g. AzureDiagnostics, Perf, ContainerLog) over the past 30 days. Which tables are the biggest cost drivers? Recommend tables to move to Basic Logs or archive tier.",
       },
-      {
-        label: "Database cost analysis",
-        prompt:
-          "List all my Azure SQL databases and Cosmos DB accounts with their pricing tier, DTU/vCore/RU configuration, and monthly cost. Identify databases that are over-provisioned or could use serverless/auto-pause to save costs.",
-      },
     ],
   },
   {
@@ -1230,11 +1223,6 @@ const finopsCategories = [
           "Show my Microsoft 365 Copilot license usage. How many seats are assigned vs actively used? Which users haven't used Copilot in the last 30 days? Calculate the monthly waste from inactive Copilot licenses.",
       },
       {
-        label: "Dev/Test subscription savings",
-        prompt:
-          "Are my dev/test workloads running under a Dev/Test subscription with discounted rates? Identify subscriptions tagged as dev/test that aren't using Enterprise Dev/Test pricing, and estimate the savings from switching.",
-      },
-      {
         label: "Windows Server licensing",
         prompt:
           "Audit my Windows Server VMs. How many are using Azure Hybrid Benefit vs pay-as-you-go licensing? Show the per-VM cost difference and total savings opportunity from enabling AHUB on all eligible VMs.",
@@ -1256,11 +1244,6 @@ const finopsCategories = [
         label: "Executive cost summary",
         prompt:
           "Create an executive summary of my Azure spend: total cost this month, month-over-month trend, top 5 services by cost, biggest cost increases, active Advisor savings opportunities, and reservation utilization. Include charts.",
-      },
-      {
-        label: "Tagging gaps report",
-        prompt:
-          "Audit my resources for missing tags. Which resources are missing cost-center, environment, or owner tags? Group by resource group and show the monthly cost of untagged resources — I need to know the financial impact of poor tagging.",
       },
       {
         label: "Policy compliance",
@@ -1287,11 +1270,6 @@ const finopsCategories = [
         prompt:
           "Show my billing account structure — accounts, profiles, invoice sections.",
       },
-      {
-        label: "FinOps maturity scorecard",
-        prompt:
-          "Assess my FinOps maturity across key dimensions: Do I have budgets set? Are resources tagged? Am I using reservations/savings plans? What's my Advisor recommendation adoption rate? Am I tracking cost anomalies? Summarize strengths and gaps in a table and suggest next steps.",
-      },
     ],
   },
   {
@@ -1309,16 +1287,6 @@ const finopsCategories = [
         label: "VM pricing comparison",
         prompt:
           "Compare D4s_v5, D8s_v5, D16s_v5 monthly costs across East US, West Europe, Southeast Asia. Show a chart.",
-      },
-      {
-        label: "GPU pricing",
-        prompt:
-          "Compare NC, ND, NV GPU VM pricing in East US. Best price per GPU?",
-      },
-      {
-        label: "Database pricing",
-        prompt:
-          "Compare Cosmos DB serverless vs Azure SQL General Purpose for 10M req/day.",
       },
       {
         label: "Multi-region comparison",
@@ -1382,6 +1350,140 @@ const finopsCategories = [
         label: "Quota utilization",
         prompt:
           "Check my Azure subscription quota usage for compute (vCPUs), storage, and networking. Which quotas am I closest to hitting? Show a table with quota name, limit, current usage, and usage percentage sorted by highest utilization.",
+      },
+    ],
+  },
+  {
+    key: "finops_ai_data",
+    label: "AI, GPU & Data",
+    icon: "A",
+    requiresAzure: true,
+    prompts: [
+      {
+        label: "GPU compute inventory",
+        prompt:
+          "List all my GPU VMs (NC, ND, NV series) across all subscriptions. Show each VM's name, size, GPU count, resource group, monthly cost, and tags. Which GPU VMs have low utilization and could be deallocated or right-sized?",
+      },
+      {
+        label: "Azure ML cost analysis",
+        prompt:
+          "List all my Azure ML workspaces and their compute resources (instances, clusters, endpoints). Show each compute's type, VM size, state (running/stopped), monthly cost, and idle time. Identify ML computes burning money while idle.",
+      },
+      {
+        label: "Databricks vs ML cost",
+        prompt:
+          "Compare my Azure Databricks and Azure ML compute costs. List all Databricks workspaces with their pricing tier and managed resource group costs, and all ML workspaces with their compute costs. Which platform is costing more and where are the optimization opportunities?",
+      },
+      {
+        label: "Databricks workspace review",
+        prompt:
+          "List all my Azure Databricks workspaces with their pricing tier (standard/premium), SKU, managed resource group, and monthly cost. Identify workspaces on Premium tier that could use Standard instead.",
+      },
+      {
+        label: "Cosmos DB RU optimization",
+        prompt:
+          "List all my Cosmos DB accounts with their provisioned throughput (RU/s), autoscale settings, consistency level, and monthly cost. Identify databases that are over-provisioned (low RU utilization) or could benefit from switching to autoscale or serverless.",
+      },
+      {
+        label: "SQL Managed Instance sizing",
+        prompt:
+          "List all my SQL Managed Instances with their tier, vCores, storage, and monthly cost. Identify instances that are over-provisioned based on Advisor recommendations. Show the potential savings from right-sizing.",
+      },
+      {
+        label: "Redis Cache optimization",
+        prompt:
+          "List all my Azure Redis Cache instances with their tier (Basic/Standard/Premium), cache size, and monthly cost. Identify caches that could be downgraded to a lower tier or smaller size based on usage patterns.",
+      },
+      {
+        label: "Synapse & Data Factory costs",
+        prompt:
+          "List all my Synapse workspaces (dedicated SQL pools, Spark pools) and Data Factory instances. Show each resource's configuration and monthly cost. Identify idle dedicated SQL pools that should be paused and over-provisioned Spark pools.",
+      },
+      {
+        label: "Container Apps review",
+        prompt:
+          "List all my Container Apps and their environments. Show each app's min/max replicas, CPU/memory allocation, and monthly cost. Identify apps with over-provisioned resources or that could benefit from scale-to-zero.",
+      },
+    ],
+  },
+  {
+    key: "finops_advanced",
+    label: "Advanced FinOps",
+    icon: "F",
+    requiresAzure: true,
+    prompts: [
+      {
+        label: "Unit economics",
+        prompt:
+          "Help me calculate unit economics for my top workloads. For each of my top 5 resource groups by cost, calculate the cost-per-day and trend over the past 30 days. If I share transaction or user counts, we can derive cost-per-unit KPIs.",
+      },
+      {
+        label: "Showback report",
+        prompt:
+          "Generate a showback report for the current month — show each department/team their Azure costs by tag (cost-center or owner) without billing attribution. Include a summary table and a pie chart of cost distribution across teams.",
+      },
+      {
+        label: "Cost allocation model",
+        prompt:
+          "Analyze my cost allocation strategy. Show costs broken down by subscription, resource group, and tags (cost-center, environment, owner). What percentage of my spend can be attributed vs unattributed? Recommend improvements to my allocation model.",
+      },
+      {
+        label: "Planning & estimating",
+        prompt:
+          "I want to estimate the monthly cost of a new deployment. Help me price out the infrastructure — I'll describe the resources I need (VMs, storage, databases, networking) and you calculate the estimated monthly cost using Azure retail pricing.",
+      },
+      {
+        label: "FOCUS cost mapping",
+        prompt:
+          "Show my current month's costs mapped to FOCUS (FinOps Open Cost & Usage Specification) concepts: BilledCost (actual invoice amount), EffectiveCost (amortized with commitments spread), and ChargeCategory (usage, purchase, tax, credit). Show a comparison table.",
+      },
+      {
+        label: "Cross-sub benchmarking",
+        prompt:
+          "Benchmark cost efficiency across all my subscriptions. For each subscription, calculate: total cost, resource count, cost-per-resource, cost-per-vCPU, and month-over-month change. Rank by cost efficiency and identify outliers.",
+      },
+      {
+        label: "Cost anomaly alerts",
+        prompt:
+          "Check my Azure Cost Management anomaly alerts. Show all active cost alerts and anomalies detected in the past 30 days. For each, show the affected scope, expected vs actual cost, deviation percentage, and the root cause if identified.",
+      },
+      {
+        label: "FinOps maturity assessment",
+        prompt:
+          "Conduct a structured FinOps maturity assessment. Check each dimension: (1) Do I have budgets set per subscription? (2) What % of resources are tagged? (3) Am I using reservations/savings plans? (4) Advisor recommendation adoption rate? (5) Do I have cost exports configured? (6) Are my management groups structured for cost governance? Score each as Crawl/Walk/Run and recommend next steps.",
+      },
+    ],
+  },
+  {
+    key: "finops_pricing_public",
+    label: "Cost Estimator",
+    icon: "E",
+    requiresAzure: false,
+    prompts: [
+      {
+        label: "GPU VM pricing",
+        prompt:
+          "Compare GPU VM pricing in East US: NC series (T4), ND series (A100), NV series (gaming/VDI). Show each SKU's GPU count, GPU memory, vCPUs, RAM, hourly and monthly cost. Which is the best price-per-GPU?",
+      },
+      {
+        label: "AI infrastructure cost",
+        prompt:
+          "I want to run AI inference workloads. Compare the monthly cost of: (1) NC24ads_A100_v4 VMs, (2) ND96asr_v4 (A100 80GB), (3) NC48ads_H100_v5 in East US. Include spot vs on-demand pricing and suggest the most cost-effective option.",
+      },
+      {
+        label: "Databricks pricing",
+        prompt:
+          "Compare Azure Databricks pricing: Standard vs Premium tier, Jobs Compute vs All-Purpose Compute vs Serverless SQL. Calculate the monthly cost for 100 DBU-hours/day across each option.",
+      },
+      {
+        label: "Cosmos DB pricing",
+        prompt:
+          "Compare Cosmos DB pricing models: Provisioned throughput (manual + autoscale) vs Serverless for 10M requests/day with 50GB storage. Show monthly cost for each model and recommend the best option.",
+      },
+      {
+        label: "AKS vs Container Apps",
+        prompt:
+          "Compare the monthly cost of running 10 containerized microservices on: (1) AKS with 3x D4s_v5 nodes, (2) Azure Container Apps consumption plan, (3) Azure Container Instances. Show the cost breakdown for compute, networking, and management.",
       },
     ],
   },
@@ -2583,7 +2685,7 @@ async function send() {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 2rem 2rem 1.5rem;
+  padding: 0.5rem 2rem 1.5rem;
   max-width: 720px;
   margin: 0 auto;
   width: 100%;

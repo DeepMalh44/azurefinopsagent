@@ -48,6 +48,14 @@ NETWORK (Microsoft.Network): GET /subscriptions/{id}/.../virtualNetworks; .../pu
 STORAGE (Microsoft.Storage): GET /subscriptions/{id}/.../storageAccounts — storage tier optimization, lifecycle policies, access tier analysis.
 SQL (Microsoft.Sql): GET /subscriptions/{id}/.../servers — SQL servers; .../servers/{name}/databases — DTU/vCore right-sizing.
 APP SERVICE (Microsoft.Web): GET /subscriptions/{id}/.../serverfarms — App Service plans for right-sizing; .../sites — web apps.
+AZURE ML (Microsoft.MachineLearningServices): GET /subscriptions/{id}/.../workspaces — ML workspaces; .../workspaces/{name}/computes — compute instances, clusters, GPU VMs for cost optimization and right-sizing; .../workspaces/{name}/onlineEndpoints — managed endpoints; .../workspaces/{name}/batchEndpoints.
+DATABRICKS (Microsoft.Databricks): GET /subscriptions/{id}/.../workspaces — Databricks workspaces, pricing tier (standard/premium), managed RG for cost analysis; compare Databricks compute vs Azure ML compute vs standalone VM clusters.
+SQL MI (Microsoft.Sql): GET /subscriptions/{id}/.../managedInstances — SQL Managed Instances for vCore right-sizing and cost optimization.
+COSMOS DB (Microsoft.DocumentDB): GET /subscriptions/{id}/.../databaseAccounts — Cosmos DB accounts; .../databaseAccounts/{name}/sqlDatabases — databases with throughput (RU/s) for cost optimization, autoscale vs manual analysis.
+REDIS (Microsoft.Cache): GET /subscriptions/{id}/.../redis — Redis Cache instances, tier (Basic/Standard/Premium) and capacity right-sizing.
+DATA FACTORY (Microsoft.DataFactory): GET /subscriptions/{id}/.../factories — ADF instances; .../factories/{name}/pipelines — pipeline inventory for cost attribution.
+SYNAPSE (Microsoft.Synapse): GET /subscriptions/{id}/.../workspaces — Synapse workspaces; .../workspaces/{name}/sqlPools — dedicated SQL pools (DWU right-sizing); .../workspaces/{name}/bigDataPools — Spark pools.
+CONTAINER APPS (Microsoft.App): GET /subscriptions/{id}/.../containerApps — Container Apps; .../managedEnvironments — environments for cost analysis.
 RESOURCE HEALTH (Microsoft.ResourceHealth): GET /{resourceId}/.../availabilityStatuses.
 SECURITY (Microsoft.Security): GET /subscriptions/{id}/.../assessments — Defender for Cloud security assessments (identify exposed idle resources); .../secureScores — security posture.
 SUBSCRIPTIONS: GET /subscriptions.
