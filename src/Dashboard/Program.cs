@@ -231,9 +231,11 @@ app.MapGet("/auth/github/callback", async (HttpContext ctx, IHttpClientFactory h
 
         var accessToken = tokenProp.GetString()!;
 
-        // Store refresh token if provided (GitHub App tokens expire)
+        // Store refresh token and expiry if provided (GitHub App tokens expire after ~8h)
         var refreshToken = tokenJson.TryGetProperty("refresh_token", out var rtProp) ? rtProp.GetString() : null;
+        var ghExpiresIn = tokenJson.TryGetProperty("expires_in", out var ghExpProp) ? ghExpProp.GetInt32() : 0;
         authActivity?.SetTag("auth.has_refresh_token", refreshToken is not null);
+        authActivity?.SetTag("auth.expires_in", ghExpiresIn);
 
         // Validate token scopes
         using var scopeReq = new HttpRequestMessage(HttpMethod.Head, "https://api.github.com/user");
@@ -270,6 +272,8 @@ app.MapGet("/auth/github/callback", async (HttpContext ctx, IHttpClientFactory h
 
         // Store in session
         ctx.Session.SetString("github_token", accessToken);
+        if (ghExpiresIn > 0)
+            ctx.Session.SetString("github_token_expiry", DateTimeOffset.UtcNow.AddSeconds(ghExpiresIn - 300).ToString("o"));
         if (refreshToken is not null)
             ctx.Session.SetString("github_refresh_token", refreshToken);
         ctx.Session.SetString("user", JsonSerializer.Serialize(new
@@ -640,16 +644,19 @@ app.MapGet("/auth/azure/status", async (HttpContext ctx, IHttpClientFactory http
     var azureUserJson = ctx.Session.GetString("azure_user");
     object? azureUser = azureUserJson is not null ? JsonSerializer.Deserialize<JsonElement>(azureUserJson) : null;
 
-    // Discover subscriptions
+    // Discover subscriptions — create a scoped HttpClient from the factory (not shared)
+    // and set auth on individual requests to avoid cross-user token leakage
     var http = httpFactory.CreateClient();
-    http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-    http.DefaultRequestHeaders.Add("User-Agent", "FinOps-Dashboard/1.0");
 
     var subscriptions = new List<object>();
     try
     {
-        var subRes = await http.GetStringAsync("https://management.azure.com/subscriptions?api-version=2022-12-01");
-        var subJson = JsonSerializer.Deserialize<JsonElement>(subRes);
+        using var subReq = new HttpRequestMessage(HttpMethod.Get, "https://management.azure.com/subscriptions?api-version=2022-12-01");
+        subReq.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        subReq.Headers.Add("User-Agent", "FinOps-Dashboard/1.0");
+        var subRes = await http.SendAsync(subReq);
+        var subBody = await subRes.Content.ReadAsStringAsync();
+        var subJson = JsonSerializer.Deserialize<JsonElement>(subBody);
         if (subJson.TryGetProperty("value", out var subs))
         {
             foreach (var sub in subs.EnumerateArray())
@@ -672,8 +679,12 @@ app.MapGet("/auth/azure/status", async (HttpContext ctx, IHttpClientFactory http
     var managementGroups = new List<object>();
     try
     {
-        var mgRes = await http.GetStringAsync("https://management.azure.com/providers/Microsoft.Management/managementGroups?api-version=2021-04-01");
-        var mgJson = JsonSerializer.Deserialize<JsonElement>(mgRes);
+        using var mgReq = new HttpRequestMessage(HttpMethod.Get, "https://management.azure.com/providers/Microsoft.Management/managementGroups?api-version=2021-04-01");
+        mgReq.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        mgReq.Headers.Add("User-Agent", "FinOps-Dashboard/1.0");
+        var mgRes = await http.SendAsync(mgReq);
+        var mgBody = await mgRes.Content.ReadAsStringAsync();
+        var mgJson = JsonSerializer.Deserialize<JsonElement>(mgBody);
         if (mgJson.TryGetProperty("value", out var mgs))
         {
             foreach (var mg in mgs.EnumerateArray())
@@ -791,6 +802,8 @@ async Task<string?> RefreshGitHubTokenAsync(HttpContext ctx, IHttpClientFactory 
 
     var newAccessToken = newToken.GetString()!;
     ctx.Session.SetString("github_token", newAccessToken);
+    if (json.TryGetProperty("expires_in", out var ghRefreshExpProp))
+        ctx.Session.SetString("github_token_expiry", DateTimeOffset.UtcNow.AddSeconds(ghRefreshExpProp.GetInt32() - 300).ToString("o"));
     if (json.TryGetProperty("refresh_token", out var newRt))
         ctx.Session.SetString("github_refresh_token", newRt.GetString()!);
 
@@ -827,19 +840,32 @@ app.MapPost("/api/chat", (Delegate)(async (HttpContext ctx, IHttpClientFactory h
 {
     var githubToken = ctx.Session.GetString("github_token");
     var userJson = ctx.Session.GetString("user");
-    if (githubToken is null || userJson is null)
+
+    // Proactively refresh GitHub token if expired (GitHub App user tokens expire after ~8h)
+    if (githubToken is not null)
     {
-        // Try refreshing the token before returning 401
+        var ghExpiryStr = ctx.Session.GetString("github_token_expiry");
+        if (ghExpiryStr is not null && DateTimeOffset.TryParse(ghExpiryStr, out var ghExpiry) && ghExpiry <= DateTimeOffset.UtcNow)
+        {
+            logger.LogInformation("GitHub token expired, attempting refresh");
+            var refreshed = await RefreshGitHubTokenAsync(ctx, httpFactory);
+            if (refreshed is not null)
+                githubToken = refreshed;
+        }
+    }
+
+    // If token is still missing, try one refresh attempt before returning 401
+    if (githubToken is null)
+    {
         var refreshed = await RefreshGitHubTokenAsync(ctx, httpFactory);
         if (refreshed is not null)
-        {
             githubToken = refreshed;
-        }
-        else if (githubToken is null || userJson is null)
-        {
-            ctx.Response.StatusCode = 401;
-            return;
-        }
+    }
+
+    if (githubToken is null || userJson is null)
+    {
+        ctx.Response.StatusCode = 401;
+        return;
     }
 
     using var bodyDoc = await JsonDocument.ParseAsync(ctx.Request.Body);
@@ -867,11 +893,21 @@ app.MapPost("/api/chat", (Delegate)(async (HttpContext ctx, IHttpClientFactory h
     chatActivity?.SetTag("ai.prompt", prompt.Length > 500 ? prompt[..500] + "..." : prompt);
     logger.LogInformation("Chat request from {User} model={Model} promptLen={PromptLen}", userLogin, model, prompt.Length);
 
-    // Set per-request user context and update per-user token holder
+    // Set per-request user context and update per-user token holder.
+    // Use RefreshLock to serialize Azure token refresh for concurrent requests from the same user —
+    // prevents double-refresh races when Azure rotates single-use refresh tokens.
     var tokens = userTokens.GetOrAdd(userId, _ => new UserTokens());
-    tokens.AzureToken = await GetAzureTokenAsync(ctx, httpFactory);
-    tokens.GraphToken = await GetGraphTokenAsync(ctx, httpFactory);
-    tokens.LogAnalyticsToken = await GetLogAnalyticsTokenAsync(ctx, httpFactory);
+    await tokens.RefreshLock.WaitAsync(ctx.RequestAborted);
+    try
+    {
+        tokens.AzureToken = await GetAzureTokenAsync(ctx, httpFactory);
+        tokens.GraphToken = await GetGraphTokenAsync(ctx, httpFactory);
+        tokens.LogAnalyticsToken = await GetLogAnalyticsTokenAsync(ctx, httpFactory);
+    }
+    finally
+    {
+        tokens.RefreshLock.Release();
+    }
 
     logger.LogInformation("Chat tokens: azure={HasAzure} graph={HasGraph} la={HasLA}",
         tokens.AzureToken is not null, tokens.GraphToken is not null, tokens.LogAnalyticsToken is not null);
@@ -1009,6 +1045,7 @@ Scope = /subscriptions/{subId} or /subscriptions/{subId}/resourceGroups/{rg}
 
         var done = new TaskCompletionSource();
         var cancelled = false;
+        var authRetried = false;
         // Track tool calls: id → (name, startTime, activity)
         var toolTracker = new ConcurrentDictionary<string, (string Name, DateTimeOffset StartTime, Activity? Activity)>();
 
@@ -1022,8 +1059,12 @@ Scope = /subscriptions/{subId} or /subscriptions/{subId}/resourceGroups/{rg}
             }
         });
 
+        // Pre-declare so the handler closure can capture them for auth retry
+        IDisposable activeSubscription = null!;
+        SessionEventHandler handleEvent = null!;
+
         // Event handler delegate — reused if session is recreated after expiry
-        SessionEventHandler handleEvent = async (SessionEvent evt) =>
+        handleEvent = async (SessionEvent evt) =>
         {
             if (cancelled) return;
 
@@ -1160,6 +1201,49 @@ Scope = /subscriptions/{subId} or /subscriptions/{subId}/resourceGroups/{rg}
                 }
                 else if (evt is SessionErrorEvent error)
                 {
+                    // Retry once on authorization errors — fresh GitHub tokens may not be
+                    // immediately recognized by the Copilot backend (propagation delay).
+                    if (!authRetried && error.Data.Message.Contains("Authorization error", StringComparison.OrdinalIgnoreCase))
+                    {
+                        authRetried = true;
+                        logger.LogWarning("Authorization error for {User}, retrying with fresh client. Error: {Error}", userLogin, error.Data.Message);
+                        chatActivity?.SetTag("ai.auth_retry", true);
+
+                        // Tear down stale client + session
+                        if (clients.TryRemove(userId, out var oldClient)) try { oldClient.Dispose(); } catch { }
+                        if (sessions.TryRemove(userId, out _)) activeSessionsGauge.Add(-1);
+                        clientTokens.TryRemove(userId, out _);
+
+                        try
+                        {
+                            // Create fresh client + session
+                            var freshClient = new CopilotClient(new CopilotClientOptions { GitHubToken = githubToken });
+                            clients[userId] = freshClient;
+                            clientTokens[userId] = githubToken;
+                            await freshClient.StartAsync();
+
+                            var freshSession = await freshClient.CreateSessionAsync(sessionConfig);
+                            sessions[userId] = freshSession;
+                            sessionModels[userId] = model!;
+                            activeSessionsGauge.Add(1);
+                            sessionCreatedCounter.Add(1, new KeyValuePair<string, object?>("model", model), new KeyValuePair<string, object?>("user", userLogin));
+                            logger.LogInformation("Auth retry: recreated client+session for {User} sessionId={SessionId}", userLogin, freshSession.SessionId);
+
+                            // Switch subscription to new session
+                            activeSubscription.Dispose();
+                            activeSubscription = freshSession.On(handleEvent);
+
+                            // Resend — new session events will flow through this same handler
+                            await freshSession.SendAsync(new MessageOptions { Prompt = prompt });
+                            return;
+                        }
+                        catch (Exception retryEx)
+                        {
+                            logger.LogError(retryEx, "Auth retry failed for {User}", userLogin);
+                            // Fall through to normal error handling
+                        }
+                    }
+
                     sseData = JsonSerializer.Serialize(new { type = "error", message = error.Data.Message });
                     logger.LogError("Session error for {User}: {Error}", userLogin, error.Data.Message);
                     chatActivity?.SetTag("ai.error", error.Data.Message);
@@ -1188,7 +1272,7 @@ Scope = /subscriptions/{subId} or /subscriptions/{subId}/resourceGroups/{rg}
         };
 
         // Subscribe to session events
-        IDisposable activeSubscription = session.On(handleEvent);
+        activeSubscription = session.On(handleEvent);
 
         try
         {
@@ -1284,6 +1368,19 @@ app.MapPost("/api/chat/reset", async (HttpContext ctx) =>
 app.MapGet("/api/models", async (HttpContext ctx, IHttpClientFactory httpFactory) =>
 {
     var githubToken = ctx.Session.GetString("github_token");
+
+    // Proactively refresh GitHub token if expired
+    if (githubToken is not null)
+    {
+        var ghExpiryStr = ctx.Session.GetString("github_token_expiry");
+        if (ghExpiryStr is not null && DateTimeOffset.TryParse(ghExpiryStr, out var ghExpiry) && ghExpiry <= DateTimeOffset.UtcNow)
+        {
+            var refreshed = await RefreshGitHubTokenAsync(ctx, httpFactory);
+            if (refreshed is not null)
+                githubToken = refreshed;
+        }
+    }
+
     if (githubToken is null)
     {
         var refreshed = await RefreshGitHubTokenAsync(ctx, httpFactory);
@@ -1297,7 +1394,13 @@ app.MapGet("/api/models", async (HttpContext ctx, IHttpClientFactory httpFactory
     }
 
     var userJson = ctx.Session.GetString("user");
-    var user = JsonSerializer.Deserialize<JsonElement>(userJson!);
+    if (userJson is null)
+    {
+        ctx.Response.StatusCode = 401;
+        return;
+    }
+
+    var user = JsonSerializer.Deserialize<JsonElement>(userJson);
     var userId = user.GetProperty("id").GetInt64();
 
     try
