@@ -367,7 +367,8 @@ app.MapGet("/auth/microsoft", (HttpContext ctx) =>
               $"&redirect_uri={Uri.EscapeDataString(redirectUri)}" +
               $"&scope={Uri.EscapeDataString(scope)}" +
               $"&state={state}" +
-              $"&response_mode=query";
+              $"&response_mode=query" +
+              $"&prompt=select_account";
 
     logger.LogInformation("Microsoft OAuth redirect initiated from {Host}", ctx.Request.Host);
     return Results.Redirect(url);
