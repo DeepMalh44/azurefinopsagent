@@ -95,13 +95,13 @@ app.Use(async (ctx, next) =>
     headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
     headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()";
     // CSP — restrictive but allows the Vue SPA, ECharts (inline styles + canvas data URIs),
-    // GitHub avatars, SSE to self, and GitHub OAuth flow
+    // GitHub avatars, SSE to self, GitHub OAuth flow, and jsdelivr CDN for ECharts map GeoJSON
     headers["Content-Security-Policy"] =
         "default-src 'self'; " +
         "script-src 'self'; " +
         "style-src 'self' 'unsafe-inline'; " +
         "img-src 'self' data: https://avatars.githubusercontent.com; " +
-        "connect-src 'self' https://github.com https://api.github.com; " +
+        "connect-src 'self' https://github.com https://api.github.com https://cdn.jsdelivr.net; " +
         "font-src 'self'; " +
         "frame-ancestors 'none'";
 
