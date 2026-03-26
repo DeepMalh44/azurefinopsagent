@@ -318,17 +318,13 @@
       <div class="messages" ref="messagesEl">
         <div class="messages-inner">
           <div v-if="messages.length === 0" class="empty-state">
-            <h1 class="es-headline">Azure FinOps Agent</h1>
-            <p class="es-tagline-mobile">
-              AI-powered cost optimization for Azure
-            </p>
+            <h1 class="es-headline">FinOps Agent</h1>
+            <p class="es-tagline-mobile">Your AI FinOps analyst for Azure</p>
             <p class="es-sub">
-              Agentic FinOps for Azure — tenant-wide cost optimization,
-              reservation analysis, chargeback reporting, M365 license audits,
-              security insights, carbon tracking, and interactive
-              visualizations. Generate ready-to-present PowerPoint decks in
-              seconds to drive action with operations and business stakeholders.
-              One conversation. Zero portal hopping.
+              Turn weeks of KQL queries, Graph API calls, and portal hopping
+              into a single conversation — surface savings, forecast spend, and
+              generate a PowerPoint deck you can walk into a stakeholder meeting
+              with. From data to decision in minutes, not weeks.
             </p>
 
             <!-- Comparison table -->

@@ -1,6 +1,6 @@
 # Azure FinOps Agent
 
-An AI-powered agent that helps Azure customers **optimize cloud costs** through a conversational interface. Ask questions in natural language and get actionable FinOps insights — from identifying idle resources and oversized VMs to forecasting spend and analyzing reservation utilization.
+Turn weeks of KQL queries, Graph API calls, and portal hopping into a single conversation — surface savings, forecast spend, and generate a PowerPoint deck you can walk into a stakeholder meeting with. From data to decision in minutes, not weeks.
 
 Built with .NET 10, Vue 3, and the GitHub Copilot SDK. Deploys to Azure App Service.
 
