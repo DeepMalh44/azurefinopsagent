@@ -327,6 +327,89 @@
               with. From data to decision in minutes, not weeks.
             </p>
 
+            <div class="es-onboarding">
+              <div class="es-steps">
+                <div
+                  class="es-step"
+                  :class="{
+                    'es-step--done': !!user,
+                    'es-step--active': !user,
+                  }"
+                >
+                  <div class="es-step-badge">1</div>
+                  <div class="es-step-body">
+                    <div class="es-step-title-row">
+                      <strong class="es-step-title">Sign in with GitHub</strong>
+                      <span v-if="user" class="es-step-state">Connected</span>
+                      <span v-else class="es-step-state es-step-state--pending"
+                        >Required first</span
+                      >
+                    </div>
+                    <p class="es-step-copy">
+                      Use your GitHub identity to start a chat session and
+                      unlock the agent.
+                    </p>
+                    <button
+                      v-if="!user"
+                      class="es-step-btn es-step-btn--github"
+                      :disabled="authLoading === 'github'"
+                      @click="startAuth('github', '/auth/github')"
+                    >
+                      {{
+                        authLoading === "github"
+                          ? "Connecting GitHub..."
+                          : "Sign in with GitHub"
+                      }}
+                    </button>
+                  </div>
+                </div>
+
+                <div
+                  class="es-step"
+                  :class="{
+                    'es-step--done': !!user && azureConnected,
+                    'es-step--active': !!user && !azureConnected,
+                    'es-step--blocked': !user,
+                  }"
+                >
+                  <div class="es-step-badge">2</div>
+                  <div class="es-step-body">
+                    <div class="es-step-title-row">
+                      <strong class="es-step-title">Connect Azure</strong>
+                      <span v-if="azureConnected" class="es-step-state"
+                        >Connected</span
+                      >
+                      <span
+                        v-else-if="user"
+                        class="es-step-state es-step-state--pending"
+                        >Next step</span
+                      >
+                      <span v-else class="es-step-state es-step-state--blocked"
+                        >Available after GitHub sign-in</span
+                      >
+                    </div>
+                    <p class="es-step-copy">
+                      Add your Azure context so the agent can inspect
+                      subscriptions, pricing, cost trends, and optimization
+                      opportunities.
+                    </p>
+                    <button
+                      v-if="user && !azureConnected"
+                      class="es-step-btn es-step-btn--azure"
+                      :disabled="authLoading === 'azure'"
+                      @click="startAuth('azure', '/auth/microsoft')"
+                    >
+                      {{
+                        authLoading === "azure"
+                          ? "Connecting Azure..."
+                          : "Connect Azure"
+                      }}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <!-- Comparison table -->
             <div class="es-compare">
               <table class="es-compare-table">
@@ -1671,6 +1754,33 @@ function normalizeMapSeriesData(opts) {
 let worldMapLoaded = false;
 let worldMapLoading = null;
 
+function replaceWithChartFallback(option, message) {
+  for (const key of Object.keys(option)) {
+    delete option[key];
+  }
+
+  Object.assign(option, {
+    backgroundColor: "transparent",
+    title: {
+      text: "Chart unavailable",
+      subtext: message,
+      left: "center",
+      top: "middle",
+      textStyle: {
+        color: "#1f2328",
+        fontSize: 16,
+        fontWeight: 700,
+      },
+      subtextStyle: {
+        color: "#656d76",
+        fontSize: 12,
+        width: 320,
+        overflow: "break",
+      },
+    },
+  });
+}
+
 async function ensureWorldMap() {
   if (worldMapLoaded) return;
   if (worldMapLoading) return worldMapLoading;
@@ -2065,7 +2175,18 @@ function mountChart(el, chartData) {
   };
 
   if (option._needsMap) {
-    ensureWorldMap().then(doMount).catch(doMount);
+    ensureWorldMap()
+      .then(doMount)
+      .catch((error) => {
+        window.__trackAppInsightsException?.(error, {
+          source: "echarts.world-map",
+        });
+        replaceWithChartFallback(
+          option,
+          "World map data could not be loaded. Check browser network and CSP settings.",
+        );
+        doMount();
+      });
   } else {
     doMount();
   }
@@ -2832,6 +2953,137 @@ async function send() {
   text-align: center;
   max-width: 600px;
 }
+.es-onboarding {
+  width: 100%;
+  max-width: 760px;
+  margin: 0 0 1.25rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid rgba(0, 120, 212, 0.14);
+  border-radius: 16px;
+  background:
+    linear-gradient(180deg, rgba(0, 120, 212, 0.05), rgba(255, 255, 255, 0.95)),
+    #fff;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.06);
+}
+.es-steps {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.es-step {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 0.95rem;
+  border: 1px solid rgba(209, 217, 224, 0.9);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.86);
+}
+.es-step--active {
+  border-color: rgba(0, 120, 212, 0.32);
+  box-shadow: inset 0 0 0 1px rgba(0, 120, 212, 0.08);
+}
+.es-step--done {
+  border-color: rgba(45, 164, 78, 0.34);
+  background: rgba(45, 164, 78, 0.05);
+}
+.es-step--blocked {
+  opacity: 0.72;
+}
+.es-step-badge {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #eaf3ff;
+  color: #0078d4;
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+.es-step--done .es-step-badge {
+  background: rgba(45, 164, 78, 0.16);
+  color: #1a7f37;
+}
+.es-step-body {
+  min-width: 0;
+}
+.es-step-title-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  align-items: center;
+  margin-bottom: 0.25rem;
+}
+.es-step-title {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--text);
+}
+.es-step-state {
+  padding: 0.12rem 0.45rem;
+  border-radius: 999px;
+  background: rgba(45, 164, 78, 0.12);
+  color: #1a7f37;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+.es-step-state--pending {
+  background: rgba(0, 120, 212, 0.1);
+  color: #0078d4;
+}
+.es-step-state--blocked {
+  background: rgba(101, 109, 118, 0.12);
+  color: var(--text-muted);
+}
+.es-step-copy {
+  margin: 0 0 0.75rem;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+.es-step-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 0.45rem 0.8rem;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease,
+    color 0.15s ease,
+    transform 0.15s ease;
+}
+.es-step-btn:hover {
+  transform: translateY(-1px);
+}
+.es-step-btn:disabled {
+  opacity: 0.7;
+  cursor: wait;
+  transform: none;
+}
+.es-step-btn--github {
+  background: #1f2328;
+  color: #fff;
+}
+.es-step-btn--github:hover {
+  background: #2f363d;
+}
+.es-step-btn--azure {
+  background: #0078d4;
+  color: #fff;
+}
+.es-step-btn--azure:hover {
+  background: #106ebe;
+}
 /* Feature cards — 2x2 grid */
 .es-features {
   display: grid;
@@ -3511,6 +3763,13 @@ async function send() {
   }
   .es-headline {
     font-size: 1.5rem;
+  }
+  .es-onboarding {
+    padding: 0.9rem;
+    margin-bottom: 1rem;
+  }
+  .es-steps {
+    grid-template-columns: 1fr;
   }
   .empty-state {
     padding: 1rem 1rem 0.5rem;
