@@ -101,7 +101,7 @@ app.Use(async (ctx, next) =>
         "script-src 'self'; " +
         "style-src 'self' 'unsafe-inline'; " +
         "img-src 'self' data: https://avatars.githubusercontent.com; " +
-        "connect-src 'self' https://github.com https://api.github.com https://cdn.jsdelivr.net; " +
+        "connect-src 'self' https://github.com https://api.github.com https://cdn.jsdelivr.net https://canadacentral-1.in.applicationinsights.azure.com https://canadacentral.livediagnostics.monitor.azure.com; " +
         "font-src 'self'; " +
         "frame-ancestors 'none'";
 
@@ -1447,6 +1447,11 @@ if (string.IsNullOrEmpty(buildNumber))
     catch { buildNumber = "0"; }
 }
 app.MapGet("/api/version", () => Results.Ok(new { sha = buildSha, build = buildNumber, started = DateTime.UtcNow.ToString("o") }));
+
+// ──────────────────────────────────────────────
+// FRONTEND CONFIG (App Insights connection string)
+// ──────────────────────────────────────────────
+app.MapGet("/api/config", () => Results.Ok(new { appInsightsConnectionString = appInsightsCs ?? "" }));
 
 // ──────────────────────────────────────────────
 // PRESENTATION DOWNLOAD
