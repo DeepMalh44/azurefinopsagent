@@ -14,8 +14,8 @@ The agent acts as a frontend on top of Microsoft IQ and Microsoft Graph APIs to:
 
 - **Backend**: .NET 10 minimal API (`src/Dashboard/`)
 - **Frontend**: Vue 3 + Vite SPA (`src/Dashboard/client/`) with ECharts for data visualization
-- **AI**: GitHub Copilot SDK for agentic reasoning — sessions managed via `CopilotClient` / `CopilotSession`
-- **Auth**: GitHub App OAuth (no repo access — email read-only, user identity + Copilot) with automatic token refresh; Microsoft Entra ID OAuth (multi-tenant) for Azure ARM, Microsoft Graph, and Log Analytics APIs
+- **AI**: Microsoft Agent Framework (MAF) via `Microsoft.Agents.AI.OpenAI` + Azure OpenAI (`Azure.AI.OpenAI`) — sessions managed via `AIAgent` / `AgentSession`. Reasoning effort set to `Low` via `ConfigureOptions`. Model deployment configurable in `appsettings.json` under `AzureOpenAI:DeploymentName`.
+- **Auth**: Auto-assigned anonymous sessions (no login required for chat); Microsoft Entra ID OAuth (multi-tenant) for Azure ARM, Microsoft Graph, and Log Analytics APIs
 - **Data Sources**: Azure Retail Prices API (no auth), Azure Service Health (no auth), Azure Cost Management APIs, Microsoft Graph APIs, Azure Monitor / Log Analytics APIs, ECharts visualization
 - **Observability**: OpenTelemetry + Azure Monitor (Application Insights) — structured traces via `ActivitySource("AzureFinOps.AI")` and custom metrics via `Meter("AzureFinOps.AI")` (chat requests, tool calls, errors, token refreshes, session lifecycle, duration histograms). Frontend telemetry in `client/src/main.js` captures page views, failed browser dependencies, uncaught JS errors, unhandled promise rejections, Vue component errors, and CSP violations. Third-party correlation headers are excluded for `cdn.jsdelivr.net` and `js.monitor.azure.com` so browser telemetry does not break public fetches.
 - **Deployment**: Azure App Service (Linux, P0v3 Premium) via Docker container image from Azure Container Registry (ACR). Multi-stage Dockerfile bakes Python 3, pip packages (python-pptx, matplotlib, pandas, numpy, lxml), and CLI tools into the image — no runtime install needed. Legacy zip deployment via `deploy.ps1` still supported for the original `finops-agent` app.
@@ -28,8 +28,8 @@ The agent acts as a frontend on top of Microsoft IQ and Microsoft Graph APIs to:
 
 ```
 src/Dashboard/
-├── Program.cs              # .NET backend: auth (GitHub + Microsoft Entra ID), SSE chat endpoint, models, version
-├── Dashboard.csproj        # .NET 10 project, GitHub.Copilot.SDK + Microsoft.Extensions.AI
+├── Program.cs              # .NET backend: auth (Microsoft Entra ID), SSE chat endpoint, models, version
+├── Dashboard.csproj        # .NET 10 project, Microsoft.Agents.AI.OpenAI + Azure.AI.OpenAI + Microsoft.Extensions.AI
 ├── Tools/
 │   ├── AzureQueryTools.cs  # QueryAzure — calls any Azure ARM REST API using user's delegated token
 │   ├── ChartTools.cs       # RenderChart + RenderAdvancedChart — ECharts visualization (bar, line, pie, scatter, funnel, world maps, heatmaps, treemaps, radar, gauge)
@@ -39,6 +39,10 @@ src/Dashboard/
 │   ├── LogAnalyticsQueryTools.cs # QueryLogAnalytics — runs KQL queries against Log Analytics workspaces or App Insights
 │   ├── PricingTools.cs     # FetchUrl — minimal HTTP GET for allowed Azure API URLs (SSRF-protected)
 │   ├── PresentationTools.cs # GeneratePresentation — generates FinOps PowerPoint (.pptx) using python-pptx + matplotlib
+│   ├── FileSystemTools.cs  # ReadFile, WriteFile, EditFile, ListDirectory — file operations in agent workspace
+│   ├── SearchTools.cs      # Grep, Glob — search file contents and find files by pattern
+│   ├── WebFetchTools.cs    # FetchWebPage — fetch and extract text from public HTTPS URLs
+│   ├── MemoryTools.cs      # StoreMemory, RecallMemory, ListMemories, DeleteMemory — persistent per-user memory
 │   └── TokenContext.cs     # AsyncLocal-based per-request token storage for concurrent user isolation
 ├── Dockerfile              # Multi-stage Docker build (node:22 + dotnet/sdk:10.0 + dotnet/aspnet:10.0 + Python 3)
 ├── .dockerignore           # Excludes bin/, obj/, node_modules/, wwwroot/ from Docker context
@@ -52,10 +56,10 @@ src/Dashboard/
 │       └── components/
 │           ├── Dashboard.vue     # Layout shell
 │           └── ChatView.vue      # Full chat UI: left sidebar (prompts, APIs, subscriptions), center chat, right sidebar (tool calls), ECharts
-├── appsettings.json              # Base config (empty GitHub secrets — safe to commit)
-├── appsettings.Local.json        # Local dev GitHub OAuth secrets (GITIGNORED)
-├── appsettings.Production.json   # Production GitHub OAuth secrets (GITIGNORED)
-├── .env.example                  # Documents env var pattern for CI/Azure deployment (GitHub + Microsoft OAuth + App Insights)
+├── appsettings.json              # Base config (empty secrets — safe to commit)
+├── appsettings.Local.json        # Local dev secrets (GITIGNORED)
+├── appsettings.Production.json   # Production secrets (GITIGNORED)
+├── .env.example                  # Documents env var pattern for CI/Azure deployment (Microsoft OAuth + Azure OpenAI + App Insights)
 ├── deploy.ps1                    # PowerShell zip deployment script (az CLI)
 ├── startup.sh                    # App Service startup — installs Python 3, pip packages, jq, sqlite3
 ├── .gitignore                    # Excludes secrets, node_modules, bin/obj, wwwroot, publish
@@ -65,8 +69,9 @@ src/Dashboard/
 ## Architecture Principles
 
 - The solution follows an **agentic architecture** where the AI agent orchestrates calls to multiple data sources and tools to answer user questions.
-- GitHub Copilot SDK manages the AI session lifecycle — one `CopilotClient` per user, sessions reused across messages.
-- Tools are registered as `AIFunction` instances via `AIFunctionFactory.Create()` and passed to `SessionConfig.Tools`.
+- Microsoft Agent Framework (MAF) manages the AI session lifecycle — one `AIAgent` per user with per-user tools, `AgentSession` reused across messages for conversation history.
+- Tools are registered as `AIFunction` instances and passed to `AIAgent` via `AsAIAgent(tools:)`. Shared (stateless) tools are created once; per-user tools (requiring tokens) are created per user via closure over `UserTokens`.
+- The `IChatClient` pipeline is wrapped with `ConfigureOptions` to set reasoning effort to `Low` before being passed to `AsAIAgent`.
 - The backend streams responses via **Server-Sent Events (SSE)** — deltas, tool starts/completions, chart events, errors.
 - The Vue frontend consumes SSE and renders streaming text, tool call status in the sidebar, and ECharts visualizations inline.
 - Data should be retrieved from APIs at runtime — the agent does not store data persistently.
@@ -98,14 +103,9 @@ When creating tools for the Copilot SDK:
 - **LogAnalyticsQueryTools** (`QueryLogAnalytics`) runs KQL queries against Log Analytics workspaces or App Insights using `TokenContext.LogAnalyticsToken`. Used for VM/container metrics, diagnostics, cost attribution (AzureActivity table), and ingestion cost analysis.
 - **TokenContext** (`TokenContext.cs`) provides thread-safe, per-request token storage using `AsyncLocal<string?>`. Set in the `/api/chat` endpoint before tool execution begins. Avoids race conditions when multiple users hit the chat endpoint concurrently.
 
-## GitHub App OAuth Setup
+## Authentication
 
-Two **GitHub Apps** (not classic OAuth Apps) are registered — this ensures the consent screen only shows the permissions configured on the app (no "access all repos" prompt):
-
-- **Local dev**: `Azure FinOps Agent (Local)` (App ID: 3109880) — callback `http://localhost:5000/auth/github/callback`
-- **Production**: `Azure FinOps Agent` (App ID: 3109861) — callbacks: `https://azure-finops-agent.com/auth/github/callback`, `https://finops-agent-container.azurewebsites.net/auth/github/callback`
-
-OAuth scopes: Not used — permissions are configured on the GitHub App itself (no repo access, email read-only + Copilot)
+No login is required to use the chat. Users are auto-assigned an anonymous session identity on first request. GitHub App OAuth has been removed.
 
 ## Microsoft Entra ID OAuth Setup
 
@@ -141,15 +141,14 @@ For Azure App Service: `Microsoft__ClientId`, `Microsoft__ClientSecret`, `Micros
 - `appsettings.Production.json` — production secrets (gitignored)
 - `appsettings.json` — base config with empty placeholders (committed)
 - For Azure App Service: secrets are set as app settings via `az webapp config appsettings set` (encrypted at rest)
-- Environment variable format: `GitHub__ClientId`, `GitHub__ClientSecret`, `Microsoft__ClientId`, `Microsoft__ClientSecret`, `Microsoft__TenantId` (.NET auto-maps `__` to config sections)
+- Environment variable format: `Microsoft__ClientId`, `Microsoft__ClientSecret`, `Microsoft__TenantId`, `AzureOpenAI__Endpoint`, `AzureOpenAI__DeploymentName` (.NET auto-maps `__` to config sections)
 - **Critical**: Never load `appsettings.Local.json` unconditionally — it will override production env vars on Azure
 
 ## Running Locally
 
 > **CRITICAL**: You **must** set `ASPNETCORE_ENVIRONMENT=Development` before running the backend.
 > Without it, ASP.NET Core defaults to Production, which loads `appsettings.Production.json`
-> (production OAuth credentials) and skips `appsettings.Local.json`. This causes a
-> GitHub OAuth `redirect_uri` mismatch error.
+> (production OAuth credentials) and skips `appsettings.Local.json`.
 
 ```bash
 # 1. Frontend (dev mode with hot reload — optional, only for UI development)
@@ -219,7 +218,7 @@ The deploy script:
 
 1. Verifies `az login`
 2. Creates resource group + App Service plan (P0v3 Linux) + web app (.NET 10 runtime)
-3. Reads production secrets from `appsettings.Production.json` and sets as App Service settings (GitHub + Microsoft OAuth); configures `startup.sh` for Python/tools
+3. Reads production secrets from `appsettings.Production.json` and sets as App Service settings (Microsoft OAuth + Azure OpenAI); configures `startup.sh` for Python/tools
 4. Builds Vue frontend via `npm ci && npm run build`
 5. Publishes .NET backend via `dotnet publish -r linux-x64 --self-contained false`
 6. Deploys via `az webapp deploy --type zip`
@@ -232,8 +231,7 @@ The deploy script:
 - Include proper error handling for API calls (rate limiting, authentication failures, etc.).
 - All Azure resource interactions should use managed identity where possible.
 - Use `.NET 10` APIs — e.g., `KnownIPNetworks` not deprecated `KnownNetworks`.
-- Use `GitHubToken` not deprecated `GithubToken` in `CopilotClientOptions`.
-- Use `PermissionRequestResultKind.Approved` enum not string `"approved"`.
+- Use `AIAgent` / `AgentSession` from `Microsoft.Agents.AI` — not the deprecated GitHub Copilot SDK types.
 
 ## Key Terminology
 
@@ -292,7 +290,7 @@ The production app is available at `https://www.azure-finops-agent.com` and `htt
   - `TXT` `_dmarc` → `v=DMARC1; p=none; rua=mailto:alifarahnak@gmail.com` (domain reputation)
 - **Security Headers** (in `Program.cs`): HSTS (1 year, preload), X-Content-Type-Options, X-Frame-Options, Referrer-Policy, Permissions-Policy, Content-Security-Policy, HTTPS redirection
 - **SSL**: Azure Managed Certificates (auto-renewed) bound via SNI for both `www` and root domain
-- **GitHub OAuth callback** must match the custom domain: `https://azure-finops-agent.com/auth/github/callback`\n- **Container app callback**: `https://finops-agent-container.azurewebsites.net/auth/github/callback`\n- **Microsoft Entra ID callbacks**: `https://azure-finops-agent.com/auth/microsoft/callback`, `https://www.azure-finops-agent.com/auth/microsoft/callback`, `http://localhost:5000/auth/microsoft/callback`, `https://finops-agent-container.azurewebsites.net/auth/microsoft/callback`
+- **Microsoft Entra ID callbacks**: `https://azure-finops-agent.com/auth/microsoft/callback`, `https://www.azure-finops-agent.com/auth/microsoft/callback`, `http://localhost:5000/auth/microsoft/callback`, `https://finops-agent-container.azurewebsites.net/auth/microsoft/callback`
 
 ## Self-Maintenance
 

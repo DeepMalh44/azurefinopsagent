@@ -2,7 +2,7 @@
 
 Turn weeks of KQL queries, Graph API calls, and portal hopping into a single conversation — surface savings, forecast spend, and generate a PowerPoint deck you can walk into a stakeholder meeting with. From data to decision in minutes, not weeks.
 
-Built with .NET 10, Vue 3, and the GitHub Copilot SDK. Deploys to Azure App Service.
+Built with .NET 10, Vue 3, and Microsoft Agent Framework + Azure OpenAI. Deploys to Azure App Service.
 
 **[Try it live →](https://azure-finops-agent.com/)**
 
@@ -18,7 +18,9 @@ Built with .NET 10, Vue 3, and the GitHub Copilot SDK. Deploys to Azure App Serv
 - **Public Azure data** — real-time pricing from the Azure Retail Prices API and service health from the Azure Status RSS feed (no auth required)
 - **Code execution** — runs Python 3, bash, and SQLite scripts for data processing and analysis (pandas, numpy, requests available)
 - **Streaming responses** — Server-Sent Events (SSE) for real-time streaming text, tool call status, and chart rendering
-- **Model selection** — choose from available GitHub Copilot models (Claude, GPT, etc.)
+- **Persistent memory** — per-user memory for storing preferences, subscription IDs, budget goals across sessions
+- **File operations** — read, write, edit files and search file contents in the agent workspace
+- **Web fetching** — fetch and extract text from public HTTPS URLs for docs and release notes
 - **Observability** — OpenTelemetry + Azure Monitor (Application Insights) with structured traces, custom metrics (chat requests, tool calls, errors, token refreshes, session lifecycle, duration histograms), and activity spans for chat requests, tool calls, and AI responses
 
 ## Architecture
@@ -26,21 +28,21 @@ Built with .NET 10, Vue 3, and the GitHub Copilot SDK. Deploys to Azure App Serv
 ```
 ┌─────────────────┐    SSE     ┌──────────────────────────────────┐
 │  Vue 3 + Vite   │◄──────────│  .NET 10 Minimal API             │
-│  (ECharts)       │──────────►│  GitHub Copilot SDK              │
-└─────────────────┘   POST    │                                  │
+│  (ECharts)       │──────────►│  Microsoft Agent Framework (MAF) │
+└─────────────────┘   POST    │  + Azure OpenAI                  │
+                               │                                  │
                                │  Tools:                          │
-┌─────────────────┐            │  ├─ QueryAzure (ARM REST APIs)   │
-│  GitHub OAuth   │◄──────────│  ├─ QueryGraph (Microsoft Graph)  │
-│  (Copilot +     │            │  ├─ QueryLogAnalytics (KQL)      │
-│   Identity)     │            │  ├─ FetchUrl (Retail Prices)     │
-└─────────────────┘            │  ├─ GetAzureServiceHealth (RSS)  │
-                               │  ├─ RenderChart / Advanced       │
-┌─────────────────┐            │  └─ RunScript (Python/bash/SQL)  │
-│  Microsoft      │◄──────────│                                  │
-│  Entra ID OAuth │            └──────────────────────────────────┘
-│  (ARM + Graph   │
-│   + Log Analyt.)│
-└─────────────────┘
+                               │  ├─ QueryAzure (ARM REST APIs)   │
+                               │  ├─ QueryGraph (Microsoft Graph)  │
+                               │  ├─ QueryLogAnalytics (KQL)      │
+                               │  ├─ FetchUrl (Retail Prices)     │
+┌─────────────────┐            │  ├─ GetAzureServiceHealth (RSS)  │
+│  Microsoft      │◄──────────│  ├─ RenderChart / Advanced       │
+│  Entra ID OAuth │            │  ├─ RunScript (Python/bash/SQL)  │
+│  (ARM + Graph   │            │  ├─ ReadFile / WriteFile / Edit   │
+│   + Log Analyt.)│            │  ├─ StoreMemory / RecallMemory   │
+└─────────────────┘            │  └─ FetchWebPage                 │
+                               └──────────────────────────────────┘
 ```
 
 The agent follows an **agentic architecture** — the AI orchestrates calls to multiple data sources and tools to answer user questions. The backend streams responses via SSE, and the frontend renders streaming text, tool call status in a sidebar, and ECharts visualizations inline.
@@ -49,16 +51,15 @@ The agent follows an **agentic architecture** — the AI orchestrates calls to m
 
 ### Prerequisites
 
-- [GitHub account](https://github.com) with [Copilot](https://github.com/features/copilot) access
 - [.NET 10 SDK](https://dotnet.microsoft.com/download)
 - [Node.js LTS](https://nodejs.org/)
-- GitHub App OAuth credentials (see [CONTRIBUTING.md](CONTRIBUTING.md) for setup)
-- _(Optional)_ [Azure subscription](https://azure.microsoft.com/free/) + Microsoft Entra ID app registration for Azure tenant data
+- Microsoft Entra ID app registration (multi-tenant) for Azure OpenAI and Azure tenant data
+- _(Optional)_ [Azure subscription](https://azure.microsoft.com/free/) for connecting Azure tenant data
 - _(Optional)_ [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli) for deployment
 
 ### Run Locally
 
-> **Important**: You must set `ASPNETCORE_ENVIRONMENT=Development` to load local OAuth credentials.
+> **Important**: You must set `ASPNETCORE_ENVIRONMENT=Development` to load local credentials.
 
 ```bash
 # Build the Vue frontend
@@ -88,12 +89,14 @@ cd src/Dashboard
 
 The deploy script builds the frontend, publishes the .NET backend, configures OAuth secrets as encrypted app settings, and deploys via `az webapp deploy --type zip` to a Linux App Service.
 
+See also the Docker container deployment approach in [copilot-instructions.md](.github/copilot-instructions.md) for production deployments via ACR.
+
 ## Project Structure
 
 ```
 src/Dashboard/
-├── Program.cs                 # Auth endpoints, SSE chat, models, version
-├── Dashboard.csproj           # .NET 10, GitHub.Copilot.SDK, Microsoft.Extensions.AI
+├── Program.cs                 # Auth endpoints, SSE chat, version
+├── Dashboard.csproj           # .NET 10, Microsoft.Agents.AI.OpenAI, Azure.AI.OpenAI
 ├── Tools/
 │   ├── AzureQueryTools.cs     # QueryAzure — any Azure ARM REST API (GET/POST)
 │   ├── ChartTools.cs          # RenderChart + RenderAdvancedChart — ECharts
@@ -102,11 +105,15 @@ src/Dashboard/
 │   ├── HealthTools.cs         # GetAzureServiceHealth — Azure Status RSS
 │   ├── LogAnalyticsQueryTools.cs  # QueryLogAnalytics — KQL queries
 │   ├── PricingTools.cs        # FetchUrl — Azure Retail Prices + public URLs
+│   ├── PresentationTools.cs   # GeneratePresentation — FinOps PowerPoint (.pptx)
+│   ├── FileSystemTools.cs     # ReadFile, WriteFile, EditFile, ListDirectory
+│   ├── SearchTools.cs         # Grep, Glob — search files by content/pattern
+│   ├── WebFetchTools.cs       # FetchWebPage — fetch text from public URLs
+│   ├── MemoryTools.cs         # StoreMemory, RecallMemory — persistent per-user memory
 │   └── TokenContext.cs        # AsyncLocal per-request token isolation
 ├── client/                    # Vue 3 + Vite SPA
 │   ├── src/components/
 │   │   ├── ChatView.vue       # Chat UI, tool sidebar, ECharts rendering
-│   │   ├── LoginScreen.vue    # GitHub OAuth login card
 │   │   └── Dashboard.vue      # Layout shell
 ├── deploy.ps1                 # Azure App Service deployment script
 ├── startup.sh                 # App Service startup — installs Python/tools

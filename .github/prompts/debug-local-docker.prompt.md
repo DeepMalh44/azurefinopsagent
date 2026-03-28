@@ -7,12 +7,12 @@ description: "Build and run the Azure FinOps Agent locally with Docker for debug
 
 > **CRITICAL**: You **must** set `ASPNETCORE_ENVIRONMENT=Development` when running the container.
 > Without it, ASP.NET Core defaults to Production, which loads `appsettings.Production.json`
-> (production OAuth credentials) and skips `appsettings.Local.json`. This causes a
-> GitHub OAuth `redirect_uri` mismatch error ("The redirect_uri is not associated with this application").
+> (production OAuth credentials) and skips `appsettings.Local.json`. This causes an
+> OAuth `redirect_uri` mismatch error.
 
 > **CRITICAL**: `appsettings.Local.json` is excluded from the Docker image by `.dockerignore`.
-> You **must** mount it into the container (step 2) so the app has your local GitHub OAuth
-> credentials. Without it, the GitHub ClientId is empty and login redirects to a GitHub 404.
+> You **must** mount it into the container (step 2) so the app has your local Microsoft Entra ID
+> and Azure OpenAI credentials.
 
 1. Build the Docker image from `src/Dashboard/`:
 
@@ -31,7 +31,7 @@ docker run --rm -p 5000:8080 \
   azure-finops-agent-local
 ```
 
-3. Open http://localhost:5000 in the browser and verify the login page loads.
+3. Open http://localhost:5000 in the browser and verify the chat page loads.
 
 4. Confirm the `/api/version` endpoint responds with 200:
 
