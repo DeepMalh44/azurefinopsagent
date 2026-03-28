@@ -116,42 +116,27 @@ Note: Only GET and POST methods are supported.");
 
         var url = $"https://management.azure.com{path}";
 
-        try
-        {
-            using var req = new HttpRequestMessage(httpMethod, url);
-            req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-            req.Headers.Add("User-Agent", "FinOps-Dashboard/1.0");
+        using var req = new HttpRequestMessage(httpMethod, url);
+        req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        req.Headers.Add("User-Agent", "FinOps-Dashboard/1.0");
 
-            if (httpMethod == HttpMethod.Post && !string.IsNullOrWhiteSpace(body))
-                req.Content = new StringContent(body, System.Text.Encoding.UTF8, "application/json");
+        if (httpMethod == HttpMethod.Post && !string.IsNullOrWhiteSpace(body))
+            req.Content = new StringContent(body, System.Text.Encoding.UTF8, "application/json");
 
-            var res = await Http.SendAsync(req);
-            var responseBody = await res.Content.ReadAsStringAsync();
+        var res = await Http.SendAsync(req);
+        var responseBody = await res.Content.ReadAsStringAsync();
 
-            activity?.SetTag("azure.status_code", (int)res.StatusCode);
-            activity?.SetTag("azure.response_length", responseBody.Length);
-            activity?.SetTag("azure.result", res.IsSuccessStatusCode ? "success" : "http_error");
+        activity?.SetTag("azure.status_code", (int)res.StatusCode);
+        activity?.SetTag("azure.response_length", responseBody.Length);
+        activity?.SetTag("azure.result", res.IsSuccessStatusCode ? "success" : "http_error");
 
-            var result = $"HTTP {(int)res.StatusCode} {res.StatusCode}\n";
-            result += $"Current UTC time: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}\n";
+        var result = $"HTTP {(int)res.StatusCode} {res.StatusCode}\n";
+        result += $"Current UTC time: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}\n";
+        result += responseBody;
 
-            if (responseBody.Length > MaxResponseChars)
-                result += responseBody[..MaxResponseChars] + $"\n... (truncated, {responseBody.Length} total chars)";
-            else
-                result += responseBody;
+        if (!res.IsSuccessStatusCode)
+            activity?.SetStatus(ActivityStatusCode.Error, $"HTTP {(int)res.StatusCode}");
 
-            if (!res.IsSuccessStatusCode)
-                activity?.SetStatus(ActivityStatusCode.Error, $"HTTP {(int)res.StatusCode}");
-
-            return result;
-        }
-        catch (Exception ex)
-        {
-            activity?.SetTag("azure.result", "exception");
-            activity?.SetTag("azure.error", ex.Message);
-            activity?.SetTag("azure.error_type", ex.GetType().Name);
-            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
-            return ex.ToString();
-        }
+        return LargeResultHelper.Truncate(result, "QueryAzure");
     }
 }

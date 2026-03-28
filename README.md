@@ -39,7 +39,8 @@ Built with .NET 10, Vue 3, and Microsoft Agent Framework + Azure OpenAI. Deploys
 ┌─────────────────┐            │  ├─ GetAzureServiceHealth (RSS)  │
 │  Microsoft      │◄──────────│  ├─ RenderChart / Advanced       │
 │  Entra ID OAuth │            │  ├─ RunScript (Python/bash/SQL)  │
-│  (ARM + Graph   │            │  ├─ ReadFile / WriteFile / Edit   │
+│  (ARM + Graph   │            │  ├─ GeneratePresentation (.pptx) │
+│   + Log Analyt.)│            │  ├─ ReadFile / WriteFile / Edit   │
 │   + Log Analyt.)│            │  ├─ StoreMemory / RecallMemory   │
 └─────────────────┘            │  └─ FetchWebPage                 │
                                └──────────────────────────────────┘
@@ -104,13 +105,14 @@ src/Dashboard/
 │   ├── GraphQueryTools.cs     # QueryGraph — Microsoft Graph API
 │   ├── HealthTools.cs         # GetAzureServiceHealth — Azure Status RSS
 │   ├── LogAnalyticsQueryTools.cs  # QueryLogAnalytics — KQL queries
-│   ├── PricingTools.cs        # FetchUrl — Azure Retail Prices + public URLs
+│   ├── PricingTools.cs        # FetchUrl — Azure Retail Prices API (SSRF-protected)
 │   ├── PresentationTools.cs   # GeneratePresentation — FinOps PowerPoint (.pptx)
 │   ├── FileSystemTools.cs     # ReadFile, WriteFile, EditFile, ListDirectory
 │   ├── SearchTools.cs         # Grep, Glob — search files by content/pattern
 │   ├── WebFetchTools.cs       # FetchWebPage — fetch text from public URLs
 │   ├── MemoryTools.cs         # StoreMemory, RecallMemory — persistent per-user memory
-│   └── TokenContext.cs        # AsyncLocal per-request token isolation
+│   ├── LargeResultHelper.cs   # Truncates large tool results to 300 chars, saves full data to disk
+│   └── TokenContext.cs        # Per-user mutable token holder with volatile fields
 ├── client/                    # Vue 3 + Vite SPA
 │   ├── src/components/
 │   │   ├── ChatView.vue       # Chat UI, tool sidebar, ECharts rendering

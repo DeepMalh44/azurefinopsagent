@@ -35,44 +35,34 @@ public static class WebFetchTools
         [Description("Full URL to fetch (must be https)")] string url,
         [Description("Optional: extract only content matching this query/topic")] string? query)
     {
-        try
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
+            return "Error: Invalid URL.";
+        if (uri.Scheme != "https")
+            return "Error: Only HTTPS URLs are allowed.";
+        // Block private/internal IPs
+        if (uri.Host == "localhost" || uri.Host.StartsWith("127.") || uri.Host.StartsWith("10.") ||
+            uri.Host.StartsWith("192.168.") || uri.Host.StartsWith("172."))
+            return "Error: Internal/private URLs are not allowed.";
+
+        var response = await Http.GetAsync(url);
+        if (!response.IsSuccessStatusCode)
+            return $"Error: HTTP {(int)response.StatusCode} {response.ReasonPhrase}";
+
+        var contentType = response.Content.Headers.ContentType?.MediaType ?? "";
+        var body = await response.Content.ReadAsStringAsync();
+
+        // Truncate
+        if (body.Length > MaxResponseChars)
+            body = body[..MaxResponseChars] + $"\n\n[Truncated: {body.Length:N0} total chars]";
+
+        // If HTML, strip tags to extract text
+        if (contentType.Contains("html"))
         {
-            if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
-                return "Error: Invalid URL.";
-            if (uri.Scheme != "https")
-                return "Error: Only HTTPS URLs are allowed.";
-            // Block private/internal IPs
-            if (uri.Host == "localhost" || uri.Host.StartsWith("127.") || uri.Host.StartsWith("10.") ||
-                uri.Host.StartsWith("192.168.") || uri.Host.StartsWith("172."))
-                return "Error: Internal/private URLs are not allowed.";
-
-            var response = await Http.GetAsync(url);
-            if (!response.IsSuccessStatusCode)
-                return $"Error: HTTP {(int)response.StatusCode} {response.ReasonPhrase}";
-
-            var contentType = response.Content.Headers.ContentType?.MediaType ?? "";
-            var body = await response.Content.ReadAsStringAsync();
-
-            // Truncate
-            if (body.Length > MaxResponseChars)
-                body = body[..MaxResponseChars] + $"\n\n[Truncated: {body.Length:N0} total chars]";
-
-            // If HTML, strip tags to extract text
-            if (contentType.Contains("html"))
-            {
-                body = StripHtml(body);
-            }
-
-            return $"URL: {url}\nContent-Type: {contentType}\nLength: {body.Length:N0} chars\n\n{body}";
+            body = StripHtml(body);
         }
-        catch (TaskCanceledException)
-        {
-            return "Error: Request timed out (30s limit).";
-        }
-        catch (Exception ex)
-        {
-            return $"Error: {ex.Message}";
-        }
+
+        var result = $"URL: {url}\nContent-Type: {contentType}\nLength: {body.Length:N0} chars\n\n{body}";
+        return LargeResultHelper.Truncate(result, "FetchWebPage");
     }
 
     private static string StripHtml(string html)

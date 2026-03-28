@@ -33,81 +33,70 @@ public static class SearchTools
         [Description("Optional glob filter for files to search (e.g. '*.csv'). Default: all files.")] string? includePattern,
         [Description("Whether the pattern is a regex. Default: false (literal text search).")] bool? isRegexp)
     {
-        try
+        if (!Directory.Exists(WorkDir))
+            return "Error: Workspace directory is empty.";
+
+        var useRegex = isRegexp ?? false;
+        Regex? regex = null;
+        if (useRegex)
+            regex = new Regex(pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled, TimeSpan.FromSeconds(5));
+
+        var searchPattern = string.IsNullOrWhiteSpace(includePattern) ? "*" : includePattern;
+        var files = Directory.GetFiles(WorkDir, searchPattern, SearchOption.AllDirectories);
+        var results = new List<string>();
+
+        foreach (var file in files)
         {
-            if (!Directory.Exists(WorkDir))
-                return "Error: Workspace directory is empty.";
+            if (results.Count >= MaxResults) break;
 
-            var useRegex = isRegexp ?? false;
-            Regex? regex = null;
-            if (useRegex)
+            try
             {
-                try { regex = new Regex(pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled, TimeSpan.FromSeconds(5)); }
-                catch (Exception ex) { return $"Error: Invalid regex: {ex.Message}"; }
-            }
+                var lines = File.ReadAllLines(file);
+                var relativePath = Path.GetRelativePath(WorkDir, file);
 
-            var searchPattern = string.IsNullOrWhiteSpace(includePattern) ? "*" : includePattern;
-            var files = Directory.GetFiles(WorkDir, searchPattern, SearchOption.AllDirectories);
-            var results = new List<string>();
-
-            foreach (var file in files)
-            {
-                if (results.Count >= MaxResults) break;
-
-                try
+                for (int i = 0; i < lines.Length && results.Count < MaxResults; i++)
                 {
-                    var lines = File.ReadAllLines(file);
-                    var relativePath = Path.GetRelativePath(WorkDir, file);
+                    var line = lines[i];
+                    bool match = useRegex
+                        ? regex!.IsMatch(line)
+                        : line.Contains(pattern, StringComparison.OrdinalIgnoreCase);
 
-                    for (int i = 0; i < lines.Length && results.Count < MaxResults; i++)
+                    if (match)
                     {
-                        var line = lines[i];
-                        bool match = useRegex
-                            ? regex!.IsMatch(line)
-                            : line.Contains(pattern, StringComparison.OrdinalIgnoreCase);
-
-                        if (match)
-                        {
-                            var truncated = line.Length > MaxLineLength ? line[..MaxLineLength] + "..." : line;
-                            results.Add($"{relativePath}:{i + 1}: {truncated}");
-                        }
+                        var truncated = line.Length > MaxLineLength ? line[..MaxLineLength] + "..." : line;
+                        results.Add($"{relativePath}:{i + 1}: {truncated}");
                     }
                 }
-                catch { /* skip binary or unreadable files */ }
             }
-
-            return results.Count == 0
-                ? $"No matches for '{pattern}'"
-                : $"{results.Count} match(es):\n{string.Join("\n", results)}";
+            catch { /* skip binary or unreadable files */ }
         }
-        catch (Exception ex) { return $"Error: {ex.Message}"; }
+
+        return results.Count == 0
+            ? $"No matches for '{pattern}'"
+            : $"{results.Count} match(es):\n{string.Join("\n", results)}";
     }
 
     private static string Glob(
         [Description("Glob pattern to match files (e.g. '**/*.csv', 'data/*.json')")] string pattern)
     {
-        try
-        {
-            if (!Directory.Exists(WorkDir))
-                return "Error: Workspace directory is empty.";
+        if (!Directory.Exists(WorkDir))
+            return "Error: Workspace directory is empty.";
 
-            // Simple glob: use SearchOption.AllDirectories for ** patterns
-            var searchOption = pattern.Contains("**") ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
-            var filePattern = pattern.Replace("**/", "").Replace("**", "*");
+        // Simple glob: use SearchOption.AllDirectories for ** patterns
+        var searchOption = pattern.Contains("**") ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
+        var filePattern = pattern.Replace("**/", "").Replace("**", "*");
 
-            var files = Directory.GetFiles(WorkDir, filePattern, searchOption)
-                .Take(MaxResults)
-                .Select(f =>
-                {
-                    var fi = new FileInfo(f);
-                    return $"  {Path.GetRelativePath(WorkDir, f)} ({fi.Length:N0} bytes)";
-                })
-                .ToList();
+        var files = Directory.GetFiles(WorkDir, filePattern, searchOption)
+            .Take(MaxResults)
+            .Select(f =>
+            {
+                var fi = new FileInfo(f);
+                return $"  {Path.GetRelativePath(WorkDir, f)} ({fi.Length:N0} bytes)";
+            })
+            .ToList();
 
-            return files.Count == 0
-                ? $"No files matching '{pattern}'"
-                : $"{files.Count} file(s):\n{string.Join("\n", files)}";
-        }
-        catch (Exception ex) { return $"Error: {ex.Message}"; }
+        return files.Count == 0
+            ? $"No files matching '{pattern}'"
+            : $"{files.Count} file(s):\n{string.Join("\n", files)}";
     }
 }

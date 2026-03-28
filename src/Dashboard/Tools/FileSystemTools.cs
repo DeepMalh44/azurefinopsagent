@@ -42,42 +42,34 @@ public static class FileSystemTools
         [Description("Optional start line (1-based). Omit to read from beginning.")] int? startLine,
         [Description("Optional end line (1-based, inclusive). Omit to read to end.")] int? endLine)
     {
-        try
-        {
-            var fullPath = ResolveSafePath(path);
-            if (!File.Exists(fullPath))
-                return $"Error: File not found: {path}";
+        var fullPath = ResolveSafePath(path);
+        if (!File.Exists(fullPath))
+            return $"Error: File not found: {path}";
 
-            var info = new FileInfo(fullPath);
-            if (info.Length > MaxFileSizeBytes)
-                return $"Error: File too large ({info.Length:N0} bytes). Max: {MaxFileSizeBytes:N0} bytes.";
+        var info = new FileInfo(fullPath);
+        if (info.Length > MaxFileSizeBytes)
+            return $"Error: File too large ({info.Length:N0} bytes). Max: {MaxFileSizeBytes:N0} bytes.";
 
-            var lines = await File.ReadAllLinesAsync(fullPath);
-            var start = Math.Max(0, (startLine ?? 1) - 1);
-            var end = Math.Min(lines.Length, endLine ?? lines.Length);
+        var lines = await File.ReadAllLinesAsync(fullPath);
+        var start = Math.Max(0, (startLine ?? 1) - 1);
+        var end = Math.Min(lines.Length, endLine ?? lines.Length);
 
-            if (start >= lines.Length)
-                return $"Error: startLine {startLine} exceeds file length ({lines.Length} lines).";
+        if (start >= lines.Length)
+            return $"Error: startLine {startLine} exceeds file length ({lines.Length} lines).";
 
-            var selected = lines[start..end];
-            return $"File: {path} ({lines.Length} lines total, showing {start + 1}-{end})\n{string.Join("\n", selected)}";
-        }
-        catch (Exception ex) { return $"Error: {ex.Message}"; }
+        var selected = lines[start..end];
+        return $"File: {path} ({lines.Length} lines total, showing {start + 1}-{end})\n{string.Join("\n", selected)}";
     }
 
     private static async Task<string> WriteFile(
         [Description("Relative file path within the workspace")] string path,
         [Description("File content to write")] string content)
     {
-        try
-        {
-            var fullPath = ResolveSafePath(path);
-            var dir = Path.GetDirectoryName(fullPath);
-            if (dir is not null) Directory.CreateDirectory(dir);
-            await File.WriteAllTextAsync(fullPath, content);
-            return $"File written: {path} ({content.Length} chars)";
-        }
-        catch (Exception ex) { return $"Error: {ex.Message}"; }
+        var fullPath = ResolveSafePath(path);
+        var dir = Path.GetDirectoryName(fullPath);
+        if (dir is not null) Directory.CreateDirectory(dir);
+        await File.WriteAllTextAsync(fullPath, content);
+        return $"File written: {path} ({content.Length} chars)";
     }
 
     private static async Task<string> EditFile(
@@ -85,50 +77,42 @@ public static class FileSystemTools
         [Description("Exact string to find and replace (must appear exactly once)")] string oldString,
         [Description("Replacement string")] string newString)
     {
-        try
-        {
-            var fullPath = ResolveSafePath(path);
-            if (!File.Exists(fullPath))
-                return $"Error: File not found: {path}";
+        var fullPath = ResolveSafePath(path);
+        if (!File.Exists(fullPath))
+            return $"Error: File not found: {path}";
 
-            var text = await File.ReadAllTextAsync(fullPath);
-            var count = CountOccurrences(text, oldString);
+        var text = await File.ReadAllTextAsync(fullPath);
+        var count = CountOccurrences(text, oldString);
 
-            if (count == 0)
-                return "Error: oldString not found in the file.";
-            if (count > 1)
-                return $"Error: oldString found {count} times — must appear exactly once.";
+        if (count == 0)
+            return "Error: oldString not found in the file.";
+        if (count > 1)
+            return $"Error: oldString found {count} times — must appear exactly once.";
 
-            var newText = text.Replace(oldString, newString);
-            await File.WriteAllTextAsync(fullPath, newText);
-            return $"File edited: {path} (replaced {oldString.Length} chars with {newString.Length} chars)";
-        }
-        catch (Exception ex) { return $"Error: {ex.Message}"; }
+        var newText = text.Replace(oldString, newString);
+        await File.WriteAllTextAsync(fullPath, newText);
+        return $"File edited: {path} (replaced {oldString.Length} chars with {newString.Length} chars)";
     }
 
     private static string ListDirectory(
         [Description("Relative directory path within the workspace. Use '.' or '' for root.")] string path)
     {
-        try
+        var fullPath = ResolveSafePath(string.IsNullOrWhiteSpace(path) ? "." : path);
+        if (!Directory.Exists(fullPath))
+            return $"Error: Directory not found: {path}";
+
+        var entries = new List<string>();
+        foreach (var dir in Directory.GetDirectories(fullPath))
+            entries.Add($"  {Path.GetFileName(dir)}/");
+        foreach (var file in Directory.GetFiles(fullPath))
         {
-            var fullPath = ResolveSafePath(string.IsNullOrWhiteSpace(path) ? "." : path);
-            if (!Directory.Exists(fullPath))
-                return $"Error: Directory not found: {path}";
-
-            var entries = new List<string>();
-            foreach (var dir in Directory.GetDirectories(fullPath))
-                entries.Add($"  {Path.GetFileName(dir)}/");
-            foreach (var file in Directory.GetFiles(fullPath))
-            {
-                var fi = new FileInfo(file);
-                entries.Add($"  {fi.Name} ({fi.Length:N0} bytes)");
-            }
-
-            return entries.Count == 0
-                ? $"Directory: {path} (empty)"
-                : $"Directory: {path} ({entries.Count} items)\n{string.Join("\n", entries)}";
+            var fi = new FileInfo(file);
+            entries.Add($"  {fi.Name} ({fi.Length:N0} bytes)");
         }
-        catch (Exception ex) { return $"Error: {ex.Message}"; }
+
+        return entries.Count == 0
+            ? $"Directory: {path} (empty)"
+            : $"Directory: {path} ({entries.Count} items)\n{string.Join("\n", entries)}";
     }
 
     private static int CountOccurrences(string text, string search)

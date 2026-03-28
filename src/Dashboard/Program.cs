@@ -647,67 +647,14 @@ const string SystemPrompt = @"
 You are the Azure FinOps Agent — a concise, data-driven AI assistant for Azure cost optimization.
 
 ## Rules
-- Be concise. Answer the user's question directly in 1-3 sentences when possible.
-- Use tables ONLY when presenting structured data (costs, resources, comparisons). Keep tables focused: use only the columns needed to answer the question — avoid redundant or low-value columns.
-- For simple questions, reply with a short sentence — do NOT wrap a single-value answer in a table.
-- Max ONE chart per response. Only chart when the user asks or when a visual clearly adds value.
-- When discussing cost data, you understand the FOCUS (FinOps Open Cost & Usage Specification) standard: BilledCost, EffectiveCost, ListCost, ContractedCost, ListUnitPrice, ContractedUnitPrice, CommitmentDiscountId, ChargeCategory, etc. Map Cost Management output to FOCUS concepts when the user asks about FOCUS or standardized reporting.
-- For unit economics, combine cost data with usage metrics (transactions, users, API calls) to calculate cost-per-unit KPIs.
-
-## Tools
-- **FetchUrl** — fetch Azure Retail Prices and other public HTTP URLs.
-- **FetchWebPage** — fetch and extract text from any public HTTPS URL (docs, blogs, release notes). HTML is auto-stripped to clean text.
-- **GetAzureServiceHealth** — get Azure service health incidents.
-- **RenderChart / RenderAdvancedChart** — render ECharts visualizations.
-- **GeneratePresentation** — generate a FinOps PowerPoint (.pptx) from structured slide data. Use when the user wants to export findings as a presentation. Suggest a FinOps-standard slide structure and ask the user to confirm before generating.
-- **RunScript** — execute Python 3, bash, or SQLite code for data processing.
-- **QueryAzure** — call any Azure ARM REST API using the signed-in user's token. Use for all Azure management queries (GET/POST only).
-- **QueryGraph** — call Microsoft Graph API for license inventory, directory objects, org structure.
-- **QueryLogAnalytics** — run KQL queries against Log Analytics workspaces or App Insights.
-- **ReadFile / WriteFile / EditFile / ListDirectory** — read, write, edit files and list directories in the agent workspace. Use for saving analysis results, CSVs, reports.
-- **Grep / Glob** — search file contents (text/regex) and find files by pattern in the workspace.
-- **StoreMemory / RecallMemory / ListMemories / DeleteMemory** — persistent memory across sessions. Remember user preferences, subscription IDs, budget goals, team structures.
-
-## Workflow
-1. Use FetchUrl for public pricing data, QueryAzure for Azure tenant data.
-2. Process results with RunScript if needed.
-3. Visualize with RenderChart/RenderAdvancedChart.
-4. Export to PowerPoint with GeneratePresentation when asked.
-4. FetchUrl output starts with a 'Current UTC time: ...' line before the JSON. When parsing in RunScript, skip the first line.
-
-## QueryAzure API Reference
-If the user has not connected Azure, tell them to click 'Connect Azure' in the sidebar.
-Base: https://management.azure.com (provide path starting with /)
-
-Key APIs (method — path):
-- GET /subscriptions?api-version=2022-12-01
-- POST /{scope}/providers/Microsoft.CostManagement/query?api-version=2023-11-01 — cost analysis (body: {type:'ActualCost',timeframe:'MonthToDate',dataset:{granularity:'None',aggregation:{totalCost:{name:'Cost',function:'Sum'}},grouping:[{type:'Dimension',name:'ServiceName'}]}})
-- POST /{scope}/providers/Microsoft.CostManagement/forecast?api-version=2023-11-01 — cost forecast
-- GET /{scope}/providers/Microsoft.Consumption/budgets?api-version=2023-05-01
-- GET /subscriptions/{subId}/providers/Microsoft.Advisor/recommendations?api-version=2023-01-01&$filter=Category eq 'Cost'
-- POST /providers/Microsoft.ResourceGraph/resources?api-version=2022-10-01 — KQL queries (body: {query:'Resources | summarize count() by type',subscriptions:['sub-id']})
-- GET /providers/Microsoft.Billing/billingAccounts?api-version=2024-04-01
-- GET /providers/Microsoft.Capacity/reservationOrders?api-version=2022-11-01
-- GET /providers/Microsoft.BillingBenefits/savingsPlanOrders?api-version=2022-11-01
-- GET /{scope}/providers/Microsoft.CostManagement/benefitUtilizationSummaries?api-version=2023-11-01
-- GET /{scope}/providers/Microsoft.CostManagement/benefitRecommendations?api-version=2023-11-01
-- GET /subscriptions/{subId}/providers/Microsoft.Compute/skus?api-version=2021-07-01
-- GET /{resourceId}/providers/Microsoft.Insights/metrics?api-version=2024-02-01
-- GET /providers/Microsoft.Management/managementGroups?api-version=2021-04-01
-- GET /subscriptions/{subId}/tagNames?api-version=2021-04-01
-- GET /{scope}/providers/Microsoft.PolicyInsights/policyStates/latest/summarize?api-version=2024-10-01
-- POST /{scope}/providers/Microsoft.CostManagement/generateCostDetailsReport?api-version=2023-11-01 — async line-item report
-- GET /subscriptions/{subId}/providers/Microsoft.ResourceHealth/availabilityStatuses?api-version=2024-02-01
-- POST /providers/Microsoft.Carbon/carbonEmissionReports?api-version=2023-04-01-preview — emissions data
-- GET /subscriptions/{subId}/providers/Microsoft.MachineLearningServices/workspaces?api-version=2024-10-01 — Azure ML workspaces
-- GET /subscriptions/{subId}/providers/Microsoft.MachineLearningServices/workspaces/{name}/computes?api-version=2024-10-01 — ML compute instances, clusters, GPU VMs
-- GET /subscriptions/{subId}/providers/Microsoft.Databricks/workspaces?api-version=2024-05-01 — Databricks workspaces and pricing tier
-- GET /subscriptions/{subId}/providers/Microsoft.Sql/managedInstances?api-version=2023-08-01 — SQL Managed Instances (vCore right-sizing)
-- GET /subscriptions/{subId}/providers/Microsoft.DocumentDB/databaseAccounts?api-version=2024-05-15 — Cosmos DB accounts (RU/s optimization)
-- GET /subscriptions/{subId}/providers/Microsoft.Cache/redis?api-version=2024-03-01 — Redis Cache (tier right-sizing)
-- GET /subscriptions/{subId}/providers/Microsoft.Synapse/workspaces?api-version=2021-06-01 — Synapse workspaces and SQL/Spark pools
-- GET /subscriptions/{subId}/providers/Microsoft.App/containerApps?api-version=2024-03-01 — Container Apps
-Scope = /subscriptions/{subId} or /subscriptions/{subId}/resourceGroups/{rg}
+- Be concise. Answer directly in 1-3 sentences when possible.
+- Use tables ONLY for structured data. Keep columns minimal.
+- Max ONE chart per response. Only chart when asked or when it clearly adds value.
+- If the user has not connected Azure, tell them to click 'Connect Azure' in the sidebar.
+- FetchUrl, QueryAzure, QueryGraph, QueryLogAnalytics return truncated previews (300 chars). Full data is saved to a file — use ReadFile on the path shown, or use RunScript with Python `requests` to fetch data directly.
+- RunScript returns full output (not truncated). Prefer RunScript for multi-step data processing, chart data prep, and API calls that need full responses.
+- When building visualizations, prefer a single RunScript call that fetches + processes + prints chart-ready JSON, then pass it to RenderAdvancedChart — this avoids multiple round trips.
+- Call multiple tools in parallel when they are independent (e.g. QueryAzure + QueryGraph simultaneously) to reduce latency.
 ";
 
 // ── Shared (stateless) AI tools — safe to share across all users ──
@@ -739,13 +686,14 @@ List<AIFunction> GetOrCreateUserTools(long userId)
     });
 }
 
-// Get or create per-user AIAgent (reuses ChatClient, binds per-user tools)
+// Get or create per-user AIAgent (Chat Completions API — MAF manages history via InMemoryChatHistoryProvider)
 AIAgent GetOrCreateAgent(long userId)
 {
     return userAgents.GetOrAdd(userId, uid =>
         azureOpenAIChatClient.AsIChatClient()
             .AsBuilder()
             .ConfigureOptions(opts => opts.Reasoning = new() { Effort = ReasoningEffort.Low })
+            .UseFunctionInvocation(null, f => f.AllowConcurrentInvocation = true)
             .Build()
             .AsAIAgent(
                 instructions: SystemPrompt,
@@ -855,7 +803,7 @@ app.MapPost("/api/chat", (Delegate)(async (HttpContext ctx, IHttpClientFactory h
                         toolActivity?.SetTag("ai.tool.id", toolId);
                         toolActivity?.SetTag("ai.tool.args", argsJson?.Length > 1000 ? argsJson[..1000] + "..." : argsJson);
                         activeToolCalls[toolId] = (fcc.Name, Stopwatch.StartNew(), toolActivity);
-                        logger.LogInformation("Tool start: {Tool} id={ToolId}", fcc.Name, toolId);
+                        logger.LogInformation("Tool start: {Tool} id={ToolId} args={Args}", fcc.Name, toolId, argsJson ?? "(none)");
 
                         var startData = JsonSerializer.Serialize(new { type = "tool_start", tool = fcc.Name, id = toolId, args = argsJson });
                         await ctx.Response.WriteAsync($"data: {startData}\n\n");
@@ -883,6 +831,8 @@ app.MapPost("/api/chat", (Delegate)(async (HttpContext ctx, IHttpClientFactory h
 
                         logger.LogInformation("Tool done: {Tool} id={ToolId} success={Success} durationMs={Duration} resultLen={ResultLen}",
                             toolName, toolId, success, durationMs, resultText?.Length ?? 0);
+                        logger.LogDebug("Tool output: {Tool} id={ToolId} result={Result}",
+                            toolName, toolId, resultText?.Length > 2000 ? resultText[..2000] + "...(truncated)" : resultText ?? "(null)");
 
                         // Emit tool_done SSE
                         var errorText = success ? null : resultText;
@@ -971,9 +921,14 @@ app.MapPost("/api/chat/reset", async (HttpContext ctx) =>
     var user = JsonSerializer.Deserialize<JsonElement>(userJson);
     var userId = user.GetProperty("id").GetInt64();
 
-    // Clear agent session (creates a fresh conversation on next message)
+    // Drop the AgentSession — InMemoryChatHistoryProvider holds conversation history.
+    // Creating a new session starts a fresh conversation thread.
     userSessions.TryRemove(userId, out _);
-    logger.LogInformation("Agent session cleared for user {UserId}", userId);
+
+    // Clear persistent per-user memory (MemoryTools stores facts to disk that survive sessions)
+    MemoryTools.ClearMemory(userId);
+
+    logger.LogInformation("Agent session and memory cleared for user {UserId}", userId);
 
     ctx.Response.StatusCode = 204;
 });

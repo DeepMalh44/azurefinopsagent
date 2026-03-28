@@ -14,7 +14,7 @@ The agent acts as a frontend on top of Microsoft IQ and Microsoft Graph APIs to:
 
 - **Backend**: .NET 10 minimal API (`src/Dashboard/`)
 - **Frontend**: Vue 3 + Vite SPA (`src/Dashboard/client/`) with ECharts for data visualization
-- **AI**: Microsoft Agent Framework (MAF) via `Microsoft.Agents.AI.OpenAI` + Azure OpenAI (`Azure.AI.OpenAI`) — sessions managed via `AIAgent` / `AgentSession`. Reasoning effort set to `Low` via `ConfigureOptions`. Model deployment configurable in `appsettings.json` under `AzureOpenAI:DeploymentName`.
+- **AI**: Microsoft Agent Framework (MAF) via `Microsoft.Agents.AI.OpenAI` + Azure OpenAI (`Azure.AI.OpenAI`) — sessions managed via `AIAgent` / `AgentSession`. Reasoning effort set to `Low` via `ConfigureOptions`. Parallel tool execution enabled via `UseFunctionInvocation(AllowConcurrentInvocation = true)`. Model deployment configurable in `appsettings.json` under `AzureOpenAI:DeploymentName`.
 - **Auth**: Auto-assigned anonymous sessions (no login required for chat); Microsoft Entra ID OAuth (multi-tenant) for Azure ARM, Microsoft Graph, and Log Analytics APIs
 - **Data Sources**: Azure Retail Prices API (no auth), Azure Service Health (no auth), Azure Cost Management APIs, Microsoft Graph APIs, Azure Monitor / Log Analytics APIs, ECharts visualization
 - **Observability**: OpenTelemetry + Azure Monitor (Application Insights) — structured traces via `ActivitySource("AzureFinOps.AI")` and custom metrics via `Meter("AzureFinOps.AI")` (chat requests, tool calls, errors, token refreshes, session lifecycle, duration histograms). Frontend telemetry in `client/src/main.js` captures page views, failed browser dependencies, uncaught JS errors, unhandled promise rejections, Vue component errors, and CSP violations. Third-party correlation headers are excluded for `cdn.jsdelivr.net` and `js.monitor.azure.com` so browser telemetry does not break public fetches.
@@ -43,7 +43,8 @@ src/Dashboard/
 │   ├── SearchTools.cs      # Grep, Glob — search file contents and find files by pattern
 │   ├── WebFetchTools.cs    # FetchWebPage — fetch and extract text from public HTTPS URLs
 │   ├── MemoryTools.cs      # StoreMemory, RecallMemory, ListMemories, DeleteMemory — persistent per-user memory
-│   └── TokenContext.cs     # AsyncLocal-based per-request token storage for concurrent user isolation
+│   ├── LargeResultHelper.cs # Truncates large tool results to 300 chars, saves full data to disk for ReadFile access
+│   └── TokenContext.cs     # UserTokens — per-user mutable token holder with volatile fields for concurrent access
 ├── Dockerfile              # Multi-stage Docker build (node:22 + dotnet/sdk:10.0 + dotnet/aspnet:10.0 + Python 3)
 ├── .dockerignore           # Excludes bin/, obj/, node_modules/, wwwroot/ from Docker context
 ├── client/
@@ -71,10 +72,13 @@ src/Dashboard/
 - The solution follows an **agentic architecture** where the AI agent orchestrates calls to multiple data sources and tools to answer user questions.
 - Microsoft Agent Framework (MAF) manages the AI session lifecycle — one `AIAgent` per user with per-user tools, `AgentSession` reused across messages for conversation history.
 - Tools are registered as `AIFunction` instances and passed to `AIAgent` via `AsAIAgent(tools:)`. Shared (stateless) tools are created once; per-user tools (requiring tokens) are created per user via closure over `UserTokens`.
-- The `IChatClient` pipeline is wrapped with `ConfigureOptions` to set reasoning effort to `Low` before being passed to `AsAIAgent`.
+- The `IChatClient` pipeline is wrapped with `ConfigureOptions` to set reasoning effort to `Low` and `UseFunctionInvocation` to enable concurrent tool invocation, before being passed to `AsAIAgent`.
 - The backend streams responses via **Server-Sent Events (SSE)** — deltas, tool starts/completions, chart events, errors.
 - The Vue frontend consumes SSE and renders streaming text, tool call status in the sidebar, and ECharts visualizations inline.
 - Data should be retrieved from APIs at runtime — the agent does not store data persistently.
+- **Session management**: `/api/chat/reset` removes the MAF `AgentSession` and clears persistent `MemoryTools` data. The next `/api/chat` creates a fresh session via `agent.CreateSessionAsync()`.
+- **Tool result truncation**: `LargeResultHelper` truncates API tool results (FetchUrl, QueryAzure, QueryGraph, QueryLogAnalytics, FetchWebPage) to 300 chars and saves full data to disk. The LLM uses `ReadFile` to access full data when needed. `RunScript` output is NOT truncated.
+- **Exception handling**: Tools do NOT use try/catch internally. Unhandled exceptions are caught by MAF's `FunctionInvokingChatClient`, which returns them as `FunctionResultContent` error results to the LLM. `UseAzureMonitor()` auto-instruments all `HttpClient` calls (URLs, status codes, durations, exceptions) as dependency telemetry in App Insights. The outer catch in the `/api/chat` endpoint logs via `LogError` and increments `chatErrorCounter` for anything that escapes MAF.
 - The solution is designed for **customer deployment** — customers deploy it in their own Azure subscription.
 
 ## Tool Development Patterns (Critical Learnings)
@@ -98,10 +102,10 @@ When creating tools for the agent:
 - **ChartTools** (`RenderChart` / `RenderAdvancedChart`) returns a serialized JSON object with chart config — the frontend detects `tool_done` for `RenderChart` or `RenderAdvancedChart` and emits a separate `chart` SSE event. `RenderAdvancedChart` accepts raw ECharts option JSON for world maps, heatmaps, treemaps, radar, gauge, etc.
 - **CodeExecutionTools** (`RunScript`) executes Python 3, bash, or SQLite scripts on the App Service. In the Docker container deployment, all runtimes and pip packages are baked into the image (no `startup.sh` needed). For legacy zip deployment, runtimes are installed via `startup.sh` at container boot. Azure, Graph, and Log Analytics tokens are passed via per-process environment variables (`AZURE_TOKEN`, `GRAPH_TOKEN`, `LOG_ANALYTICS_TOKEN`) using `ProcessStartInfo.Environment` — not global env vars, to avoid race conditions between concurrent users. **⚠️ This is a temporary, unsandboxed implementation — see Future Improvements below.**
 - **PresentationTools** (`GeneratePresentation`) generates FinOps PowerPoint (.pptx) presentations using python-pptx + matplotlib (Charts are rendered as images via matplotlib and embedded in slides). The LLM passes structured JSON slide data (title, content, chart, two_column, section layouts). Returns a `__PPTX_READY__:{fileId}:{fileName}:{slideCount}` marker. The SSE handler emits a `pptx_ready` event, and the frontend shows a download button. Files are served via `/api/download/pptx/{fileId}` and auto-cleaned after 30 minutes.
-- **AzureQueryTools** (`QueryAzure`) calls any Azure ARM REST API (GET/POST) using the user's delegated token from `TokenContext.AzureToken` (AsyncLocal). Returns raw JSON for the LLM to interpret. Covers Cost Management (queries, forecasts, cost details report, reservation details report, exports, scheduled actions, views), Budgets, Billing, Consumption (pricesheets, reservation summaries/recommendations/transactions, lots, credits, balances, charges), Reservations, Savings Plans, Advisor, Resource Graph, Monitor, Activity Log, Compute/VMs/VMSS, AKS, Network (ExpressRoute, VPN, public IPs, App Gateways, NAT Gateways), Storage, SQL, SQL Managed Instances, App Service, Azure ML (workspaces, compute instances, GPU clusters, endpoints), Databricks (workspaces, pricing tiers), Cosmos DB (accounts, throughput/RU analysis), Redis Cache, Data Factory, Synapse (SQL pools, Spark pools), Container Apps, Resource Health, Defender for Cloud (security assessments, secure scores), RBAC (role assignments), Locks, Quota, Carbon, Policy/PolicyInsights, Management Groups, Tags, Migrate, and Support. Note: Consumption usageDetails/marketplaces are deprecated — prefer Cost Details API (2025-03-01) or Exports. Consumption reservationDetails is deprecated — prefer generateReservationDetailsReport (Microsoft.CostManagement).
+- **AzureQueryTools** (`QueryAzure`) calls any Azure ARM REST API (GET/POST) using the user's delegated token from `UserTokens.AzureToken`. Returns raw JSON for the LLM to interpret. Covers Cost Management (queries, forecasts, cost details report, reservation details report, exports, scheduled actions, views), Budgets, Billing, Consumption (pricesheets, reservation summaries/recommendations/transactions, lots, credits, balances, charges), Reservations, Savings Plans, Advisor, Resource Graph, Monitor, Activity Log, Compute/VMs/VMSS, AKS, Network (ExpressRoute, VPN, public IPs, App Gateways, NAT Gateways), Storage, SQL, SQL Managed Instances, App Service, Azure ML (workspaces, compute instances, GPU clusters, endpoints), Databricks (workspaces, pricing tiers), Cosmos DB (accounts, throughput/RU analysis), Redis Cache, Data Factory, Synapse (SQL pools, Spark pools), Container Apps, Resource Health, Defender for Cloud (security assessments, secure scores), RBAC (role assignments), Locks, Quota, Carbon, Policy/PolicyInsights, Management Groups, Tags, Migrate, and Support. Note: Consumption usageDetails/marketplaces are deprecated — prefer Cost Details API (2025-03-01) or Exports. Consumption reservationDetails is deprecated — prefer generateReservationDetailsReport (Microsoft.CostManagement).
 - **GraphQueryTools** (`QueryGraph`) calls Microsoft Graph API (GET) using `TokenContext.GraphToken`. Used for license inventory, M365 usage reports (Exchange, Teams, OneDrive, SharePoint), M365 Copilot seat usage, M365 app-level usage, Intune device management, directory objects, org structure for FinOps chargebacks.
 - **LogAnalyticsQueryTools** (`QueryLogAnalytics`) runs KQL queries against Log Analytics workspaces or App Insights using `TokenContext.LogAnalyticsToken`. Used for VM/container metrics, diagnostics, cost attribution (AzureActivity table), and ingestion cost analysis.
-- **TokenContext** (`TokenContext.cs`) provides thread-safe, per-request token storage using `AsyncLocal<string?>`. Set in the `/api/chat` endpoint before tool execution begins. Avoids race conditions when multiple users hit the chat endpoint concurrently.
+- **TokenContext** (`TokenContext.cs`) provides per-user mutable token storage via `UserTokens` — one instance per user in a `ConcurrentDictionary<long, UserTokens>`. Token fields use `volatile` for cross-thread visibility. A `SemaphoreSlim RefreshLock` serializes token refresh operations within a user session. `UserTokens` instances are passed to tool constructors via closure, so tools always read the latest tokens via direct reference.
 
 ## Authentication
 
@@ -121,7 +125,7 @@ The flow:
 2. After consent, `/auth/microsoft/callback` exchanges the auth code for an ARM access token + refresh token
 3. The refresh token is immediately exchanged for Graph and Log Analytics tokens (separate resource scopes)
 4. All tokens are stored in the session with expiry tracking and auto-refresh
-5. Per-request, tokens are set via `TokenContext` (AsyncLocal) before tool execution
+5. Per-request, tokens are refreshed and set on the user's `UserTokens` instance before tool execution
 
 Config in `appsettings.json`:
 
@@ -228,7 +232,7 @@ The deploy script:
 - Use clean, well-structured C# for the .NET backend following Microsoft coding conventions.
 - Use modern JavaScript patterns for the frontend (Vue 3 Composition API with `<script setup>`).
 - Keep API endpoints RESTful and well-documented.
-- Include proper error handling for API calls (rate limiting, authentication failures, etc.).
+- Include proper error handling for API calls (rate limiting, authentication failures, etc.) at the **system boundary** (e.g., the `/api/chat` endpoint). Tools themselves should NOT use try/catch — MAF and OpenTelemetry handle exception logging centrally.
 - All Azure resource interactions should use managed identity where possible.
 - Use `.NET 10` APIs — e.g., `KnownIPNetworks` not deprecated `KnownNetworks`.
 - Use `AIAgent` / `AgentSession` from `Microsoft.Agents.AI`.
@@ -315,7 +319,7 @@ This file must always be kept up to date so that Copilot has accurate context ab
 
 ### 🔴 Migrate RunScript to Azure Container Apps Dynamic Sessions (Security)
 
-**Current state**: The `RunScript` tool (`CodeExecutionTools.cs`) executes Python/bash/SQLite scripts **directly on the App Service** with no sandboxing. The runtimes are installed via `startup.sh` at boot using `apt-get`. This is a **known security risk** — scripts run with the same permissions as the app and have access to environment variables, secrets, filesystem, and network.
+**Current state**: The `RunScript` tool (`CodeExecutionTools.cs`) executes Python/bash/SQLite scripts **directly on the App Service** with no sandboxing. In the Docker container deployment, runtimes and pip packages are baked into the image. This is a **known security risk** — scripts run with the same permissions as the app and have access to environment variables, secrets, filesystem, and network.
 
 **Target state**: Replace `RunScript` with a tool that calls [Azure Container Apps dynamic sessions](https://learn.microsoft.com/azure/container-apps/sessions) — ephemeral, Hyper-V isolated Python sandboxes with:
 

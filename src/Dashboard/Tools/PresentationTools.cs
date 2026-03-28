@@ -355,68 +355,61 @@ print(f'OK:{{output_path}}')
 print(f'SLIDES:{{len(slides_data)}}')
 ";
 
-        try
+        var psi = new ProcessStartInfo
         {
-            var psi = new ProcessStartInfo
-            {
-                FileName = "python3",
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
-            psi.ArgumentList.Add("-c");
-            psi.ArgumentList.Add(pythonScript);
+            FileName = "python3",
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+        psi.ArgumentList.Add("-c");
+        psi.ArgumentList.Add(pythonScript);
 
-            // Ensure pip packages installed by startup.sh are discoverable (Azure: /home/site/pip-packages)
-            // On local dev (Windows/macOS), packages are in the default site-packages — no override needed
-            var pipTarget = "/home/site/pip-packages";
-            if (Directory.Exists(pipTarget))
-            {
-                var existingPythonPath = Environment.GetEnvironmentVariable("PYTHONPATH") ?? "";
-                psi.Environment["PYTHONPATH"] = string.IsNullOrEmpty(existingPythonPath)
-                    ? pipTarget
-                    : $"{pipTarget}:{existingPythonPath}";
-            }
-
-            using var process = new Process { StartInfo = psi };
-            process.Start();
-
-            var stdoutTask = process.StandardOutput.ReadToEndAsync();
-            var stderrTask = process.StandardError.ReadToEndAsync();
-
-            var exited = process.WaitForExit(TimeoutSeconds * 1000);
-            if (!exited)
-            {
-                try { process.Kill(entireProcessTree: true); } catch { }
-                return $"Error: Presentation generation timed out after {TimeoutSeconds} seconds.";
-            }
-
-            var stdout = await stdoutTask;
-            var stderr = await stderrTask;
-
-            if (process.ExitCode != 0)
-                return $"Error generating presentation (exit={process.ExitCode}): stdout=[{Truncate(stdout, 500)}] stderr=[{Truncate(stderr, MaxOutputChars)}]";
-
-            if (!stdout.Contains("OK:"))
-                return $"Error: No OK marker in output. stdout=[{Truncate(stdout, 500)}] stderr=[{Truncate(stderr, 500)}] exit={process.ExitCode}";
-
-            // Register the file for download
-            GeneratedFiles[fileId] = (outputPath, DateTime.UtcNow);
-
-            var slideCount = "unknown";
-            foreach (var line in stdout.Split('\n'))
-            {
-                if (line.StartsWith("SLIDES:"))
-                    slideCount = line["SLIDES:".Length..].Trim();
-            }
-
-            return $"__PPTX_READY__:{fileId}:{safeName}.pptx:{slideCount}";
-        }
-        catch (Exception ex)
+        // Ensure pip packages installed by startup.sh are discoverable (Azure: /home/site/pip-packages)
+        // On local dev (Windows/macOS), packages are in the default site-packages — no override needed
+        var pipTarget = "/home/site/pip-packages";
+        if (Directory.Exists(pipTarget))
         {
-            return $"Error: {ex.Message}";
+            var existingPythonPath = Environment.GetEnvironmentVariable("PYTHONPATH") ?? "";
+            psi.Environment["PYTHONPATH"] = string.IsNullOrEmpty(existingPythonPath)
+                ? pipTarget
+                : $"{pipTarget}:{existingPythonPath}";
         }
+
+        using var process = new Process { StartInfo = psi };
+        process.Start();
+
+        var stdoutTask = process.StandardOutput.ReadToEndAsync();
+        var stderrTask = process.StandardError.ReadToEndAsync();
+
+        var exited = process.WaitForExit(TimeoutSeconds * 1000);
+        if (!exited)
+        {
+            try { process.Kill(entireProcessTree: true); } catch { }
+            return $"Error: Presentation generation timed out after {TimeoutSeconds} seconds.";
+        }
+
+        var stdout = await stdoutTask;
+        var stderr = await stderrTask;
+
+        if (process.ExitCode != 0)
+            return $"Error generating presentation (exit={process.ExitCode}): stdout=[{Truncate(stdout, 500)}] stderr=[{Truncate(stderr, MaxOutputChars)}]";
+
+        if (!stdout.Contains("OK:"))
+            return $"Error: No OK marker in output. stdout=[{Truncate(stdout, 500)}] stderr=[{Truncate(stderr, 500)}] exit={process.ExitCode}";
+
+        // Register the file for download
+        GeneratedFiles[fileId] = (outputPath, DateTime.UtcNow);
+
+        var slideCount = "unknown";
+        foreach (var line in stdout.Split('\n'))
+        {
+            if (line.StartsWith("SLIDES:"))
+                slideCount = line["SLIDES:".Length..].Trim();
+        }
+
+        return $"__PPTX_READY__:{fileId}:{safeName}.pptx:{slideCount}";
     }
 
     private static string SanitizeFilename(string name)

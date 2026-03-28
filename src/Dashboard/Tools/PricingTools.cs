@@ -26,6 +26,7 @@ public static class PricingTools
             return $"Error: URL must use an allowed host ({string.Join(", ", AllowedHosts)})";
 
         var json = await Http.GetStringAsync(url);
-        return $"Current UTC time: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}\n{json}";
+        var result = $"Current UTC time: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}\n{json}";
+        return LargeResultHelper.Truncate(result, "FetchUrl");
     }
 }

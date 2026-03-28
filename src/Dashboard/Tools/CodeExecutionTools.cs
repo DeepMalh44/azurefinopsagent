@@ -53,75 +53,68 @@ Public (no auth): https://prices.azure.com/api/retail/prices?$filter=... — ret
             _ => throw new InvalidOperationException()
         };
 
-        try
+        var psi = new ProcessStartInfo
         {
-            var psi = new ProcessStartInfo
-            {
-                FileName = command,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                RedirectStandardInput = language == "sqlite",
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
+            FileName = command,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            RedirectStandardInput = language == "sqlite",
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
 
-            // Set tokens per-process (not global env vars) to avoid race conditions
-            // between concurrent users
-            if (_tokens.AzureToken is not null)
-                psi.Environment["AZURE_TOKEN"] = _tokens.AzureToken;
-            if (_tokens.GraphToken is not null)
-                psi.Environment["GRAPH_TOKEN"] = _tokens.GraphToken;
-            if (_tokens.LogAnalyticsToken is not null)
-                psi.Environment["LOG_ANALYTICS_TOKEN"] = _tokens.LogAnalyticsToken;
+        // Set tokens per-process (not global env vars) to avoid race conditions
+        // between concurrent users
+        if (_tokens.AzureToken is not null)
+            psi.Environment["AZURE_TOKEN"] = _tokens.AzureToken;
+        if (_tokens.GraphToken is not null)
+            psi.Environment["GRAPH_TOKEN"] = _tokens.GraphToken;
+        if (_tokens.LogAnalyticsToken is not null)
+            psi.Environment["LOG_ANALYTICS_TOKEN"] = _tokens.LogAnalyticsToken;
 
-            if (language == "sqlite")
-            {
-                // sqlite3 reads from stdin
-                psi.Arguments = ":memory:";
-            }
-            else
-            {
-                psi.ArgumentList.Add(args);
-                psi.ArgumentList.Add(code);
-            }
-
-            using var process = new Process { StartInfo = psi };
-            process.Start();
-
-            if (language == "sqlite")
-            {
-                await process.StandardInput.WriteAsync(code);
-                process.StandardInput.Close();
-            }
-
-            var stdoutTask = process.StandardOutput.ReadToEndAsync();
-            var stderrTask = process.StandardError.ReadToEndAsync();
-
-            var exited = process.WaitForExit(TimeoutSeconds * 1000);
-            if (!exited)
-            {
-                try { process.Kill(entireProcessTree: true); } catch { }
-                return $"Error: Script timed out after {TimeoutSeconds} seconds.";
-            }
-
-            var stdout = await stdoutTask;
-            var stderr = await stderrTask;
-
-            var result = "";
-            if (!string.IsNullOrEmpty(stdout))
-                result += $"=== STDOUT ===\n{Truncate(stdout)}\n";
-            if (!string.IsNullOrEmpty(stderr))
-                result += $"=== STDERR ===\n{Truncate(stderr)}\n";
-            if (string.IsNullOrEmpty(result))
-                result = "(no output)";
-
-            result += $"\nExit code: {process.ExitCode}";
-            return result;
-        }
-        catch (Exception ex)
+        if (language == "sqlite")
         {
-            return $"Error executing {language}: {ex.Message}";
+            // sqlite3 reads from stdin
+            psi.Arguments = ":memory:";
         }
+        else
+        {
+            psi.ArgumentList.Add(args);
+            psi.ArgumentList.Add(code);
+        }
+
+        using var process = new Process { StartInfo = psi };
+        process.Start();
+
+        if (language == "sqlite")
+        {
+            await process.StandardInput.WriteAsync(code);
+            process.StandardInput.Close();
+        }
+
+        var stdoutTask = process.StandardOutput.ReadToEndAsync();
+        var stderrTask = process.StandardError.ReadToEndAsync();
+
+        var exited = process.WaitForExit(TimeoutSeconds * 1000);
+        if (!exited)
+        {
+            try { process.Kill(entireProcessTree: true); } catch { }
+            return $"Error: Script timed out after {TimeoutSeconds} seconds.";
+        }
+
+        var stdout = await stdoutTask;
+        var stderr = await stderrTask;
+
+        var result = "";
+        if (!string.IsNullOrEmpty(stdout))
+            result += $"=== STDOUT ===\n{Truncate(stdout)}\n";
+        if (!string.IsNullOrEmpty(stderr))
+            result += $"=== STDERR ===\n{Truncate(stderr)}\n";
+        if (string.IsNullOrEmpty(result))
+            result = "(no output)";
+
+        result += $"\nExit code: {process.ExitCode}";
+        return result;
     }
 
     private static string Truncate(string text)

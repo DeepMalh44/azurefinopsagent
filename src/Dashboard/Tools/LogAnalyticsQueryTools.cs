@@ -60,43 +60,30 @@ FinOps-relevant tables: Perf — VM CPU/memory/disk; InsightsMetrics — VM/cont
             ? $"https://api.applicationinsights.io/v1/apps/{Uri.EscapeDataString(id)}/query"
             : $"https://api.loganalytics.io/v1/workspaces/{Uri.EscapeDataString(id)}/query";
 
-        try
-        {
-            using var req = new HttpRequestMessage(HttpMethod.Post, baseUrl);
-            req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-            req.Headers.Add("User-Agent", "FinOps-Dashboard/1.0");
+        using var req = new HttpRequestMessage(HttpMethod.Post, baseUrl);
+        req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        req.Headers.Add("User-Agent", "FinOps-Dashboard/1.0");
 
-            var bodyObj = string.IsNullOrWhiteSpace(timespan)
-                ? new { query }
-                : (object)new { query, timespan };
-            var bodyJson = JsonSerializer.Serialize(bodyObj);
-            req.Content = new StringContent(bodyJson, Encoding.UTF8, "application/json");
+        var bodyObj = string.IsNullOrWhiteSpace(timespan)
+            ? new { query }
+            : (object)new { query, timespan };
+        var bodyJson = JsonSerializer.Serialize(bodyObj);
+        req.Content = new StringContent(bodyJson, Encoding.UTF8, "application/json");
 
-            var res = await Http.SendAsync(req);
-            var responseBody = await res.Content.ReadAsStringAsync();
+        var res = await Http.SendAsync(req);
+        var responseBody = await res.Content.ReadAsStringAsync();
 
-            activity?.SetTag("la.status_code", (int)res.StatusCode);
-            activity?.SetTag("la.response_length", responseBody.Length);
-            activity?.SetTag("la.result", res.IsSuccessStatusCode ? "success" : "http_error");
+        activity?.SetTag("la.status_code", (int)res.StatusCode);
+        activity?.SetTag("la.response_length", responseBody.Length);
+        activity?.SetTag("la.result", res.IsSuccessStatusCode ? "success" : "http_error");
 
-            var result = $"HTTP {(int)res.StatusCode} {res.StatusCode}\n";
-            if (responseBody.Length > MaxResponseChars)
-                result += responseBody[..MaxResponseChars] + $"\n... (truncated, {responseBody.Length} total chars)";
-            else
-                result += responseBody;
+        var result = $"HTTP {(int)res.StatusCode} {res.StatusCode}\n";
+        result += responseBody;
 
-            if (!res.IsSuccessStatusCode)
-                activity?.SetStatus(ActivityStatusCode.Error, $"HTTP {(int)res.StatusCode}");
+        if (!res.IsSuccessStatusCode)
+            activity?.SetStatus(ActivityStatusCode.Error, $"HTTP {(int)res.StatusCode}");
 
-            return result;
-        }
-        catch (Exception ex)
-        {
-            activity?.SetTag("la.result", "exception");
-            activity?.SetTag("la.error", ex.Message);
-            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
-            return ex.ToString();
-        }
+        return LargeResultHelper.Truncate(result, "QueryLogAnalytics");
     }
 
 }

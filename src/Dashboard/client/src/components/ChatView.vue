@@ -55,7 +55,10 @@
               :title="q.prompt"
               @click="sendQuestion(q.prompt)"
             >
-              <span class="sidebar-question-icon sidebar-question-icon--finops">
+              <span
+                class="sidebar-question-icon"
+                :class="'sidebar-question-icon--' + cat.colorClass"
+              >
                 {{ cat.icon }}
               </span>
               <span>{{ q.label }}</span>
@@ -160,29 +163,6 @@
             </button>
           </div>
         </div>
-
-        <button
-          v-if="messages.length > 0 && !streaming"
-          class="new-chat-btn"
-          @click="clearMessages"
-          title="New chat"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-            <path d="M3 3v5h5" />
-          </svg>
-          New Chat
-        </button>
       </div>
     </aside>
 
@@ -194,8 +174,8 @@
           <div v-if="messages.length === 0" class="empty-state">
             <h1 class="es-headline">FinOps Agent</h1>
             <p class="es-sub">
-              Azure cost optimization — pricing, forecasts, savings, and
-              PowerPoint reports in a single conversation.
+              Analyze costs, forecast spend, optimize resources, and export
+              executive-ready PowerPoint decks — all from a single conversation.
             </p>
 
             <div v-if="!azureConnected" class="es-connect-bar">
@@ -232,278 +212,75 @@
                 {{
                   authLoading === "azure"
                     ? "Connecting..."
-                    : "Connect Azure for tenant insights"
+                    : "Connect Azure tenant for contextual FinOps"
                 }}
               </button>
             </div>
 
-            <!-- What FinOps Agent does that others can't -->
-            <div class="es-diff">
-              <div class="es-diff-header">
-                What FinOps Agent does that Azure Copilot &amp; SRE Agent can't
-              </div>
-              <div class="es-diff-grid">
-                <div class="es-diff-card">
-                  <div class="es-diff-icon">
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                    >
-                      <rect x="3" y="3" width="7" height="7" />
-                      <rect x="14" y="3" width="7" height="7" />
-                      <rect x="3" y="14" width="7" height="7" />
-                      <rect x="14" y="14" width="7" height="7" />
-                    </svg>
+            <!-- Capabilities -->
+            <div class="es-capabilities">
+              <div class="es-capabilities-grid">
+                <div class="es-cap-item">
+                  <div class="es-cap-title">
+                    Cost analysis across all scopes
                   </div>
-                  <div class="es-diff-text">
-                    <strong>Multi-dimensional cost analysis</strong>
-                    <span
-                      >Breaks down cost by service, RG, tag, subscription,
-                      region — across all subscriptions and management groups,
-                      not just one</span
-                    >
+                  <div class="es-cap-desc">
+                    Break down spend by service, resource group, tag,
+                    subscription, and region — across all subscriptions and
+                    management groups at once
                   </div>
                 </div>
-                <div class="es-diff-card">
-                  <div class="es-diff-icon es-diff-icon--chart">
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                    >
-                      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-                    </svg>
-                  </div>
-                  <div class="es-diff-text">
-                    <strong>Interactive ECharts visualizations</strong>
-                    <span
-                      >Bar, line, pie, scatter, world maps, treemaps, radar,
-                      gauge — inline in chat. Not static portal
-                      screenshots</span
-                    >
+                <div class="es-cap-item">
+                  <div class="es-cap-title">20+ interactive chart types</div>
+                  <div class="es-cap-desc">
+                    Bar, line, pie, scatter, world maps, treemaps, heatmaps,
+                    radar, gauge, funnel, sankey — rendered inline, not static
+                    screenshots
                   </div>
                 </div>
-                <div class="es-diff-card">
-                  <div class="es-diff-icon es-diff-icon--code">
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                    >
-                      <polyline points="16 18 22 12 16 6" />
-                      <polyline points="8 6 2 12 8 18" />
-                    </svg>
-                  </div>
-                  <div class="es-diff-text">
-                    <strong>Python execution &amp; data processing</strong>
-                    <span
-                      >Chains 5+ API calls, runs Python with pandas/numpy for
-                      complex calculations. Not single-turn Q&amp;A</span
-                    >
+                <div class="es-cap-item">
+                  <div class="es-cap-title">Python data processing</div>
+                  <div class="es-cap-desc">
+                    Chains multiple API calls and runs Python with pandas and
+                    numpy for complex calculations and transformations
                   </div>
                 </div>
-                <div class="es-diff-card">
-                  <div class="es-diff-icon es-diff-icon--pptx">
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                    >
-                      <path
-                        d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
-                      />
-                      <polyline points="14 2 14 8 20 8" />
-                    </svg>
-                  </div>
-                  <div class="es-diff-text">
-                    <strong>PowerPoint export</strong>
-                    <span
-                      >Generates .pptx with charts &amp; data tables — walk into
-                      a stakeholder meeting ready</span
-                    >
+                <div class="es-cap-item">
+                  <div class="es-cap-title">PowerPoint export</div>
+                  <div class="es-cap-desc">
+                    Generates .pptx presentations with embedded charts and data
+                    tables — walk into a stakeholder meeting ready
                   </div>
                 </div>
-                <div class="es-diff-card">
-                  <div class="es-diff-icon es-diff-icon--license">
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                    >
-                      <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                      <circle cx="8.5" cy="7" r="4" />
-                      <line x1="20" y1="8" x2="20" y2="14" />
-                      <line x1="23" y1="11" x2="17" y2="11" />
-                    </svg>
-                  </div>
-                  <div class="es-diff-text">
-                    <strong>M365 license &amp; Copilot ROI</strong>
-                    <span
-                      >Queries Microsoft Graph for unused licenses, Copilot seat
-                      usage, license waste — not available in Copilot/SRE</span
-                    >
+                <div class="es-cap-item">
+                  <div class="es-cap-title">M365 license and Copilot ROI</div>
+                  <div class="es-cap-desc">
+                    Queries Microsoft Graph for unused licenses, Copilot seat
+                    usage, and license waste across your tenant
                   </div>
                 </div>
-                <div class="es-diff-card">
-                  <div class="es-diff-icon es-diff-icon--kql">
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                    >
-                      <circle cx="11" cy="11" r="8" />
-                      <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                    </svg>
-                  </div>
-                  <div class="es-diff-text">
-                    <strong>KQL on Log Analytics</strong>
-                    <span
-                      >Ingestion costs, VM perf, container insights, activity
-                      audit — deep infrastructure telemetry</span
-                    >
+                <div class="es-cap-item">
+                  <div class="es-cap-title">KQL on Log Analytics</div>
+                  <div class="es-cap-desc">
+                    Runs queries for ingestion costs, VM performance, container
+                    insights, and activity audit telemetry
                   </div>
                 </div>
-                <div class="es-diff-card">
-                  <div class="es-diff-icon">
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                    >
-                      <path d="M12 2L2 7l10 5 10-5-10-5z" />
-                      <path d="M2 17l10 5 10-5" />
-                      <path d="M2 12l10 5 10-5" />
-                    </svg>
-                  </div>
-                  <div class="es-diff-text">
-                    <strong>All resource types &amp; APIs</strong>
-                    <span
-                      >Reservations, savings plans, Cosmos DB, AKS, Databricks,
-                      Redis, Synapse, Carbon — SRE Agent only does
-                      VMs/VMSS</span
-                    >
+                <div class="es-cap-item">
+                  <div class="es-cap-title">Every Azure resource type</div>
+                  <div class="es-cap-desc">
+                    Reservations, savings plans, Cosmos DB, AKS, Databricks,
+                    Redis, Synapse, ML, Carbon, and 30+ more
                   </div>
                 </div>
-                <div class="es-diff-card">
-                  <div class="es-diff-icon es-diff-icon--chart">
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                    >
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                      <polyline points="17 8 12 3 7 8" />
-                      <line x1="12" y1="3" x2="12" y2="15" />
-                    </svg>
-                  </div>
-                  <div class="es-diff-text">
-                    <strong>Chargeback &amp; tag audit</strong>
-                    <span
-                      >Auto-generates chargeback reports by tag/owner, audits
-                      tagging gaps, quantifies untagged cost</span
-                    >
+                <div class="es-cap-item">
+                  <div class="es-cap-title">Chargeback and tag audit</div>
+                  <div class="es-cap-desc">
+                    Auto-generates chargeback reports by tag or owner and
+                    quantifies untagged cost across your environment
                   </div>
                 </div>
               </div>
-            </div>
-
-            <!-- Quick start prompts -->
-            <div class="es-quick-grid">
-              <button
-                class="es-quick-card"
-                @click="
-                  sendPrompt(
-                    'Compare D4s_v5, D8s_v5, D16s_v5 monthly costs across East US, West Europe, Southeast Asia. Show a chart.',
-                  )
-                "
-              >
-                <span class="es-quick-icon">$</span>
-                <span class="es-quick-label">VM pricing comparison</span>
-              </button>
-              <button
-                v-if="azureConnected"
-                class="es-quick-card"
-                @click="
-                  sendPrompt(
-                    'Show my Azure cost for the current month grouped by service. Chart it.',
-                  )
-                "
-              >
-                <span class="es-quick-icon">C</span>
-                <span class="es-quick-label">My costs this month</span>
-              </button>
-              <button
-                v-if="azureConnected"
-                class="es-quick-card"
-                @click="
-                  sendPrompt(
-                    'What cost optimization recommendations does Azure Advisor have for me? Show estimated savings.',
-                  )
-                "
-              >
-                <span class="es-quick-icon">O</span>
-                <span class="es-quick-label">Advisor savings</span>
-              </button>
-              <button
-                class="es-quick-card"
-                @click="
-                  sendPrompt(
-                    'Show a world map of Azure regions color-coded by D4s_v5 VM pricing.',
-                  )
-                "
-              >
-                <span class="es-quick-icon">M</span>
-                <span class="es-quick-label">Regional pricing map</span>
-              </button>
-              <button
-                v-if="azureConnected"
-                class="es-quick-card"
-                @click="
-                  sendPrompt(
-                    'Create an executive summary of my Azure spend with charts.',
-                  )
-                "
-              >
-                <span class="es-quick-icon">E</span>
-                <span class="es-quick-label">Executive summary</span>
-              </button>
-              <button
-                v-if="!azureConnected"
-                class="es-quick-card"
-                @click="
-                  sendPrompt(
-                    'Compare spot vs on-demand pricing for D4s_v5 VMs in East US. Show the discount percentage.',
-                  )
-                "
-              >
-                <span class="es-quick-icon">S</span>
-                <span class="es-quick-label">Spot VM pricing</span>
-              </button>
             </div>
           </div>
 
@@ -583,31 +360,6 @@
             </div>
           </div>
         </div>
-      </div>
-
-      <!-- Generate Presentation button -->
-      <div
-        v-if="user && messages.length >= 2 && !streaming"
-        class="pptx-suggest"
-      >
-        <button class="pptx-suggest-btn" @click="requestPresentation">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="15"
-            height="15"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <rect x="2" y="3" width="20" height="14" rx="2" />
-            <line x1="8" y1="21" x2="16" y2="21" />
-            <line x1="12" y1="17" x2="12" y2="21" />
-          </svg>
-          Generate a presentation of the findings?
-        </button>
       </div>
 
       <!-- PPTX download (streaming) -->
@@ -696,6 +448,60 @@
               <line x1="12" y1="19" x2="12" y2="5" />
               <polyline points="5 12 12 5 19 12" />
             </svg>
+          </button>
+        </div>
+        <div class="input-side-actions">
+          <button
+            class="input-pill-btn"
+            :class="{
+              'input-pill-btn--disabled': messages.length === 0 || streaming,
+            }"
+            :disabled="messages.length === 0 || streaming"
+            @click="clearMessages"
+            title="Clear chat"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+              <path d="M3 3v5h5" />
+            </svg>
+            <span class="input-pill-label">Clear</span>
+          </button>
+          <button
+            class="input-pill-btn"
+            :class="{
+              'input-pill-btn--disabled': messages.length < 2 || streaming,
+            }"
+            :disabled="messages.length < 2 || streaming"
+            @click="requestPresentation"
+            title="Generate PowerPoint"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path
+                d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+              />
+              <polyline points="14 2 14 8 20 8" />
+              <path d="M9 13h2v4h-2z" />
+              <path d="M9 11h4" />
+            </svg>
+            <span class="input-pill-label">PowerPoint</span>
           </button>
         </div>
       </div>
@@ -808,7 +614,7 @@
     </Teleport>
 
     <!-- Build badge -->
-    <div class="build-badge">Build #{{ buildNumber }}</div>
+    <div class="build-badge">B{{ buildNumber }}</div>
   </div>
 </template>
 
@@ -851,11 +657,11 @@ const collapsedSections = reactive({
   finops_storage: true,
   finops_licensing: true,
   finops_governance: true,
-  finops_pricing: true,
+  finops_pricing: false,
   finops_infra: true,
   finops_ai_data: true,
   finops_advanced: true,
-  finops_pricing_public: true,
+  finops_pricing_public: false,
 });
 function toggleSection(key) {
   collapsedSections[key] = !collapsedSections[key];
@@ -909,6 +715,14 @@ async function disconnectAzure() {
     await clearMessages();
   } catch {}
 }
+
+// When Azure connects, expand Cost Analysis and collapse the public categories
+watch(azureConnected, (connected) => {
+  if (!connected) return;
+  collapsedSections.finops_cost = false;
+  collapsedSections.finops_pricing = true;
+  collapsedSections.finops_pricing_public = true;
+});
 
 function dismissPopover() {
   hoveredTool.value = null;
@@ -987,6 +801,12 @@ onMounted(async () => {
 let abortController = null;
 
 async function clearMessages() {
+  // Abort any in-flight request first
+  if (abortController) {
+    abortController.abort();
+    abortController = null;
+  }
+  streaming.value = false;
   messages.value = [];
   streamBuffer.value = "";
   streamToolCalls.value = [];
@@ -994,6 +814,8 @@ async function clearMessages() {
   pptxReady.value = null;
   pptxDownloads.value = [];
   activeTools.value = [];
+  hoveredTool.value = null;
+  input.value = "";
   chartInstances.forEach((c) => {
     try {
       c.dispose();
@@ -1032,6 +854,7 @@ const finopsCategories = [
     key: "finops_cost",
     label: "Cost Analysis",
     icon: "$",
+    colorClass: "cat-cost",
     requiresAzure: true,
     prompts: [
       {
@@ -1095,6 +918,7 @@ const finopsCategories = [
     key: "finops_optimize",
     label: "Optimization",
     icon: "O",
+    colorClass: "cat-optimize",
     requiresAzure: true,
     prompts: [
       {
@@ -1153,6 +977,7 @@ const finopsCategories = [
     key: "finops_reservations",
     label: "Reservations & Commitments",
     icon: "R",
+    colorClass: "cat-reservations",
     requiresAzure: true,
     prompts: [
       {
@@ -1196,6 +1021,7 @@ const finopsCategories = [
     key: "finops_storage",
     label: "Storage & Data",
     icon: "S",
+    colorClass: "cat-storage",
     requiresAzure: true,
     prompts: [
       {
@@ -1234,6 +1060,7 @@ const finopsCategories = [
     key: "finops_licensing",
     label: "Licensing & Hybrid",
     icon: "L",
+    colorClass: "cat-licensing",
     requiresAzure: true,
     prompts: [
       {
@@ -1262,6 +1089,7 @@ const finopsCategories = [
     key: "finops_governance",
     label: "Governance & Reporting",
     icon: "G",
+    colorClass: "cat-governance",
     requiresAzure: true,
     prompts: [
       {
@@ -1305,6 +1133,7 @@ const finopsCategories = [
     key: "finops_pricing",
     label: "Pricing & Benchmarking",
     icon: "$",
+    colorClass: "cat-pricing",
     requiresAzure: false,
     prompts: [
       {
@@ -1343,6 +1172,7 @@ const finopsCategories = [
     key: "finops_infra",
     label: "Infrastructure & Security",
     icon: "I",
+    colorClass: "cat-infra",
     requiresAzure: true,
     prompts: [
       {
@@ -1386,6 +1216,7 @@ const finopsCategories = [
     key: "finops_ai_data",
     label: "AI, GPU & Data",
     icon: "A",
+    colorClass: "cat-ai",
     requiresAzure: true,
     prompts: [
       {
@@ -1439,6 +1270,7 @@ const finopsCategories = [
     key: "finops_advanced",
     label: "Advanced FinOps",
     icon: "F",
+    colorClass: "cat-advanced",
     requiresAzure: true,
     prompts: [
       {
@@ -1487,6 +1319,7 @@ const finopsCategories = [
     key: "finops_pricing_public",
     label: "Cost Estimator",
     icon: "E",
+    colorClass: "cat-estimator",
     requiresAzure: false,
     prompts: [
       {
@@ -2297,7 +2130,7 @@ async function send() {
               break;
             }
             case "error":
-              streamBuffer.value += `\n⚠️ Error: ${data.message}`;
+              streamBuffer.value += `\n**Error:** ${data.message}`;
               break;
           }
         } catch {}
@@ -2329,7 +2162,7 @@ async function send() {
     } else {
       messages.value.push({
         role: "assistant",
-        content: `⚠️ Connection error: ${err.message}`,
+        content: `**Connection error:** ${err.message}`,
       });
     }
   } finally {
@@ -2482,9 +2315,49 @@ async function send() {
   align-items: center;
   justify-content: center;
 }
-.sidebar-question-icon--finops {
+.sidebar-question-icon--cat-cost {
+  background: #e8f0fe;
+  color: #0078d4;
+}
+.sidebar-question-icon--cat-optimize {
+  background: #fff0e5;
+  color: #d83b01;
+}
+.sidebar-question-icon--cat-reservations {
+  background: #f0ebff;
+  color: #8661c5;
+}
+.sidebar-question-icon--cat-storage {
+  background: #e6f5f0;
+  color: #008575;
+}
+.sidebar-question-icon--cat-licensing {
   background: #dafbe1;
   color: #1a7f37;
+}
+.sidebar-question-icon--cat-governance {
+  background: #e8ebf5;
+  color: #002050;
+}
+.sidebar-question-icon--cat-pricing {
+  background: #e8f4ff;
+  color: #0063b1;
+}
+.sidebar-question-icon--cat-infra {
+  background: #fce8e8;
+  color: #cf222e;
+}
+.sidebar-question-icon--cat-ai {
+  background: #fce5f3;
+  color: #e3008c;
+}
+.sidebar-question-icon--cat-advanced {
+  background: #eef0ff;
+  color: #4f6bed;
+}
+.sidebar-question-icon--cat-estimator {
+  background: #e5f8fa;
+  color: #00b7c3;
 }
 .sidebar-source {
   display: flex;
@@ -2833,101 +2706,152 @@ async function send() {
   font-size: 0.78rem;
   color: var(--text, #1f2328);
   text-align: left;
+  opacity: 0;
+  animation: staggerSlideIn 0.5s ease forwards;
   transition:
     border-color 0.15s,
-    background-color 0.15s;
+    background-color 0.15s,
+    transform 0.15s;
+}
+.es-quick-card:nth-child(1) {
+  animation-delay: 0.5s;
+}
+.es-quick-card:nth-child(2) {
+  animation-delay: 0.6s;
+}
+.es-quick-card:nth-child(3) {
+  animation-delay: 0.7s;
+}
+.es-quick-card:nth-child(4) {
+  animation-delay: 0.5s;
+}
+.es-quick-card:nth-child(5) {
+  animation-delay: 0.6s;
+}
+.es-quick-card:nth-child(6) {
+  animation-delay: 0.7s;
+}
+.es-quick-card:nth-child(7) {
+  animation-delay: 0.5s;
+}
+.es-quick-card:nth-child(8) {
+  animation-delay: 0.6s;
+}
+.es-quick-card:nth-child(9) {
+  animation-delay: 0.7s;
 }
 .es-quick-card:hover {
   border-color: #0078d4;
   background: rgba(0, 120, 212, 0.04);
+  transform: translateY(-1px);
 }
 .es-quick-icon {
-  width: 26px;
-  height: 26px;
-  border-radius: 7px;
-  background: linear-gradient(135deg, #0078d4 0%, #50e6ff 100%);
-  color: #fff;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: linear-gradient(
+    135deg,
+    rgba(0, 120, 212, 0.1) 0%,
+    rgba(80, 230, 255, 0.12) 100%
+  );
+  color: #0078d4;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  font-size: 0.72rem;
-  font-weight: 800;
+}
+.es-quick-icon--teal {
+  background: linear-gradient(
+    135deg,
+    rgba(0, 133, 117, 0.14),
+    rgba(0, 183, 195, 0.14)
+  );
+  color: #008575;
+}
+.es-quick-icon--orange {
+  background: linear-gradient(
+    135deg,
+    rgba(216, 59, 1, 0.14),
+    rgba(255, 185, 0, 0.14)
+  );
+  color: #d83b01;
+}
+.es-quick-icon--purple {
+  background: linear-gradient(
+    135deg,
+    rgba(134, 97, 197, 0.14),
+    rgba(79, 107, 237, 0.14)
+  );
+  color: #8661c5;
+}
+.es-quick-icon--green {
+  background: linear-gradient(
+    135deg,
+    rgba(26, 127, 55, 0.14),
+    rgba(45, 164, 78, 0.14)
+  );
+  color: #1a7f37;
+}
+.es-quick-icon--pink {
+  background: linear-gradient(
+    135deg,
+    rgba(227, 0, 140, 0.14),
+    rgba(255, 109, 182, 0.14)
+  );
+  color: #e3008c;
+}
+.es-quick-icon--blue {
+  background: linear-gradient(
+    135deg,
+    rgba(0, 120, 212, 0.14),
+    rgba(80, 230, 255, 0.14)
+  );
+  color: #0078d4;
+}
+.es-quick-icon--indigo {
+  background: linear-gradient(
+    135deg,
+    rgba(91, 33, 182, 0.14),
+    rgba(139, 92, 246, 0.14)
+  );
+  color: #5b21b6;
+}
+.es-quick-icon--navy {
+  background: linear-gradient(
+    135deg,
+    rgba(0, 32, 80, 0.14),
+    rgba(0, 120, 212, 0.14)
+  );
+  color: #002050;
 }
 .es-quick-label {
   font-weight: 600;
   line-height: 1.3;
 }
-/* Differentiator section */
-.es-diff {
+/* Capabilities list (informational, not clickable) */
+.es-capabilities {
   width: 100%;
-  margin-bottom: 1rem;
+  margin-bottom: 1.25rem;
 }
-.es-diff-header {
-  font-size: 0.72rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--text-muted);
-  margin-bottom: 8px;
-  text-align: center;
-}
-.es-diff-grid {
+.es-capabilities-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 6px;
+  gap: 2px;
 }
-.es-diff-card {
-  display: flex;
-  gap: 8px;
-  align-items: flex-start;
-  padding: 8px 10px;
-  border: 1px solid var(--border, #d8dee4);
-  border-radius: 8px;
-  background: var(--surface, #f6f8fa);
+.es-cap-item {
+  padding: 12px 16px;
 }
-.es-diff-icon {
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
-  background: linear-gradient(135deg, #0078d4 0%, #50e6ff 100%);
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-.es-diff-icon--chart {
-  background: linear-gradient(135deg, #e3008c 0%, #ff6db6 100%);
-}
-.es-diff-icon--code {
-  background: linear-gradient(135deg, #5b21b6 0%, #8b5cf6 100%);
-}
-.es-diff-icon--pptx {
-  background: linear-gradient(135deg, #d83b01 0%, #ff8c00 100%);
-}
-.es-diff-icon--license {
-  background: linear-gradient(135deg, #1a7f37 0%, #2da44e 100%);
-}
-.es-diff-icon--kql {
-  background: linear-gradient(135deg, #0e7c86 0%, #00b7c3 100%);
-}
-.es-diff-text {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  min-width: 0;
-}
-.es-diff-text strong {
-  font-size: 0.76rem;
+.es-cap-title {
+  font-size: 0.82rem;
   font-weight: 700;
-  color: var(--text, #1f2328);
+  color: #1f2328;
   line-height: 1.3;
+  margin-bottom: 3px;
 }
-.es-diff-text span {
-  font-size: 0.68rem;
-  color: var(--text-muted);
-  line-height: 1.35;
+.es-cap-desc {
+  font-size: 0.73rem;
+  color: #656d76;
+  line-height: 1.45;
 }
 .es-onboarding {
   width: 100%;
@@ -3365,10 +3289,13 @@ async function send() {
 .input-area {
   flex-shrink: 0;
   padding: 0.75rem 1rem;
-  max-width: 800px;
+  max-width: 900px;
   margin: 0 auto;
   width: 100%;
   padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 .input-wrapper {
   display: flex;
@@ -3379,6 +3306,14 @@ async function send() {
   padding: 0.5rem 0.5rem 0.5rem 1rem;
   background: #fff;
   transition: border-color 0.15s;
+  flex: 1;
+  min-width: 0;
+}
+.input-side-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
 }
 .input-wrapper:focus-within {
   border-color: #a1a1aa;
@@ -3400,6 +3335,40 @@ async function send() {
 }
 .input-field::placeholder {
   color: #a1a1aa;
+}
+.input-pill-btn {
+  flex-shrink: 0;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 14px;
+  border-radius: 9999px;
+  border: 1px solid #e4e4e7;
+  background: #fff;
+  color: #a1a1aa;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+.input-pill-btn:not(:disabled) {
+  color: #3f3f46;
+  border-color: #d4d4d8;
+}
+.input-pill-btn:hover:not(:disabled) {
+  background: #f4f4f5;
+  color: #18181b;
+  border-color: #a1a1aa;
+}
+.input-pill-btn--disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.input-pill-label {
+  line-height: 1;
 }
 .action-btn {
   flex-shrink: 0;
@@ -3707,7 +3676,7 @@ async function send() {
   position: fixed;
   bottom: 8px;
   right: 12px;
-  font-size: 18px;
+  font-size: 4.5px;
   font-family: monospace;
   color: #1f2328;
   opacity: 0.7;
@@ -3756,6 +3725,15 @@ async function send() {
   }
   .input-area {
     padding: 0.5rem 0.75rem;
+  }
+  .input-pill-label {
+    display: none;
+  }
+  .input-pill-btn {
+    padding: 0;
+    width: 32px;
+    border: none;
+    background: transparent;
   }
 }
 

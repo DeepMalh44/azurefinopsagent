@@ -23,6 +23,15 @@ public class MemoryTools
         Directory.CreateDirectory(MemoryDir);
     }
 
+    /// <summary>
+    /// Clears all persistent memory for a specific user. Called on session reset.
+    /// </summary>
+    public static void ClearMemory(long userId)
+    {
+        var file = Path.Combine(MemoryDir, $"user_{userId}.json");
+        if (File.Exists(file)) File.Delete(file);
+    }
+
     public IEnumerable<AIFunction> Create()
     {
         yield return AIFunctionFactory.Create(StoreMemory, "StoreMemory",
@@ -41,13 +50,9 @@ public class MemoryTools
     {
         var file = GetUserMemoryFile();
         if (!File.Exists(file)) return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        try
-        {
-            var json = File.ReadAllText(file);
-            return JsonSerializer.Deserialize<Dictionary<string, string>>(json)
-                   ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        }
-        catch { return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase); }
+        var json = File.ReadAllText(file);
+        return JsonSerializer.Deserialize<Dictionary<string, string>>(json)
+               ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
     }
 
     private void SaveMemories(Dictionary<string, string> memories)
@@ -60,63 +65,47 @@ public class MemoryTools
         [Description("Descriptive key for the memory (e.g. 'preferred_currency', 'subscription_ids', 'team_budget_goal')")] string key,
         [Description("The value to remember")] string value)
     {
-        try
-        {
-            if (string.IsNullOrWhiteSpace(key))
-                return "Error: Key cannot be empty.";
-            if (value.Length > MaxValueLength)
-                return $"Error: Value too long ({value.Length} chars). Max: {MaxValueLength}.";
+        if (string.IsNullOrWhiteSpace(key))
+            return "Error: Key cannot be empty.";
+        if (value.Length > MaxValueLength)
+            return $"Error: Value too long ({value.Length} chars). Max: {MaxValueLength}.";
 
-            var memories = LoadMemories();
-            if (memories.Count >= MaxMemories && !memories.ContainsKey(key))
-                return $"Error: Memory limit reached ({MaxMemories}). Delete some memories first.";
+        var memories = LoadMemories();
+        if (memories.Count >= MaxMemories && !memories.ContainsKey(key))
+            return $"Error: Memory limit reached ({MaxMemories}). Delete some memories first.";
 
-            memories[key] = value;
-            SaveMemories(memories);
-            return $"Stored: '{key}' ({value.Length} chars)";
-        }
-        catch (Exception ex) { return $"Error: {ex.Message}"; }
+        memories[key] = value;
+        SaveMemories(memories);
+        return $"Stored: '{key}' ({value.Length} chars)";
     }
 
     private string RecallMemory(
         [Description("Key to look up")] string key)
     {
-        try
-        {
-            var memories = LoadMemories();
-            return memories.TryGetValue(key, out var value)
-                ? $"{key}: {value}"
-                : $"No memory found for key '{key}'.";
-        }
-        catch (Exception ex) { return $"Error: {ex.Message}"; }
+        var memories = LoadMemories();
+        return memories.TryGetValue(key, out var value)
+            ? $"{key}: {value}"
+            : $"No memory found for key '{key}'.";
     }
 
     private string ListMemories()
     {
-        try
-        {
-            var memories = LoadMemories();
-            if (memories.Count == 0)
-                return "No memories stored.";
+        var memories = LoadMemories();
+        if (memories.Count == 0)
+            return "No memories stored.";
 
-            var keys = memories.Keys.Select(k => $"  {k} ({memories[k].Length} chars)");
-            return $"{memories.Count} memories:\n{string.Join("\n", keys)}";
-        }
-        catch (Exception ex) { return $"Error: {ex.Message}"; }
+        var keys = memories.Keys.Select(k => $"  {k} ({memories[k].Length} chars)");
+        return $"{memories.Count} memories:\n{string.Join("\n", keys)}";
     }
 
     private string DeleteMemory(
         [Description("Key to delete")] string key)
     {
-        try
-        {
-            var memories = LoadMemories();
-            if (!memories.Remove(key))
-                return $"No memory found for key '{key}'.";
+        var memories = LoadMemories();
+        if (!memories.Remove(key))
+            return $"No memory found for key '{key}'.";
 
-            SaveMemories(memories);
-            return $"Deleted: '{key}'";
-        }
-        catch (Exception ex) { return $"Error: {ex.Message}"; }
+        SaveMemories(memories);
+        return $"Deleted: '{key}'";
     }
 }
