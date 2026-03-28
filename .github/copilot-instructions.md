@@ -79,7 +79,7 @@ src/Dashboard/
 
 ## Tool Development Patterns (Critical Learnings)
 
-When creating tools for the Copilot SDK:
+When creating tools for the agent:
 
 - **Return raw API JSON** — do NOT manually parse/deserialize API responses. Let the LLM interpret the raw JSON. Manual parsing is fragile and breaks on nullable fields or schema changes.
 - **Use `string` parameters** (not `double` or typed values) — the SDK's type coercion can fail. Accept strings and let .NET interpolate them into URLs.
@@ -105,7 +105,7 @@ When creating tools for the Copilot SDK:
 
 ## Authentication
 
-No login is required to use the chat. Users are auto-assigned an anonymous session identity on first request. GitHub App OAuth has been removed.
+No login is required to use the chat. Users are auto-assigned an anonymous session identity on first request.
 
 ## Microsoft Entra ID OAuth Setup
 
@@ -231,7 +231,7 @@ The deploy script:
 - Include proper error handling for API calls (rate limiting, authentication failures, etc.).
 - All Azure resource interactions should use managed identity where possible.
 - Use `.NET 10` APIs — e.g., `KnownIPNetworks` not deprecated `KnownNetworks`.
-- Use `AIAgent` / `AgentSession` from `Microsoft.Agents.AI` — not the deprecated GitHub Copilot SDK types.
+- Use `AIAgent` / `AgentSession` from `Microsoft.Agents.AI`.
 
 ## Key Terminology
 
@@ -268,9 +268,9 @@ Always prefer this over downloading log files or tailing logs — it's faster, s
 
 When you need to perform actions on Azure portals, GitHub, or the Microsoft Open Source Management portal (e.g., elevating JIT permissions, configuring repo settings, managing team membership), use **Playwright MCP** to navigate and interact with the portal UI directly from VS Code. This is especially useful for:
 
-- Creating GitHub Apps at `https://github.com/settings/apps/new`.
 - Elevating JIT admin permissions on the repo via the Open Source portal.
 - Managing GitHub team membership or repo settings.
+- Configuring Azure App Service settings, custom domains, or SSL bindings.
 - Any portal-based operation that cannot be done via CLI or API.
 
 Always use Playwright when portal interaction is required rather than asking the user to do it manually.

@@ -20,7 +20,7 @@ This project has adopted the [Microsoft Open Source Code of Conduct](https://ope
 
 - [.NET 10 SDK](https://dotnet.microsoft.com/download)
 - [Node.js LTS](https://nodejs.org/)
-- GitHub App OAuth credentials (for local dev, see Secrets below)
+- Microsoft Entra ID app registration (for Azure tenant data access)
 
 ### Building & Running
 
@@ -45,7 +45,7 @@ dotnet run --urls "http://localhost:5000"
 
 ### Secrets
 
-- `appsettings.Local.json` — local dev GitHub and Microsoft OAuth secrets (gitignored, only loaded in Development)
+- `appsettings.Local.json` — local dev Microsoft Entra ID and Azure OpenAI secrets (gitignored, only loaded in Development)
 - `appsettings.Production.json` — production OAuth secrets (gitignored)
 - `appsettings.json` — base config with empty placeholders (committed)
 
@@ -55,7 +55,7 @@ dotnet run --urls "http://localhost:5000"
 src/Dashboard/
 ├── Program.cs              # Auth, SSE chat, models, version endpoints
 ├── Tools/                  # AI agent tools (QueryAzure, QueryGraph, RunScript, etc.)
-├── client/src/components/  # Vue 3 components (ChatView, LoginScreen, Dashboard)
+├── client/src/components/  # Vue 3 components (ChatView, Dashboard)
 ├── deploy.ps1              # Azure App Service deployment
 └── startup.sh              # App Service startup — installs Python/tools
 ```

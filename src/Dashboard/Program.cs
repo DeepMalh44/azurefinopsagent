@@ -712,7 +712,8 @@ Scope = /subscriptions/{subId} or /subscriptions/{subId}/resourceGroups/{rg}
 
 // ── Shared (stateless) AI tools — safe to share across all users ──
 var sharedTools = new List<AIFunction>();
-sharedTools.AddRange(ChartTools.Create());
+var chartLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("AzureFinOps.AI.Charts");
+sharedTools.AddRange(ChartTools.Create(chartLogger));
 sharedTools.AddRange(PricingTools.Create());
 sharedTools.AddRange(HealthTools.Create());
 sharedTools.AddRange(PresentationTools.Create());

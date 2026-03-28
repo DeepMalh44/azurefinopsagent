@@ -14,10 +14,10 @@
       <div class="sidebar-scroll">
         <!-- FinOps Prompt Categories -->
         <div
-          v-for="cat in finopsCategories"
+          v-for="cat in visibleCategories"
           :key="cat.key"
           class="sidebar-category"
-          :class="{ 'sidebar-category--border': cat !== finopsCategories[0] }"
+          :class="{ 'sidebar-category--border': cat !== visibleCategories[0] }"
         >
           <div
             class="sidebar-category-label sidebar-category-label--toggle"
@@ -51,33 +51,12 @@
               v-for="q in cat.prompts"
               :key="q.label"
               class="sidebar-question"
-              :class="{
-                'sidebar-question--locked':
-                  cat.requiresAzure && !azureConnected,
-              }"
-              :disabled="streaming || (cat.requiresAzure && !azureConnected)"
-              :title="
-                cat.requiresAzure
-                  ? azureConnected
-                    ? q.prompt
-                    : 'Connect Azure to unlock'
-                  : q.prompt
-              "
+              :disabled="streaming"
+              :title="q.prompt"
               @click="sendQuestion(q.prompt)"
             >
               <span class="sidebar-question-icon sidebar-question-icon--finops">
-                <svg
-                  v-if="cat.requiresAzure && !azureConnected"
-                  width="10"
-                  height="10"
-                  viewBox="0 0 16 16"
-                  fill="currentColor"
-                >
-                  <path
-                    d="M4 7V5a4 4 0 118 0v2h1a1 1 0 011 1v6a1 1 0 01-1 1H3a1 1 0 01-1-1V8a1 1 0 011-1h1zm2 0h4V5a2 2 0 10-4 0v2z"
-                  />
-                </svg>
-                <template v-else>{{ cat.icon }}</template>
+                {{ cat.icon }}
               </span>
               <span>{{ q.label }}</span>
             </button>
@@ -214,223 +193,316 @@
         <div class="messages-inner">
           <div v-if="messages.length === 0" class="empty-state">
             <h1 class="es-headline">FinOps Agent</h1>
-            <p class="es-tagline-mobile">Your AI FinOps analyst for Azure</p>
             <p class="es-sub">
-              Turn weeks of KQL queries, Graph API calls, and portal hopping
-              into a single conversation — surface savings, forecast spend, and
-              generate a PowerPoint deck you can walk into a stakeholder meeting
-              with. From data to decision in minutes, not weeks.
+              Azure cost optimization — pricing, forecasts, savings, and
+              PowerPoint reports in a single conversation.
             </p>
 
-            <div class="es-onboarding">
-              <div class="es-steps">
-                <div class="es-step es-step--done">
-                  <div class="es-step-badge">1</div>
-                  <div class="es-step-body">
-                    <div class="es-step-title-row">
-                      <strong class="es-step-title">Start Chatting</strong>
-                      <span class="es-step-state">Ready</span>
-                    </div>
-                    <p class="es-step-copy">
-                      Ask any question about Azure costs, pricing, or FinOps
-                      best practices — no login required.
-                    </p>
+            <div v-if="!azureConnected" class="es-connect-bar">
+              <button
+                class="es-step-btn es-step-btn--azure"
+                :disabled="authLoading === 'azure'"
+                @click="startAuth('azure', '/auth/microsoft')"
+              >
+                <svg width="14" height="14" viewBox="0 0 21 21" fill="none">
+                  <rect width="10" height="10" fill="#fff" fill-opacity="0.9" />
+                  <rect
+                    x="11"
+                    width="10"
+                    height="10"
+                    fill="#fff"
+                    fill-opacity="0.7"
+                  />
+                  <rect
+                    y="11"
+                    width="10"
+                    height="10"
+                    fill="#fff"
+                    fill-opacity="0.7"
+                  />
+                  <rect
+                    x="11"
+                    y="11"
+                    width="10"
+                    height="10"
+                    fill="#fff"
+                    fill-opacity="0.5"
+                  />
+                </svg>
+                {{
+                  authLoading === "azure"
+                    ? "Connecting..."
+                    : "Connect Azure for tenant insights"
+                }}
+              </button>
+            </div>
+
+            <!-- What FinOps Agent does that others can't -->
+            <div class="es-diff">
+              <div class="es-diff-header">
+                What FinOps Agent does that Azure Copilot &amp; SRE Agent can't
+              </div>
+              <div class="es-diff-grid">
+                <div class="es-diff-card">
+                  <div class="es-diff-icon">
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <rect x="3" y="3" width="7" height="7" />
+                      <rect x="14" y="3" width="7" height="7" />
+                      <rect x="3" y="14" width="7" height="7" />
+                      <rect x="14" y="14" width="7" height="7" />
+                    </svg>
+                  </div>
+                  <div class="es-diff-text">
+                    <strong>Multi-dimensional cost analysis</strong>
+                    <span
+                      >Breaks down cost by service, RG, tag, subscription,
+                      region — across all subscriptions and management groups,
+                      not just one</span
+                    >
                   </div>
                 </div>
-
-                <div
-                  class="es-step"
-                  :class="{
-                    'es-step--done': azureConnected,
-                    'es-step--active': !azureConnected,
-                  }"
-                >
-                  <div class="es-step-badge">2</div>
-                  <div class="es-step-body">
-                    <div class="es-step-title-row">
-                      <strong class="es-step-title">Connect Azure</strong>
-                      <span v-if="azureConnected" class="es-step-state"
-                        >Connected</span
-                      >
-                      <span v-else class="es-step-state es-step-state--pending"
-                        >Optional — unlocks tenant-specific insights</span
-                      >
-                    </div>
-                    <p class="es-step-copy">
-                      Add your Azure context so the agent can inspect
-                      subscriptions, pricing, cost trends, and optimization
-                      opportunities.
-                    </p>
-                    <button
-                      v-if="!azureConnected"
-                      class="es-step-btn es-step-btn--azure"
-                      :disabled="authLoading === 'azure'"
-                      @click="startAuth('azure', '/auth/microsoft')"
+                <div class="es-diff-card">
+                  <div class="es-diff-icon es-diff-icon--chart">
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
                     >
-                      {{
-                        authLoading === "azure"
-                          ? "Connecting Azure..."
-                          : "Connect Azure"
-                      }}
-                    </button>
+                      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                    </svg>
+                  </div>
+                  <div class="es-diff-text">
+                    <strong>Interactive ECharts visualizations</strong>
+                    <span
+                      >Bar, line, pie, scatter, world maps, treemaps, radar,
+                      gauge — inline in chat. Not static portal
+                      screenshots</span
+                    >
+                  </div>
+                </div>
+                <div class="es-diff-card">
+                  <div class="es-diff-icon es-diff-icon--code">
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <polyline points="16 18 22 12 16 6" />
+                      <polyline points="8 6 2 12 8 18" />
+                    </svg>
+                  </div>
+                  <div class="es-diff-text">
+                    <strong>Python execution &amp; data processing</strong>
+                    <span
+                      >Chains 5+ API calls, runs Python with pandas/numpy for
+                      complex calculations. Not single-turn Q&amp;A</span
+                    >
+                  </div>
+                </div>
+                <div class="es-diff-card">
+                  <div class="es-diff-icon es-diff-icon--pptx">
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <path
+                        d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+                      />
+                      <polyline points="14 2 14 8 20 8" />
+                    </svg>
+                  </div>
+                  <div class="es-diff-text">
+                    <strong>PowerPoint export</strong>
+                    <span
+                      >Generates .pptx with charts &amp; data tables — walk into
+                      a stakeholder meeting ready</span
+                    >
+                  </div>
+                </div>
+                <div class="es-diff-card">
+                  <div class="es-diff-icon es-diff-icon--license">
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                      <circle cx="8.5" cy="7" r="4" />
+                      <line x1="20" y1="8" x2="20" y2="14" />
+                      <line x1="23" y1="11" x2="17" y2="11" />
+                    </svg>
+                  </div>
+                  <div class="es-diff-text">
+                    <strong>M365 license &amp; Copilot ROI</strong>
+                    <span
+                      >Queries Microsoft Graph for unused licenses, Copilot seat
+                      usage, license waste — not available in Copilot/SRE</span
+                    >
+                  </div>
+                </div>
+                <div class="es-diff-card">
+                  <div class="es-diff-icon es-diff-icon--kql">
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <circle cx="11" cy="11" r="8" />
+                      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                    </svg>
+                  </div>
+                  <div class="es-diff-text">
+                    <strong>KQL on Log Analytics</strong>
+                    <span
+                      >Ingestion costs, VM perf, container insights, activity
+                      audit — deep infrastructure telemetry</span
+                    >
+                  </div>
+                </div>
+                <div class="es-diff-card">
+                  <div class="es-diff-icon">
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <path d="M12 2L2 7l10 5 10-5-10-5z" />
+                      <path d="M2 17l10 5 10-5" />
+                      <path d="M2 12l10 5 10-5" />
+                    </svg>
+                  </div>
+                  <div class="es-diff-text">
+                    <strong>All resource types &amp; APIs</strong>
+                    <span
+                      >Reservations, savings plans, Cosmos DB, AKS, Databricks,
+                      Redis, Synapse, Carbon — SRE Agent only does
+                      VMs/VMSS</span
+                    >
+                  </div>
+                </div>
+                <div class="es-diff-card">
+                  <div class="es-diff-icon es-diff-icon--chart">
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="17 8 12 3 7 8" />
+                      <line x1="12" y1="3" x2="12" y2="15" />
+                    </svg>
+                  </div>
+                  <div class="es-diff-text">
+                    <strong>Chargeback &amp; tag audit</strong>
+                    <span
+                      >Auto-generates chargeback reports by tag/owner, audits
+                      tagging gaps, quantifies untagged cost</span
+                    >
                   </div>
                 </div>
               </div>
             </div>
 
-            <!-- Comparison table -->
-            <div class="es-compare">
-              <table class="es-compare-table">
-                <thead>
-                  <tr>
-                    <th>Capability</th>
-                    <th>Azure Copilot</th>
-                    <th class="es-compare-us">FinOps Agent</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>Scope</td>
-                    <td>Single subscription in portal context</td>
-                    <td class="es-compare-us">
-                      All subscriptions + management groups — Resource Graph KQL
-                      across entire tenant
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>Cost analysis &amp; breakdown</td>
-                    <td>Basic portal summaries</td>
-                    <td class="es-compare-us">
-                      Deep multi-dimensional — by service, RG, tag,
-                      subscription, region + interactive charts
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>VM &amp; resource right-sizing</td>
-                    <td>Shows Advisor tips</td>
-                    <td class="es-compare-us">
-                      Queries CPU/memory via Monitor + Advisor, cross-references
-                      pricing to quantify savings
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>Reservation &amp; savings plan analysis</td>
-                    <td>Limited visibility</td>
-                    <td class="es-compare-us">
-                      Utilization audit, expiring RI alerts, exchange analysis,
-                      coverage gaps, SP vs RI comparison
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>Multi-step chained analysis</td>
-                    <td>Single-turn Q&amp;A</td>
-                    <td class="es-compare-us">
-                      Chains 5+ API calls, processes with Python, correlates
-                      across data sources automatically
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>Interactive visualizations</td>
-                    <td>Static portal charts</td>
-                    <td class="es-compare-us">
-                      ECharts: bar, line, pie, scatter, world maps, treemaps,
-                      radar, gauge — inline in chat
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>Chargeback &amp; tagging</td>
-                    <td>Manual Cost Management views</td>
-                    <td class="es-compare-us">
-                      Auto-generates chargeback reports by tag/owner, audits
-                      tagging gaps, quantifies untagged cost
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>M365 license optimization</td>
-                    <td>Not available</td>
-                    <td class="es-compare-us">
-                      Queries Microsoft Graph for unused licenses, Copilot seat
-                      ROI, license waste quantification
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>Infrastructure deep-dive</td>
-                    <td>Not available</td>
-                    <td class="es-compare-us">
-                      KQL on Log Analytics — ingestion costs, VM perf, container
-                      insights, activity audit trail
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>Security &amp; cost correlation</td>
-                    <td>Not available</td>
-                    <td class="es-compare-us">
-                      Defender for Cloud scores + cost data — find expensive
-                      resources with security risks
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>Carbon emissions</td>
-                    <td>Not available</td>
-                    <td class="es-compare-us">
-                      Azure Carbon API — emissions by service/region, impact
-                      analysis for region migration
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>PowerPoint export</td>
-                    <td>Not available</td>
-                    <td class="es-compare-us">
-                      Generates FinOps .pptx with charts &amp; data tables —
-                      ready for stakeholder review
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>Code execution</td>
-                    <td>Not available</td>
-                    <td class="es-compare-us">
-                      Python, bash, SQLite for complex data processing,
-                      calculations, and custom reporting
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            <!-- Quick start -->
-            <div v-if="user" class="es-prompts">
+            <!-- Quick start prompts -->
+            <div class="es-quick-grid">
+              <button
+                class="es-quick-card"
+                @click="
+                  sendPrompt(
+                    'Compare D4s_v5, D8s_v5, D16s_v5 monthly costs across East US, West Europe, Southeast Asia. Show a chart.',
+                  )
+                "
+              >
+                <span class="es-quick-icon">$</span>
+                <span class="es-quick-label">VM pricing comparison</span>
+              </button>
               <button
                 v-if="azureConnected"
-                class="es-prompt"
+                class="es-quick-card"
                 @click="
                   sendPrompt(
                     'Show my Azure cost for the current month grouped by service. Chart it.',
                   )
                 "
               >
-                My costs this month
+                <span class="es-quick-icon">C</span>
+                <span class="es-quick-label">My costs this month</span>
               </button>
               <button
                 v-if="azureConnected"
-                class="es-prompt"
+                class="es-quick-card"
                 @click="
                   sendPrompt(
                     'What cost optimization recommendations does Azure Advisor have for me? Show estimated savings.',
                   )
                 "
               >
-                Advisor savings
+                <span class="es-quick-icon">O</span>
+                <span class="es-quick-label">Advisor savings</span>
+              </button>
+              <button
+                class="es-quick-card"
+                @click="
+                  sendPrompt(
+                    'Show a world map of Azure regions color-coded by D4s_v5 VM pricing.',
+                  )
+                "
+              >
+                <span class="es-quick-icon">M</span>
+                <span class="es-quick-label">Regional pricing map</span>
               </button>
               <button
                 v-if="azureConnected"
-                class="es-prompt"
+                class="es-quick-card"
                 @click="
                   sendPrompt(
                     'Create an executive summary of my Azure spend with charts.',
                   )
                 "
               >
-                Executive summary
+                <span class="es-quick-icon">E</span>
+                <span class="es-quick-label">Executive summary</span>
+              </button>
+              <button
+                v-if="!azureConnected"
+                class="es-quick-card"
+                @click="
+                  sendPrompt(
+                    'Compare spot vs on-demand pricing for D4s_v5 VMs in East US. Show the discount percentage.',
+                  )
+                "
+              >
+                <span class="es-quick-icon">S</span>
+                <span class="es-quick-label">Spot VM pricing</span>
               </button>
             </div>
           </div>
@@ -948,6 +1020,13 @@ function formatDuration(ms) {
 }
 
 // ── Prompt categories ──
+// Show all categories when Azure is connected; only public ones otherwise
+const visibleCategories = computed(() =>
+  azureConnected.value
+    ? finopsCategories
+    : finopsCategories.filter((c) => !c.requiresAzure),
+);
+
 const finopsCategories = [
   {
     key: "finops_cost",
@@ -1929,6 +2008,20 @@ function mountChart(el, chartData) {
         renderer: isMap ? "canvas" : "svg",
       });
       instance.setOption(option);
+      // Log chart rendering to App Insights
+      const seriesTypes = (option.series || []).map((s) => s.type).join(",");
+      const dataPointCount = (option.series || []).reduce(
+        (sum, s) => sum + (Array.isArray(s.data) ? s.data.length : 0),
+        0,
+      );
+      window.__trackAppInsightsTrace?.(
+        `Chart rendered: isMap=${isMap} seriesTypes=${seriesTypes} dataPoints=${dataPointCount}`,
+        {
+          isMap: String(isMap),
+          seriesTypes,
+          dataPoints: String(dataPointCount),
+        },
+      );
       chartInstances.push(instance);
       const ro = new ResizeObserver(() => instance.resize());
       ro.observe(el);
@@ -2673,16 +2766,16 @@ async function send() {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 0.5rem 2rem 1.5rem;
-  max-width: 960px;
+  padding: 2rem 2rem 1rem;
+  max-width: 720px;
   margin: 0 auto;
   width: 100%;
-  animation: fadeSlideIn 0.4s ease;
+  animation: fadeSlideIn 0.35s ease;
 }
 @keyframes fadeSlideIn {
   from {
     opacity: 0;
-    transform: translateY(12px);
+    transform: translateY(8px);
   }
   to {
     opacity: 1;
@@ -2690,29 +2783,151 @@ async function send() {
   }
 }
 .es-headline {
-  font-size: 2.2rem;
+  font-size: 1.6rem;
   font-weight: 800;
-  margin: 0;
+  margin: 0 0 0.3rem;
   letter-spacing: -0.03em;
   background: linear-gradient(135deg, #1f2328 25%, #0078d4 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
-.es-tagline {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: #0078d4;
-  margin: 0.2rem 0 0.6rem;
-  letter-spacing: 0.01em;
-}
 .es-sub {
-  font-size: 0.88rem;
+  font-size: 0.82rem;
   color: var(--text-muted);
   margin: 0 0 1rem;
-  line-height: 1.55;
+  line-height: 1.5;
   text-align: center;
-  max-width: 600px;
+  max-width: 480px;
+}
+.es-connect-bar {
+  margin-bottom: 1rem;
+}
+.es-connect-bar .es-step-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0.5rem 1.2rem;
+  font-size: 0.82rem;
+  border-radius: 10px;
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+}
+.es-quick-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  width: 100%;
+}
+.es-quick-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border, #d8dee4);
+  border-radius: 10px;
+  background: var(--surface, #f6f8fa);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.78rem;
+  color: var(--text, #1f2328);
+  text-align: left;
+  transition:
+    border-color 0.15s,
+    background-color 0.15s;
+}
+.es-quick-card:hover {
+  border-color: #0078d4;
+  background: rgba(0, 120, 212, 0.04);
+}
+.es-quick-icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  background: linear-gradient(135deg, #0078d4 0%, #50e6ff 100%);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+.es-quick-label {
+  font-weight: 600;
+  line-height: 1.3;
+}
+/* Differentiator section */
+.es-diff {
+  width: 100%;
+  margin-bottom: 1rem;
+}
+.es-diff-header {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  text-align: center;
+}
+.es-diff-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+}
+.es-diff-card {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 8px 10px;
+  border: 1px solid var(--border, #d8dee4);
+  border-radius: 8px;
+  background: var(--surface, #f6f8fa);
+}
+.es-diff-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #0078d4 0%, #50e6ff 100%);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.es-diff-icon--chart {
+  background: linear-gradient(135deg, #e3008c 0%, #ff6db6 100%);
+}
+.es-diff-icon--code {
+  background: linear-gradient(135deg, #5b21b6 0%, #8b5cf6 100%);
+}
+.es-diff-icon--pptx {
+  background: linear-gradient(135deg, #d83b01 0%, #ff8c00 100%);
+}
+.es-diff-icon--license {
+  background: linear-gradient(135deg, #1a7f37 0%, #2da44e 100%);
+}
+.es-diff-icon--kql {
+  background: linear-gradient(135deg, #0e7c86 0%, #00b7c3 100%);
+}
+.es-diff-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.es-diff-text strong {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--text, #1f2328);
+  line-height: 1.3;
+}
+.es-diff-text span {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  line-height: 1.35;
 }
 .es-onboarding {
   width: 100%;
@@ -3513,23 +3728,19 @@ async function send() {
   .build-badge {
     display: none;
   }
-  .es-compare {
-    display: none;
-  }
   .es-sub {
-    display: none;
+    font-size: 0.76rem;
   }
   .es-tagline-mobile {
-    display: block;
+    display: none;
   }
   .es-headline {
-    font-size: 1.5rem;
+    font-size: 1.3rem;
   }
-  .es-onboarding {
-    padding: 0.9rem;
-    margin-bottom: 1rem;
+  .es-quick-grid {
+    grid-template-columns: 1fr 1fr;
   }
-  .es-steps {
+  .es-diff-grid {
     grid-template-columns: 1fr;
   }
   .empty-state {
