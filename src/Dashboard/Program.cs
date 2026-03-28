@@ -3,8 +3,10 @@ using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using System.Net.Http.Headers;
 using System.Text.Json;
+using Azure.AI.OpenAI;
+using Azure.Identity;
 using Azure.Monitor.OpenTelemetry.AspNetCore;
-using GitHub.Copilot.SDK;
+using Microsoft.Agents.AI;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.AI;
@@ -51,14 +53,9 @@ var aiActivitySource = new ActivitySource("AzureFinOps.AI");
 var aiMeter = new Meter("AzureFinOps.AI");
 var chatRequestCounter = aiMeter.CreateCounter<long>("finops.chat.requests", description: "Total chat requests");
 var chatErrorCounter = aiMeter.CreateCounter<long>("finops.chat.errors", description: "Chat request errors");
-var sessionCreatedCounter = aiMeter.CreateCounter<long>("finops.session.created", description: "Copilot sessions created");
-var sessionExpiredCounter = aiMeter.CreateCounter<long>("finops.session.expired", description: "Copilot sessions expired and recreated");
-var tokenRefreshCounter = aiMeter.CreateCounter<long>("finops.auth.token_refreshes", description: "GitHub token refreshes");
-var tokenRefreshFailCounter = aiMeter.CreateCounter<long>("finops.auth.token_refresh_failures", description: "GitHub token refresh failures");
-var authCounter = aiMeter.CreateCounter<long>("finops.auth.logins", description: "Successful GitHub logins");
 var toolCallCounter = aiMeter.CreateCounter<long>("finops.tool.calls", description: "Tool call invocations");
 var toolErrorCounter = aiMeter.CreateCounter<long>("finops.tool.errors", description: "Tool call errors");
-var activeSessionsGauge = aiMeter.CreateUpDownCounter<long>("finops.sessions.active", description: "Currently active Copilot sessions");
+var activeSessionsGauge = aiMeter.CreateUpDownCounter<long>("finops.sessions.active", description: "Currently active chat sessions");
 var chatDurationHistogram = aiMeter.CreateHistogram<double>("finops.chat.duration_ms", "ms", "Chat request duration");
 
 var app = builder.Build();
@@ -95,14 +92,13 @@ app.Use(async (ctx, next) =>
     headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
     headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()";
     // CSP — restrictive but allows the Vue SPA, ECharts (inline styles + canvas data URIs),
-    // GitHub avatars, SSE to self, GitHub OAuth flow, App Insights browser config,
-    // and jsdelivr CDN for ECharts map GeoJSON
+    // SSE to self, App Insights browser config, and jsdelivr CDN for ECharts map GeoJSON
     headers["Content-Security-Policy"] =
         "default-src 'self'; " +
         "script-src 'self'; " +
         "style-src 'self' 'unsafe-inline'; " +
-        "img-src 'self' data: https://avatars.githubusercontent.com; " +
-        "connect-src 'self' https://github.com https://api.github.com https://cdn.jsdelivr.net https://js.monitor.azure.com https://canadacentral-1.in.applicationinsights.azure.com https://canadacentral.livediagnostics.monitor.azure.com; " +
+        "img-src 'self' data:; " +
+        "connect-src 'self' https://cdn.jsdelivr.net https://js.monitor.azure.com https://canadacentral-1.in.applicationinsights.azure.com https://canadacentral.livediagnostics.monitor.azure.com; " +
         "font-src 'self'; " +
         "frame-ancestors 'none'";
 
@@ -131,18 +127,44 @@ app.UseSession();
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
-var gitHubClientId = app.Configuration["GitHub:ClientId"]!;
-var gitHubClientSecret = app.Configuration["GitHub:ClientSecret"]!;
-
 var msClientId = app.Configuration["Microsoft:ClientId"] ?? "";
 var msClientSecret = app.Configuration["Microsoft:ClientSecret"] ?? "";
 var msTenantId = app.Configuration["Microsoft:TenantId"] ?? "common";
 
-// Per-user CopilotClient + CopilotSession cache (declared early so auth endpoints can reference them)
-var clients = new ConcurrentDictionary<long, CopilotClient>();
-var sessions = new ConcurrentDictionary<long, CopilotSession>();
-var clientTokens = new ConcurrentDictionary<long, string>();
-var sessionModels = new ConcurrentDictionary<long, string>();
+// Auto-assign anonymous session user on first request (no login required for chat)
+app.Use(async (ctx, next) =>
+{
+    if (ctx.Session.GetString("user") is null)
+    {
+        var sessionUserId = Random.Shared.NextInt64(1_000_000, long.MaxValue);
+        ctx.Session.SetString("user", JsonSerializer.Serialize(new
+        {
+            id = sessionUserId,
+            login = $"user-{sessionUserId % 10000:D4}",
+            name = (string?)null,
+            avatar = (string?)null,
+            email = (string?)null
+        }));
+    }
+    await next();
+});
+
+// Azure OpenAI configuration
+var azureOpenAIEndpoint = app.Configuration["AzureOpenAI:Endpoint"] ?? "https://finops-agent-ai.openai.azure.com/";
+var azureOpenAIDeployment = app.Configuration["AzureOpenAI:DeploymentName"] ?? "gpt-5.4";
+
+// Azure OpenAI ChatClient (shared singleton — tools are per-user, bound at agent creation)
+#pragma warning disable OPENAI001
+var azureOpenAIChatClient = new AzureOpenAIClient(
+    new Uri(azureOpenAIEndpoint),
+    new ClientSecretCredential(msTenantId, msClientId, msClientSecret))
+    .GetChatClient(azureOpenAIDeployment);
+#pragma warning restore OPENAI001
+logger.LogInformation("Azure OpenAI client created: endpoint={Endpoint} deployment={Deployment}", azureOpenAIEndpoint, azureOpenAIDeployment);
+
+// Per-user AIAgent + AgentSession caches
+var userAgents = new ConcurrentDictionary<long, AIAgent>();
+var userSessions = new ConcurrentDictionary<long, AgentSession>();
 var userTokens = new ConcurrentDictionary<long, UserTokens>();
 var userTools = new ConcurrentDictionary<long, List<AIFunction>>();
 
@@ -160,186 +182,44 @@ string NormalizeCallbackHost(HttpContext ctx)
 // AUTH ENDPOINTS
 // ──────────────────────────────────────────────
 
-// Redirect to GitHub OAuth
-app.MapGet("/auth/github", (HttpContext ctx) =>
-{
-    var state = Guid.NewGuid().ToString("N");
-    ctx.Session.SetString("oauth_state", state);
-
-    var callbackUrl = $"{NormalizeCallbackHost(ctx)}/auth/github/callback";
-    // GitHub App OAuth — permissions are configured on the app itself, not via scopes.
-    // This avoids the classic OAuth App consent screen that shows "access all repos".
-    var url = $"https://github.com/login/oauth/authorize?client_id={gitHubClientId}&redirect_uri={Uri.EscapeDataString(callbackUrl)}&state={state}";
-    logger.LogInformation("OAuth redirect initiated from {Host}", ctx.Request.Host);
-    return Results.Redirect(url);
-});
-
-// GitHub OAuth callback
-app.MapGet("/auth/github/callback", async (HttpContext ctx, IHttpClientFactory httpFactory) =>
-{
-    using var authActivity = aiActivitySource.StartActivity("GitHubOAuthCallback");
-    try
-    {
-        var code = ctx.Request.Query["code"].ToString();
-        var state = ctx.Request.Query["state"].ToString();
-
-        if (state != ctx.Session.GetString("oauth_state"))
-        {
-            logger.LogWarning("OAuth state mismatch — possible CSRF attempt");
-            authActivity?.SetTag("auth.result", "state_mismatch");
-            return Results.StatusCode(403);
-        }
-
-        ctx.Session.Remove("oauth_state");
-
-        var http = httpFactory.CreateClient();
-
-        // Exchange code for token
-        using var tokenReq = new HttpRequestMessage(HttpMethod.Post, "https://github.com/login/oauth/access_token");
-        tokenReq.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-        tokenReq.Content = JsonContent.Create(new
-        {
-            client_id = gitHubClientId,
-            client_secret = gitHubClientSecret,
-            code
-        });
-
-        var tokenRes = await http.SendAsync(tokenReq);
-        var tokenBody = await tokenRes.Content.ReadAsStringAsync();
-
-        if (!tokenRes.IsSuccessStatusCode)
-        {
-            logger.LogError("GitHub token exchange failed: status={Status} body={Body}", (int)tokenRes.StatusCode, tokenBody);
-            authActivity?.SetTag("auth.result", "token_exchange_failed");
-            return Results.Problem($"GitHub token exchange returned {(int)tokenRes.StatusCode}: {tokenBody}");
-        }
-
-        var tokenJson = JsonSerializer.Deserialize<JsonElement>(tokenBody);
-
-        if (tokenJson.TryGetProperty("error", out var err))
-        {
-            logger.LogError("OAuth token exchange error: {Error}", err);
-            authActivity?.SetTag("auth.result", "oauth_error");
-            return Results.Problem($"OAuth token exchange failed: {err}");
-        }
-
-        if (!tokenJson.TryGetProperty("access_token", out var tokenProp))
-        {
-            logger.LogError("No access_token in GitHub response");
-            authActivity?.SetTag("auth.result", "no_access_token");
-            return Results.Problem($"No access_token in GitHub response: {tokenBody}");
-        }
-
-        var accessToken = tokenProp.GetString()!;
-
-        // Store refresh token and expiry if provided (GitHub App tokens expire after ~8h)
-        var refreshToken = tokenJson.TryGetProperty("refresh_token", out var rtProp) ? rtProp.GetString() : null;
-        var ghExpiresIn = tokenJson.TryGetProperty("expires_in", out var ghExpProp) ? ghExpProp.GetInt32() : 0;
-        authActivity?.SetTag("auth.has_refresh_token", refreshToken is not null);
-        authActivity?.SetTag("auth.expires_in", ghExpiresIn);
-
-        // Validate token scopes
-        using var scopeReq = new HttpRequestMessage(HttpMethod.Head, "https://api.github.com/user");
-        scopeReq.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-        scopeReq.Headers.UserAgent.ParseAdd("FinOps-Dashboard/1.0");
-        var scopeRes = await http.SendAsync(scopeReq);
-        var grantedScopes = scopeRes.Headers.Contains("X-OAuth-Scopes")
-            ? scopeRes.Headers.GetValues("X-OAuth-Scopes").FirstOrDefault() ?? ""
-            : "";
-        logger.LogInformation("OAuth token scopes granted: {Scopes}", grantedScopes);
-        ctx.Session.SetString("token_scopes", grantedScopes);
-
-        // Fetch user profile
-        using var userReq = new HttpRequestMessage(HttpMethod.Get, "https://api.github.com/user");
-        userReq.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-        userReq.Headers.UserAgent.ParseAdd("FinOps-Dashboard/1.0");
-
-        var userRes = await http.SendAsync(userReq);
-        var userBody = await userRes.Content.ReadAsStringAsync();
-
-        if (!userRes.IsSuccessStatusCode)
-        {
-            logger.LogError("GitHub user API failed: status={Status}", (int)userRes.StatusCode);
-            authActivity?.SetTag("auth.result", "user_api_failed");
-            return Results.Problem($"GitHub user API returned {(int)userRes.StatusCode}: {userBody}");
-        }
-
-        var userJson = JsonSerializer.Deserialize<JsonElement>(userBody);
-        var login = userJson.GetProperty("login").GetString()!;
-        logger.LogInformation("GitHub OAuth login successful for {User}", login);
-        authActivity?.SetTag("auth.result", "success");
-        authActivity?.SetTag("auth.user", login);
-        authCounter.Add(1, new KeyValuePair<string, object?>("user", login));
-
-        // Store in session
-        ctx.Session.SetString("github_token", accessToken);
-        if (ghExpiresIn > 0)
-            ctx.Session.SetString("github_token_expiry", DateTimeOffset.UtcNow.AddSeconds(ghExpiresIn - 300).ToString("o"));
-        if (refreshToken is not null)
-            ctx.Session.SetString("github_refresh_token", refreshToken);
-        ctx.Session.SetString("user", JsonSerializer.Serialize(new
-        {
-            id = userJson.GetProperty("id").GetInt64(),
-            login,
-            name = userJson.TryGetProperty("name", out var n) ? n.GetString() : null,
-            avatar = userJson.GetProperty("avatar_url").GetString(),
-            email = userJson.TryGetProperty("email", out var e) ? e.GetString() : null
-        }));
-
-        return Results.Redirect("/");
-    }
-    catch (Exception ex)
-    {
-        logger.LogError(ex, "OAuth callback failed");
-        authActivity?.SetTag("auth.result", "exception");
-        authActivity?.SetTag("auth.error", ex.Message);
-        return Results.Problem($"OAuth callback failed: {ex.Message}");
-    }
-});
-
-// Get current user (includes token scopes for frontend display)
+// Get current user (auto-created anonymous session user, or with Azure identity if connected)
 app.MapGet("/auth/me", (HttpContext ctx) =>
 {
     var userJson = ctx.Session.GetString("user");
     if (userJson is null)
-        return Results.Unauthorized();
+        return Results.Json(new { id = 0, login = "anonymous" });
 
-    var scopes = ctx.Session.GetString("token_scopes") ?? "";
     var userObj = JsonSerializer.Deserialize<JsonElement>(userJson);
 
-    var response = new Dictionary<string, object?>
+    // Enrich with Azure identity if available
+    var azureUserJson = ctx.Session.GetString("azure_user");
+    string? name = null, email = null;
+    if (azureUserJson is not null)
     {
-        ["id"] = userObj.GetProperty("id").GetInt64(),
-        ["login"] = userObj.GetProperty("login").GetString(),
-        ["name"] = userObj.TryGetProperty("name", out var n2) ? n2.GetString() : null,
-        ["avatar"] = userObj.GetProperty("avatar").GetString(),
-        ["email"] = userObj.TryGetProperty("email", out var e2) ? e2.GetString() : null,
-        ["scopes"] = scopes,
-    };
-    return Results.Json(response);
+        var azureUser = JsonSerializer.Deserialize<JsonElement>(azureUserJson);
+        if (azureUser.TryGetProperty("name", out var n)) name = n.GetString();
+        if (azureUser.TryGetProperty("email", out var e)) email = e.GetString();
+    }
+
+    return Results.Json(new
+    {
+        id = userObj.GetProperty("id").GetInt64(),
+        login = userObj.GetProperty("login").GetString(),
+        name = name ?? (userObj.TryGetProperty("name", out var n2) ? n2.GetString() : null),
+        email = email ?? (userObj.TryGetProperty("email", out var e2) ? e2.GetString() : null),
+    });
 });
 
-// Logout
-app.MapPost("/auth/logout", async (HttpContext ctx) =>
+// Reset session (clear conversation + cached state)
+app.MapPost("/auth/logout", (HttpContext ctx) =>
 {
     var userJson = ctx.Session.GetString("user");
     if (userJson is not null)
     {
         var u = JsonSerializer.Deserialize<JsonElement>(userJson);
         var uid = u.GetProperty("id").GetInt64();
-        var uLogin = u.TryGetProperty("login", out var lp) ? lp.GetString() : uid.ToString();
-        logger.LogInformation("User {User} logged out", uLogin);
-
-        // Clear cached CopilotClient, session, and per-user tokens
-        if (sessions.TryRemove(uid, out var oldSession))
-        {
-            activeSessionsGauge.Add(-1);
-            try { await oldSession.DisposeAsync(); } catch { }
-        }
-        sessionModels.TryRemove(uid, out _);
-        if (clients.TryRemove(uid, out var oldClient))
-            try { oldClient.Dispose(); } catch { }
-        clientTokens.TryRemove(uid, out _);
+        userSessions.TryRemove(uid, out _);
+        userAgents.TryRemove(uid, out _);
         userTokens.TryRemove(uid, out _);
         userTools.TryRemove(uid, out _);
     }
@@ -759,226 +639,24 @@ app.MapPost("/auth/azure/disconnect", (HttpContext ctx) =>
 });
 
 // ──────────────────────────────────────────────
-// CHAT SSE ENDPOINT (Copilot SDK)
+// CHAT SSE ENDPOINT (Azure OpenAI via Microsoft Agent Framework)
 // ──────────────────────────────────────────────
 
-// Helper: refresh expired GitHub App user token
-async Task<string?> RefreshGitHubTokenAsync(HttpContext ctx, IHttpClientFactory httpFactory)
-{
-    var refreshToken = ctx.Session.GetString("github_refresh_token");
-    if (refreshToken is null) return null;
-
-    var http = httpFactory.CreateClient();
-    using var req = new HttpRequestMessage(HttpMethod.Post, "https://github.com/login/oauth/access_token");
-    req.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-    req.Content = JsonContent.Create(new
-    {
-        client_id = gitHubClientId,
-        client_secret = gitHubClientSecret,
-        grant_type = "refresh_token",
-        refresh_token = refreshToken
-    });
-
-    var res = await http.SendAsync(req);
-    if (!res.IsSuccessStatusCode)
-    {
-        logger.LogWarning("GitHub token refresh failed: status={Status}", (int)res.StatusCode);
-        tokenRefreshFailCounter.Add(1);
-        return null;
-    }
-
-    var body = await res.Content.ReadAsStringAsync();
-    var json = JsonSerializer.Deserialize<JsonElement>(body);
-    if (json.TryGetProperty("error", out var refreshErr))
-    {
-        logger.LogWarning("GitHub token refresh error: {Error}", refreshErr);
-        tokenRefreshFailCounter.Add(1);
-        return null;
-    }
-    if (!json.TryGetProperty("access_token", out var newToken))
-    {
-        logger.LogWarning("GitHub token refresh: no access_token in response");
-        tokenRefreshFailCounter.Add(1);
-        return null;
-    }
-
-    var newAccessToken = newToken.GetString()!;
-    ctx.Session.SetString("github_token", newAccessToken);
-    if (json.TryGetProperty("expires_in", out var ghRefreshExpProp))
-        ctx.Session.SetString("github_token_expiry", DateTimeOffset.UtcNow.AddSeconds(ghRefreshExpProp.GetInt32() - 300).ToString("o"));
-    if (json.TryGetProperty("refresh_token", out var newRt))
-        ctx.Session.SetString("github_refresh_token", newRt.GetString()!);
-
-    logger.LogInformation("GitHub token refreshed successfully");
-    tokenRefreshCounter.Add(1);
-    return newAccessToken;
-}
-
-// ── Shared (stateless) AI tools — safe to share across all users ──
-var sharedTools = new List<AIFunction>();
-sharedTools.AddRange(ChartTools.Create());
-sharedTools.AddRange(PricingTools.Create());
-sharedTools.AddRange(HealthTools.Create());
-sharedTools.AddRange(PresentationTools.Create());
-
-// Per-user token holders and tool lists — tools capture the UserTokens instance
-// via closure, so they always read the latest tokens regardless of thread.
-
-List<AIFunction> GetOrCreateUserTools(long userId)
-{
-    return userTools.GetOrAdd(userId, uid =>
-    {
-        var tokens = userTokens.GetOrAdd(uid, _ => new UserTokens());
-        var tools = new List<AIFunction>(sharedTools);
-        tools.AddRange(new CodeExecutionTools(tokens).Create());
-        tools.AddRange(new AzureQueryTools(tokens).Create());
-        tools.AddRange(new GraphQueryTools(tokens).Create());
-        tools.AddRange(new LogAnalyticsQueryTools(tokens).Create());
-        return tools;
-    });
-}
-
-app.MapPost("/api/chat", (Delegate)(async (HttpContext ctx, IHttpClientFactory httpFactory) =>
-{
-    var githubToken = ctx.Session.GetString("github_token");
-    var userJson = ctx.Session.GetString("user");
-
-    // Proactively refresh GitHub token if expired (GitHub App user tokens expire after ~8h)
-    if (githubToken is not null)
-    {
-        var ghExpiryStr = ctx.Session.GetString("github_token_expiry");
-        if (ghExpiryStr is not null && DateTimeOffset.TryParse(ghExpiryStr, out var ghExpiry) && ghExpiry <= DateTimeOffset.UtcNow)
-        {
-            logger.LogInformation("GitHub token expired, attempting refresh");
-            var refreshed = await RefreshGitHubTokenAsync(ctx, httpFactory);
-            if (refreshed is not null)
-                githubToken = refreshed;
-        }
-    }
-
-    // If token is still missing, try one refresh attempt before returning 401
-    if (githubToken is null)
-    {
-        var refreshed = await RefreshGitHubTokenAsync(ctx, httpFactory);
-        if (refreshed is not null)
-            githubToken = refreshed;
-    }
-
-    if (githubToken is null || userJson is null)
-    {
-        ctx.Response.StatusCode = 401;
-        return;
-    }
-
-    using var bodyDoc = await JsonDocument.ParseAsync(ctx.Request.Body);
-    var prompt = bodyDoc.RootElement.GetProperty("prompt").GetString();
-    var model = bodyDoc.RootElement.TryGetProperty("model", out var m) ? m.GetString() : "claude-opus-4.6";
-
-    if (string.IsNullOrWhiteSpace(prompt))
-    {
-        ctx.Response.StatusCode = 400;
-        await ctx.Response.WriteAsJsonAsync(new { error = "prompt is required" });
-        return;
-    }
-
-    var user = JsonSerializer.Deserialize<JsonElement>(userJson);
-    var userId = user.GetProperty("id").GetInt64();
-    var userLogin = user.TryGetProperty("login", out var loginProp) ? loginProp.GetString() : userId.ToString();
-
-    var chatSw = Stopwatch.StartNew();
-    chatRequestCounter.Add(1, new KeyValuePair<string, object?>("model", model), new KeyValuePair<string, object?>("user", userLogin));
-
-    using var chatActivity = aiActivitySource.StartActivity("ChatRequest");
-    chatActivity?.SetTag("ai.user", userLogin);
-    chatActivity?.SetTag("ai.model", model);
-    chatActivity?.SetTag("ai.prompt_length", prompt!.Length);
-    chatActivity?.SetTag("ai.prompt", prompt.Length > 500 ? prompt[..500] + "..." : prompt);
-    logger.LogInformation("Chat request from {User} model={Model} promptLen={PromptLen}", userLogin, model, prompt.Length);
-
-    // Set per-request user context and update per-user token holder.
-    // Use RefreshLock to serialize Azure token refresh for concurrent requests from the same user —
-    // prevents double-refresh races when Azure rotates single-use refresh tokens.
-    var tokens = userTokens.GetOrAdd(userId, _ => new UserTokens());
-    await tokens.RefreshLock.WaitAsync(ctx.RequestAborted);
-    try
-    {
-        tokens.AzureToken = await GetAzureTokenAsync(ctx, httpFactory);
-        tokens.GraphToken = await GetGraphTokenAsync(ctx, httpFactory);
-        tokens.LogAnalyticsToken = await GetLogAnalyticsTokenAsync(ctx, httpFactory);
-    }
-    finally
-    {
-        tokens.RefreshLock.Release();
-    }
-
-    logger.LogInformation("Chat tokens: azure={HasAzure} graph={HasGraph} la={HasLA}",
-        tokens.AzureToken is not null, tokens.GraphToken is not null, tokens.LogAnalyticsToken is not null);
-
-    // SSE headers
-    ctx.Response.Headers.ContentType = "text/event-stream";
-    ctx.Response.Headers.CacheControl = "no-cache";
-    ctx.Response.Headers.Connection = "keep-alive";
-    ctx.Response.Headers["X-Accel-Buffering"] = "no";
-
-    try
-    {
-        // Detect token change — if the user re-authenticated, we must recreate the client
-        var previousToken = clientTokens.GetValueOrDefault(userId);
-        var tokenChanged = previousToken is not null && previousToken != githubToken;
-
-        if (tokenChanged)
-        {
-            logger.LogInformation("Token changed for user {User}, recreating CopilotClient", userLogin);
-            chatActivity?.SetTag("ai.token_changed", true);
-            if (clients.TryRemove(userId, out var old)) try { old.Dispose(); } catch { }
-            if (sessions.TryRemove(userId, out _)) activeSessionsGauge.Add(-1);
-        }
-
-        var client = clients.GetOrAdd(userId,
-            _ => new CopilotClient(new CopilotClientOptions { GitHubToken = githubToken }));
-        clientTokens[userId] = githubToken;
-
-        // Ensure started — if disconnected, recreate (stale process)
-        if (client.State != ConnectionState.Connected)
-        {
-            if (clients.TryUpdate(userId, new CopilotClient(new CopilotClientOptions { GitHubToken = githubToken }), client))
-            {
-                try { client.Dispose(); } catch { }
-                client = clients[userId];
-            }
-            await client.StartAsync();
-        }
-
-        // Get or create session — reuse across messages to preserve conversation history
-        // Recreate session if model changed
-        var currentModel = sessionModels.GetValueOrDefault(userId);
-        if (currentModel is not null && currentModel != model)
-        {
-            sessions.TryRemove(userId, out _);
-            sessionModels.TryRemove(userId, out _);
-        }
-
-        var sessionConfig = new SessionConfig
-        {
-            Model = model,
-            Streaming = true,
-            Tools = GetOrCreateUserTools(userId),
-            OnPermissionRequest = (_, _) => Task.FromResult(new PermissionRequestResult { Kind = PermissionRequestResultKind.Approved }),
-            SystemMessage = new SystemMessageConfig
-            {
-                Mode = SystemMessageMode.Append,
-                Content = @"
+// System prompt for the FinOps Agent
+const string SystemPrompt = @"
 You are the Azure FinOps Agent — a concise, data-driven AI assistant for Azure cost optimization.
 
 ## Rules
-- Keep responses as short as possible. Minimize prose.
-- Use a single wide table (many columns) instead of multiple tables or paragraphs. Pack all relevant info into one table.
-- Max ONE chart per response.
+- Be concise. Answer the user's question directly in 1-3 sentences when possible.
+- Use tables ONLY when presenting structured data (costs, resources, comparisons). Keep tables focused: use only the columns needed to answer the question — avoid redundant or low-value columns.
+- For simple questions, reply with a short sentence — do NOT wrap a single-value answer in a table.
+- Max ONE chart per response. Only chart when the user asks or when a visual clearly adds value.
 - When discussing cost data, you understand the FOCUS (FinOps Open Cost & Usage Specification) standard: BilledCost, EffectiveCost, ListCost, ContractedCost, ListUnitPrice, ContractedUnitPrice, CommitmentDiscountId, ChargeCategory, etc. Map Cost Management output to FOCUS concepts when the user asks about FOCUS or standardized reporting.
 - For unit economics, combine cost data with usage metrics (transactions, users, API calls) to calculate cost-per-unit KPIs.
 
 ## Tools
 - **FetchUrl** — fetch Azure Retail Prices and other public HTTP URLs.
+- **FetchWebPage** — fetch and extract text from any public HTTPS URL (docs, blogs, release notes). HTML is auto-stripped to clean text.
 - **GetAzureServiceHealth** — get Azure service health incidents.
 - **RenderChart / RenderAdvancedChart** — render ECharts visualizations.
 - **GeneratePresentation** — generate a FinOps PowerPoint (.pptx) from structured slide data. Use when the user wants to export findings as a presentation. Suggest a FinOps-standard slide structure and ask the user to confirm before generating.
@@ -986,6 +664,9 @@ You are the Azure FinOps Agent — a concise, data-driven AI assistant for Azure
 - **QueryAzure** — call any Azure ARM REST API using the signed-in user's token. Use for all Azure management queries (GET/POST only).
 - **QueryGraph** — call Microsoft Graph API for license inventory, directory objects, org structure.
 - **QueryLogAnalytics** — run KQL queries against Log Analytics workspaces or App Insights.
+- **ReadFile / WriteFile / EditFile / ListDirectory** — read, write, edit files and list directories in the agent workspace. Use for saving analysis results, CSVs, reports.
+- **Grep / Glob** — search file contents (text/regex) and find files by pattern in the workspace.
+- **StoreMemory / RecallMemory / ListMemories / DeleteMemory** — persistent memory across sessions. Remember user preferences, subscription IDs, budget goals, team structures.
 
 ## Workflow
 1. Use FetchUrl for public pricing data, QueryAzure for Azure tenant data.
@@ -1027,154 +708,212 @@ Key APIs (method — path):
 - GET /subscriptions/{subId}/providers/Microsoft.Synapse/workspaces?api-version=2021-06-01 — Synapse workspaces and SQL/Spark pools
 - GET /subscriptions/{subId}/providers/Microsoft.App/containerApps?api-version=2024-03-01 — Container Apps
 Scope = /subscriptions/{subId} or /subscriptions/{subId}/resourceGroups/{rg}
-"
+";
 
-            },
-        };
+// ── Shared (stateless) AI tools — safe to share across all users ──
+var sharedTools = new List<AIFunction>();
+sharedTools.AddRange(ChartTools.Create());
+sharedTools.AddRange(PricingTools.Create());
+sharedTools.AddRange(HealthTools.Create());
+sharedTools.AddRange(PresentationTools.Create());
+sharedTools.AddRange(FileSystemTools.Create());
+sharedTools.AddRange(SearchTools.Create());
+sharedTools.AddRange(WebFetchTools.Create());
 
-        if (!sessions.TryGetValue(userId, out var session))
+// Per-user token holders and tool lists — tools capture the UserTokens instance
+// via closure, so they always read the latest tokens regardless of thread.
+
+List<AIFunction> GetOrCreateUserTools(long userId)
+{
+    return userTools.GetOrAdd(userId, uid =>
+    {
+        var tokens = userTokens.GetOrAdd(uid, _ => new UserTokens());
+        var tools = new List<AIFunction>(sharedTools);
+        tools.AddRange(new CodeExecutionTools(tokens).Create());
+        tools.AddRange(new AzureQueryTools(tokens).Create());
+        tools.AddRange(new GraphQueryTools(tokens).Create());
+        tools.AddRange(new LogAnalyticsQueryTools(tokens).Create());
+        tools.AddRange(new MemoryTools(uid).Create()); // Per-user memory
+        return tools;
+    });
+}
+
+// Get or create per-user AIAgent (reuses ChatClient, binds per-user tools)
+AIAgent GetOrCreateAgent(long userId)
+{
+    return userAgents.GetOrAdd(userId, uid =>
+        azureOpenAIChatClient.AsIChatClient()
+            .AsBuilder()
+            .ConfigureOptions(opts => opts.Reasoning = new() { Effort = ReasoningEffort.Low })
+            .Build()
+            .AsAIAgent(
+                instructions: SystemPrompt,
+                name: "AzureFinOpsAgent",
+                tools: GetOrCreateUserTools(uid).Cast<AITool>().ToList()));
+}
+
+app.MapPost("/api/chat", (Delegate)(async (HttpContext ctx, IHttpClientFactory httpFactory) =>
+{
+    var userJson = ctx.Session.GetString("user");
+    if (userJson is null)
+    {
+        ctx.Response.StatusCode = 401;
+        return;
+    }
+
+    using var bodyDoc = await JsonDocument.ParseAsync(ctx.Request.Body);
+    var prompt = bodyDoc.RootElement.GetProperty("prompt").GetString();
+
+    if (string.IsNullOrWhiteSpace(prompt))
+    {
+        ctx.Response.StatusCode = 400;
+        await ctx.Response.WriteAsJsonAsync(new { error = "prompt is required" });
+        return;
+    }
+
+    var user = JsonSerializer.Deserialize<JsonElement>(userJson);
+    var userId = user.GetProperty("id").GetInt64();
+    var userLogin = user.TryGetProperty("login", out var loginProp) ? loginProp.GetString() : userId.ToString();
+
+    var chatSw = Stopwatch.StartNew();
+    chatRequestCounter.Add(1, new KeyValuePair<string, object?>("model", azureOpenAIDeployment), new KeyValuePair<string, object?>("user", userLogin));
+
+    using var chatActivity = aiActivitySource.StartActivity("ChatRequest");
+    chatActivity?.SetTag("ai.user", userLogin);
+    chatActivity?.SetTag("ai.model", azureOpenAIDeployment);
+    chatActivity?.SetTag("ai.prompt_length", prompt!.Length);
+    chatActivity?.SetTag("ai.prompt", prompt.Length > 500 ? prompt[..500] + "..." : prompt);
+    logger.LogInformation("Chat request from {User} model={Model} promptLen={PromptLen}", userLogin, azureOpenAIDeployment, prompt.Length);
+
+    // Update per-user token holder with fresh Azure/Graph/LA tokens
+    var tokens = userTokens.GetOrAdd(userId, _ => new UserTokens());
+    await tokens.RefreshLock.WaitAsync(ctx.RequestAborted);
+    try
+    {
+        tokens.AzureToken = await GetAzureTokenAsync(ctx, httpFactory);
+        tokens.GraphToken = await GetGraphTokenAsync(ctx, httpFactory);
+        tokens.LogAnalyticsToken = await GetLogAnalyticsTokenAsync(ctx, httpFactory);
+    }
+    finally
+    {
+        tokens.RefreshLock.Release();
+    }
+
+    logger.LogInformation("Chat tokens: azure={HasAzure} graph={HasGraph} la={HasLA}",
+        tokens.AzureToken is not null, tokens.GraphToken is not null, tokens.LogAnalyticsToken is not null);
+
+    // SSE headers
+    ctx.Response.Headers.ContentType = "text/event-stream";
+    ctx.Response.Headers.CacheControl = "no-cache";
+    ctx.Response.Headers.Connection = "keep-alive";
+    ctx.Response.Headers["X-Accel-Buffering"] = "no";
+
+    try
+    {
+        var agent = GetOrCreateAgent(userId);
+
+        // Get or create per-user session (maintains conversation history via MAF)
+        if (!userSessions.TryGetValue(userId, out var session))
         {
-            using var createSessionActivity = aiActivitySource.StartActivity("CreateCopilotSession");
-            createSessionActivity?.SetTag("ai.user", userLogin);
-            createSessionActivity?.SetTag("ai.model", model);
-            session = await client.CreateSessionAsync(sessionConfig);
-            sessions[userId] = session;
-            sessionModels[userId] = model!;
-            activeSessionsGauge.Add(1);
-            sessionCreatedCounter.Add(1, new KeyValuePair<string, object?>("model", model), new KeyValuePair<string, object?>("user", userLogin));
-            logger.LogInformation("Created new Copilot session for {User} model={Model} sessionId={SessionId}", userLogin, model, session.SessionId);
+            session = await agent.CreateSessionAsync();
+            userSessions[userId] = session;
+            logger.LogInformation("Created new agent session for {User}", userLogin);
         }
 
-        var done = new TaskCompletionSource();
-        var cancelled = false;
-        var authRetried = false;
-        // Track tool calls: id → (name, startTime, activity)
-        var toolTracker = new ConcurrentDictionary<string, (string Name, DateTimeOffset StartTime, Activity? Activity)>();
+        // Track active tool calls for SSE events
+        var activeToolCalls = new Dictionary<string, (string Name, Stopwatch Timer, Activity? Activity)>();
 
-        ctx.RequestAborted.Register(async () =>
+        // Stream response — MAF handles the entire agentic loop (tool calls + results) automatically
+        await foreach (var update in agent.RunStreamingAsync(prompt, session))
         {
-            if (!cancelled)
+            if (ctx.RequestAborted.IsCancellationRequested) break;
+
+            // Stream text deltas
+            if (update.Text is { Length: > 0 })
             {
-                cancelled = true;
-                try { await session.AbortAsync(); } catch { }
-                done.TrySetResult();
+                var deltaData = JsonSerializer.Serialize(new { type = "delta", content = update.Text });
+                await ctx.Response.WriteAsync($"data: {deltaData}\n\n");
+                await ctx.Response.Body.FlushAsync();
             }
-        });
 
-        // Pre-declare so the handler closure can capture them for auth retry
-        IDisposable activeSubscription = null!;
-        SessionEventHandler handleEvent = null!;
-
-        // Event handler delegate — reused if session is recreated after expiry
-        handleEvent = async (SessionEvent evt) =>
-        {
-            if (cancelled) return;
-
-            try
+            // Detect tool calls and results from streaming contents
+            if (update.Contents is not null)
             {
-                string? sseData = null;
+                foreach (var content in update.Contents)
+                {
+                    // Tool call started
+                    if (content is FunctionCallContent fcc)
+                    {
+                        var toolId = fcc.CallId ?? Guid.NewGuid().ToString();
+                        string? argsJson = null;
+                        try { argsJson = fcc.Arguments is not null ? JsonSerializer.Serialize(fcc.Arguments) : null; } catch { }
 
-                if (evt is AssistantMessageDeltaEvent delta)
-                {
-                    sseData = JsonSerializer.Serialize(new { type = "delta", content = delta.Data.DeltaContent });
-                }
-                else if (evt is AssistantMessageEvent msg)
-                {
-                    sseData = JsonSerializer.Serialize(new { type = "message", content = msg.Data.Content });
-                }
-                else if (evt is ToolExecutionStartEvent toolStart)
-                {
-                    var toolId = toolStart.Data.ToolCallId ?? Guid.NewGuid().ToString();
-                    toolCallCounter.Add(1, new KeyValuePair<string, object?>("tool", toolStart.Data.ToolName), new KeyValuePair<string, object?>("user", userLogin));
-                    var toolActivity = aiActivitySource.StartActivity($"Tool:{toolStart.Data.ToolName}");
-                    toolActivity?.SetTag("ai.tool.name", toolStart.Data.ToolName);
-                    toolActivity?.SetTag("ai.tool.id", toolId);
-                    toolTracker[toolId] = (toolStart.Data.ToolName, DateTimeOffset.UtcNow, toolActivity);
-                    string? argsJson = null;
-                    if (toolStart.Data.Arguments is not null)
-                    {
-                        try { argsJson = JsonSerializer.Serialize(toolStart.Data.Arguments); } catch { }
-                    }
-                    toolActivity?.SetTag("ai.tool.args", argsJson?.Length > 1000 ? argsJson[..1000] + "..." : argsJson);
-                    logger.LogInformation("Tool start: {Tool} id={ToolId} args={Args}", toolStart.Data.ToolName, toolId, argsJson?.Length > 500 ? argsJson[..500] + "..." : argsJson);
-                    sseData = JsonSerializer.Serialize(new { type = "tool_start", tool = toolStart.Data.ToolName, id = toolId, args = argsJson });
-                }
-                else if (evt is ToolExecutionCompleteEvent toolDone)
-                {
-                    var toolId = toolDone.Data.ToolCallId ?? "";
-                    var toolName = toolTracker.TryGetValue(toolId, out var info) ? info.Name : "unknown";
-                    var durationMs = toolTracker.TryGetValue(toolId, out var info2) ? (long)(DateTimeOffset.UtcNow - info2.StartTime).TotalMilliseconds : (long?)null;
-                    // Complete the tool activity span
-                    if (toolTracker.TryRemove(toolId, out var removed))
-                    {
-                        removed.Activity?.SetTag("ai.tool.success", toolDone.Data.Success);
-                        removed.Activity?.SetTag("ai.tool.durationMs", durationMs);
-                        if (toolDone.Data.Error?.Message is not null)
-                            removed.Activity?.SetTag("ai.tool.error", toolDone.Data.Error.Message);
-                        removed.Activity?.Dispose();
-                    }
-                    string? resultText = null;
-                    string? errorText = null;
-                    if (toolDone.Data.Result?.Content is not null)
-                        resultText = toolDone.Data.Result.Content;
-                    else if (toolDone.Data.Result?.DetailedContent is not null)
-                        resultText = toolDone.Data.Result.DetailedContent;
-                    if (toolDone.Data.Error?.Message is not null)
-                        errorText = toolDone.Data.Error.Message;
-                    if (!toolDone.Data.Success)
-                        toolErrorCounter.Add(1, new KeyValuePair<string, object?>("tool", toolName), new KeyValuePair<string, object?>("user", userLogin));
-                    sseData = JsonSerializer.Serialize(new { type = "tool_done", tool = toolName, id = toolId, success = toolDone.Data.Success, durationMs, result = resultText, error = errorText });
-                    logger.LogInformation("Tool done: {Tool} id={ToolId} success={Success} durationMs={Duration} resultLen={ResultLen}",
-                        toolName, toolId, toolDone.Data.Success, durationMs, resultText?.Length ?? 0);
-                    // Log short results or errors in full for diagnostics (e.g. GeneratePresentation failures)
-                    if (resultText is not null && (resultText.Length < 200 || resultText.StartsWith("Error")))
-                        logger.LogInformation("Tool result [{Tool}]: {Result}", toolName, resultText);
-                    if (errorText is not null)
-                        logger.LogWarning("Tool error [{Tool}]: {Error}", toolName, errorText);
+                        toolCallCounter.Add(1, new KeyValuePair<string, object?>("tool", fcc.Name), new KeyValuePair<string, object?>("user", userLogin));
+                        var toolActivity = aiActivitySource.StartActivity($"Tool:{fcc.Name}");
+                        toolActivity?.SetTag("ai.tool.name", fcc.Name);
+                        toolActivity?.SetTag("ai.tool.id", toolId);
+                        toolActivity?.SetTag("ai.tool.args", argsJson?.Length > 1000 ? argsJson[..1000] + "..." : argsJson);
+                        activeToolCalls[toolId] = (fcc.Name, Stopwatch.StartNew(), toolActivity);
+                        logger.LogInformation("Tool start: {Tool} id={ToolId}", fcc.Name, toolId);
 
-                    // If this is a RenderChart or RenderAdvancedChart tool completion, also emit a chart event
-                    // Also detect __CHART__: marker in any tool output for inline chart rendering
-                    if ((toolName == "RenderChart" || toolName == "RenderAdvancedChart") && toolDone.Data.Success && resultText is not null)
+                        var startData = JsonSerializer.Serialize(new { type = "tool_start", tool = fcc.Name, id = toolId, args = argsJson });
+                        await ctx.Response.WriteAsync($"data: {startData}\n\n");
+                        await ctx.Response.Body.FlushAsync();
+                    }
+
+                    // Tool result returned (MAF already invoked the tool)
+                    if (content is FunctionResultContent frc)
                     {
-                        try
+                        var toolId = frc.CallId ?? "";
+                        var resultText = frc.Result?.ToString();
+                        var toolName = activeToolCalls.TryGetValue(toolId, out var info) ? info.Name : "unknown";
+                        var durationMs = info.Timer?.ElapsedMilliseconds ?? 0;
+                        var success = resultText is not null && !resultText.StartsWith("Error");
+
+                        // Complete telemetry span
+                        if (activeToolCalls.Remove(toolId, out var removed))
                         {
-                            await ctx.Response.WriteAsync($"data: {sseData}\n\n");
-                            await ctx.Response.Body.FlushAsync();
+                            removed.Timer.Stop();
+                            removed.Activity?.SetTag("ai.tool.success", success);
+                            removed.Activity?.SetTag("ai.tool.durationMs", removed.Timer.ElapsedMilliseconds);
+                            removed.Activity?.Dispose();
+                        }
+                        if (!success) toolErrorCounter.Add(1, new KeyValuePair<string, object?>("tool", toolName), new KeyValuePair<string, object?>("user", userLogin));
+
+                        logger.LogInformation("Tool done: {Tool} id={ToolId} success={Success} durationMs={Duration} resultLen={ResultLen}",
+                            toolName, toolId, success, durationMs, resultText?.Length ?? 0);
+
+                        // Emit tool_done SSE
+                        var errorText = success ? null : resultText;
+                        var doneData = JsonSerializer.Serialize(new { type = "tool_done", tool = toolName, id = toolId, success, durationMs, result = resultText, error = errorText });
+                        await ctx.Response.WriteAsync($"data: {doneData}\n\n");
+                        await ctx.Response.Body.FlushAsync();
+
+                        // Chart detection (RenderChart / RenderAdvancedChart)
+                        if ((toolName == "RenderChart" || toolName == "RenderAdvancedChart") && success && resultText is not null)
+                        {
                             var chartData = JsonSerializer.Serialize(new { type = "chart", options = resultText });
                             await ctx.Response.WriteAsync($"data: {chartData}\n\n");
                             await ctx.Response.Body.FlushAsync();
-                            sseData = null;
                         }
-                        catch { }
-                    }
-                    else if (toolDone.Data.Success && resultText is not null && resultText.Contains("__CHART__:"))
-                    {
-                        try
+                        else if (success && resultText is not null && resultText.Contains("__CHART__:"))
                         {
-                            // Extract chart JSON from __CHART__: lines in output
                             foreach (var line in resultText.Split('\n'))
                             {
                                 var trimmed = line.Trim();
                                 if (trimmed.StartsWith("__CHART__:"))
                                 {
                                     var chartJson = trimmed["__CHART__:".Length..].Trim();
-                                    // Emit tool_done first, then chart event
-                                    await ctx.Response.WriteAsync($"data: {sseData}\n\n");
-                                    await ctx.Response.Body.FlushAsync();
                                     var chartPayload = JsonSerializer.Serialize(new { type = "chart", options = chartJson });
                                     await ctx.Response.WriteAsync($"data: {chartPayload}\n\n");
                                     await ctx.Response.Body.FlushAsync();
-                                    sseData = null;
-                                    break; // Only one chart per response
+                                    break;
                                 }
                             }
                         }
-                        catch { }
-                    }
-                    // Detect __PPTX_READY__ marker in GeneratePresentation tool output
-                    if (toolDone.Data.Success && resultText is not null && resultText.Contains("__PPTX_READY__:"))
-                    {
-                        try
+
+                        // PPTX detection
+                        if (success && resultText is not null && resultText.Contains("__PPTX_READY__:"))
                         {
                             foreach (var line in resultText.Split('\n'))
                             {
@@ -1185,141 +924,33 @@ Scope = /subscriptions/{subId} or /subscriptions/{subId}/resourceGroups/{rg}
                                     if (parts.Length >= 2)
                                     {
                                         var pptxPayload = JsonSerializer.Serialize(new { type = "pptx_ready", fileId = parts[0], fileName = parts[1], slideCount = parts.Length > 2 ? parts[2] : "" });
-                                        if (sseData is not null)
-                                        {
-                                            await ctx.Response.WriteAsync($"data: {sseData}\n\n");
-                                            await ctx.Response.Body.FlushAsync();
-                                        }
                                         await ctx.Response.WriteAsync($"data: {pptxPayload}\n\n");
                                         await ctx.Response.Body.FlushAsync();
-                                        sseData = null;
                                     }
                                     break;
                                 }
                             }
                         }
-                        catch { }
                     }
                 }
-                else if (evt is SessionErrorEvent error)
-                {
-                    // Retry once on authorization errors — fresh GitHub tokens may not be
-                    // immediately recognized by the Copilot backend (propagation delay).
-                    if (!authRetried && error.Data.Message.Contains("Authorization error", StringComparison.OrdinalIgnoreCase))
-                    {
-                        authRetried = true;
-                        logger.LogWarning("Authorization error for {User}, retrying with fresh client. Error: {Error}", userLogin, error.Data.Message);
-                        chatActivity?.SetTag("ai.auth_retry", true);
-
-                        // Tear down stale client + session
-                        if (clients.TryRemove(userId, out var oldClient)) try { oldClient.Dispose(); } catch { }
-                        if (sessions.TryRemove(userId, out _)) activeSessionsGauge.Add(-1);
-                        clientTokens.TryRemove(userId, out _);
-
-                        try
-                        {
-                            // Create fresh client + session
-                            var freshClient = new CopilotClient(new CopilotClientOptions { GitHubToken = githubToken });
-                            clients[userId] = freshClient;
-                            clientTokens[userId] = githubToken;
-                            await freshClient.StartAsync();
-
-                            var freshSession = await freshClient.CreateSessionAsync(sessionConfig);
-                            sessions[userId] = freshSession;
-                            sessionModels[userId] = model!;
-                            activeSessionsGauge.Add(1);
-                            sessionCreatedCounter.Add(1, new KeyValuePair<string, object?>("model", model), new KeyValuePair<string, object?>("user", userLogin));
-                            logger.LogInformation("Auth retry: recreated client+session for {User} sessionId={SessionId}", userLogin, freshSession.SessionId);
-
-                            // Switch subscription to new session
-                            activeSubscription.Dispose();
-                            activeSubscription = freshSession.On(handleEvent);
-
-                            // Resend — new session events will flow through this same handler
-                            await freshSession.SendAsync(new MessageOptions { Prompt = prompt });
-                            return;
-                        }
-                        catch (Exception retryEx)
-                        {
-                            logger.LogError(retryEx, "Auth retry failed for {User}", userLogin);
-                            // Fall through to normal error handling
-                        }
-                    }
-
-                    sseData = JsonSerializer.Serialize(new { type = "error", message = error.Data.Message });
-                    logger.LogError("Session error for {User}: {Error}", userLogin, error.Data.Message);
-                    chatActivity?.SetTag("ai.error", error.Data.Message);
-                    sessions.TryRemove(userId, out _);
-                    clients.TryRemove(userId, out _);
-                }
-
-                if (sseData is not null)
-                {
-                    await ctx.Response.WriteAsync($"data: {sseData}\n\n");
-                    await ctx.Response.Body.FlushAsync();
-                }
-
-                if (evt is SessionIdleEvent || evt is SessionErrorEvent)
-                {
-                    await ctx.Response.WriteAsync("data: [DONE]\n\n");
-                    await ctx.Response.Body.FlushAsync();
-                    done.TrySetResult();
-                }
             }
-            catch
-            {
-                cancelled = true;
-                done.TrySetResult();
-            }
-        };
-
-        // Subscribe to session events
-        activeSubscription = session.On(handleEvent);
-
-        try
-        {
-            await session.SendAsync(new MessageOptions { Prompt = prompt });
-        }
-        catch (Exception sendEx) when (sendEx.Message.Contains("Session not found", StringComparison.OrdinalIgnoreCase))
-        {
-            // Session expired on the Copilot CLI side (e.g. after prolonged inactivity).
-            // Remove stale session, create a fresh one, and retry transparently.
-            logger.LogWarning("Copilot session expired for user {User}, recreating session. Error: {Error}", userLogin, sendEx.Message);
-            chatActivity?.SetTag("ai.session_expired", true);
-            sessionExpiredCounter.Add(1, new KeyValuePair<string, object?>("user", userLogin), new KeyValuePair<string, object?>("model", model));
-            activeSubscription.Dispose();
-            if (sessions.TryRemove(userId, out _)) activeSessionsGauge.Add(-1);
-            sessionModels.TryRemove(userId, out _);
-
-            session = await client.CreateSessionAsync(sessionConfig);
-            sessions[userId] = session;
-            sessionModels[userId] = model!;
-            activeSessionsGauge.Add(1);
-            sessionCreatedCounter.Add(1, new KeyValuePair<string, object?>("model", model), new KeyValuePair<string, object?>("user", userLogin));
-            logger.LogInformation("Recreated Copilot session for {User} model={Model} sessionId={SessionId}", userLogin, model, session.SessionId);
-
-            activeSubscription = session.On(handleEvent);
-            await session.SendAsync(new MessageOptions { Prompt = prompt });
         }
 
-        try { await done.Task; }
-        finally
-        {
-            activeSubscription.Dispose();
-            chatSw.Stop();
-            chatDurationHistogram.Record(chatSw.Elapsed.TotalMilliseconds, new KeyValuePair<string, object?>("model", model), new KeyValuePair<string, object?>("user", userLogin));
-            chatActivity?.SetTag("ai.duration_ms", chatSw.Elapsed.TotalMilliseconds);
-        }
+        // Done
+        await ctx.Response.WriteAsync("data: [DONE]\n\n");
+        await ctx.Response.Body.FlushAsync();
+
+        chatSw.Stop();
+        chatDurationHistogram.Record(chatSw.Elapsed.TotalMilliseconds, new KeyValuePair<string, object?>("model", azureOpenAIDeployment), new KeyValuePair<string, object?>("user", userLogin));
+        chatActivity?.SetTag("ai.duration_ms", chatSw.Elapsed.TotalMilliseconds);
     }
     catch (Exception ex)
     {
         chatSw.Stop();
-        chatErrorCounter.Add(1, new KeyValuePair<string, object?>("model", model), new KeyValuePair<string, object?>("user", userLogin), new KeyValuePair<string, object?>("error_type", ex.GetType().Name));
+        chatErrorCounter.Add(1, new KeyValuePair<string, object?>("model", azureOpenAIDeployment), new KeyValuePair<string, object?>("user", userLogin), new KeyValuePair<string, object?>("error_type", ex.GetType().Name));
         chatActivity?.SetTag("ai.error", ex.Message);
         chatActivity?.SetTag("ai.error_type", ex.GetType().Name);
-        logger.LogError(ex, "Chat request failed for {User} model={Model}", userLogin, model);
-        if (sessions.TryRemove(userId, out _)) activeSessionsGauge.Add(-1);
-        clients.TryRemove(userId, out _);
+        logger.LogError(ex, "Chat request failed for {User}", userLogin);
         var errorData = JsonSerializer.Serialize(new { type = "error", message = ex.Message });
         await ctx.Response.WriteAsync($"data: {errorData}\n\n");
         await ctx.Response.WriteAsync("data: [DONE]\n\n");
@@ -1339,26 +970,9 @@ app.MapPost("/api/chat/reset", async (HttpContext ctx) =>
     var user = JsonSerializer.Deserialize<JsonElement>(userJson);
     var userId = user.GetProperty("id").GetInt64();
 
-    // Delete session permanently (wipes conversation history from disk)
-    // DisposeAsync() alone only releases in-memory resources — disk data persists.
-    if (sessions.TryRemove(userId, out var oldSession))
-    {
-        activeSessionsGauge.Add(-1);
-        try
-        {
-            var sessionId = oldSession.SessionId;
-            logger.LogInformation("Resetting session {SessionId} for user {UserId}", sessionId, userId);
-            await oldSession.DisposeAsync();
-            // Client must stay alive to call DeleteSessionAsync
-            if (clients.TryGetValue(userId, out var client) && client.State == ConnectionState.Connected)
-                await client.DeleteSessionAsync(sessionId);
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Error deleting Copilot session for user {UserId}", userId);
-        }
-    }
-    sessionModels.TryRemove(userId, out _);
+    // Clear agent session (creates a fresh conversation on next message)
+    userSessions.TryRemove(userId, out _);
+    logger.LogInformation("Agent session cleared for user {UserId}", userId);
 
     ctx.Response.StatusCode = 204;
 });
@@ -1367,69 +981,20 @@ app.MapPost("/api/chat/reset", async (HttpContext ctx) =>
 // MODELS ENDPOINT
 // ──────────────────────────────────────────────
 
-app.MapGet("/api/models", async (HttpContext ctx, IHttpClientFactory httpFactory) =>
+app.MapGet("/api/models", (HttpContext ctx) =>
 {
-    var githubToken = ctx.Session.GetString("github_token");
-
-    // Proactively refresh GitHub token if expired
-    if (githubToken is not null)
-    {
-        var ghExpiryStr = ctx.Session.GetString("github_token_expiry");
-        if (ghExpiryStr is not null && DateTimeOffset.TryParse(ghExpiryStr, out var ghExpiry) && ghExpiry <= DateTimeOffset.UtcNow)
-        {
-            var refreshed = await RefreshGitHubTokenAsync(ctx, httpFactory);
-            if (refreshed is not null)
-                githubToken = refreshed;
-        }
-    }
-
-    if (githubToken is null)
-    {
-        var refreshed = await RefreshGitHubTokenAsync(ctx, httpFactory);
-        if (refreshed is not null)
-            githubToken = refreshed;
-        else
-        {
-            ctx.Response.StatusCode = 401;
-            return;
-        }
-    }
-
     var userJson = ctx.Session.GetString("user");
     if (userJson is null)
     {
         ctx.Response.StatusCode = 401;
-        return;
+        return Results.Unauthorized();
     }
 
-    var user = JsonSerializer.Deserialize<JsonElement>(userJson);
-    var userId = user.GetProperty("id").GetInt64();
-
-    try
+    // Return the configured Azure OpenAI deployment
+    return Results.Json(new[]
     {
-        var client = clients.GetOrAdd(userId,
-            _ => new CopilotClient(new CopilotClientOptions { GitHubToken = githubToken }));
-        clientTokens[userId] = githubToken;
-
-        if (client.State != ConnectionState.Connected)
-        {
-            if (clients.TryUpdate(userId, new CopilotClient(new CopilotClientOptions { GitHubToken = githubToken }), client))
-            {
-                try { client.Dispose(); } catch { }
-                client = clients[userId];
-            }
-            await client.StartAsync();
-        }
-
-        var models = await client.ListModelsAsync();
-        await ctx.Response.WriteAsJsonAsync(models);
-    }
-    catch (Exception ex)
-    {
-        logger.LogError(ex, "Models endpoint failed for user {UserId}", userId);
-        ctx.Response.StatusCode = 500;
-        await ctx.Response.WriteAsJsonAsync(new { error = ex.Message });
-    }
+        new { id = azureOpenAIDeployment, name = azureOpenAIDeployment }
+    });
 });
 
 // ──────────────────────────────────────────────

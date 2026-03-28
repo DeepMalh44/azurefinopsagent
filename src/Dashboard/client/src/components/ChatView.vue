@@ -4,13 +4,7 @@
     <div v-if="authLoading" class="auth-overlay">
       <div class="auth-overlay-card">
         <div class="auth-overlay-spinner"></div>
-        <p class="auth-overlay-text">
-          {{
-            authLoading === "github"
-              ? "Connecting to GitHub..."
-              : "Connecting to Azure..."
-          }}
-        </p>
+        <p class="auth-overlay-text">Connecting to Azure...</p>
         <p class="auth-overlay-sub">You will be redirected to sign in</p>
       </div>
     </div>
@@ -58,27 +52,22 @@
               :key="q.label"
               class="sidebar-question"
               :class="{
-                'sidebar-question--locked': cat.requiresAzure
-                  ? !azureConnected
-                  : !user,
+                'sidebar-question--locked':
+                  cat.requiresAzure && !azureConnected,
               }"
-              :disabled="
-                streaming || (cat.requiresAzure ? !azureConnected : !user)
-              "
+              :disabled="streaming || (cat.requiresAzure && !azureConnected)"
               :title="
                 cat.requiresAzure
                   ? azureConnected
                     ? q.prompt
                     : 'Connect Azure to unlock'
-                  : user
-                    ? q.prompt
-                    : 'Sign in with GitHub to unlock'
+                  : q.prompt
               "
               @click="sendQuestion(q.prompt)"
             >
               <span class="sidebar-question-icon sidebar-question-icon--finops">
                 <svg
-                  v-if="cat.requiresAzure ? !azureConnected : !user"
+                  v-if="cat.requiresAzure && !azureConnected"
                   width="10"
                   height="10"
                   viewBox="0 0 16 16"
@@ -138,163 +127,47 @@
         </div>
       </div>
 
-      <!-- Bottom section: Azure connect + model + user -->
+      <!-- Bottom section -->
       <div class="sidebar-footer">
-        <!-- LinkedIn contact -->
-        <a
-          href="https://www.linkedin.com/in/alirezafarahnak/"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="sidebar-linkedin"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-            <path
-              d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"
-            />
-          </svg>
-          Contact on LinkedIn
-        </a>
-
-        <!-- Not logged in: show GitHub login -->
-        <template v-if="!user">
+        <!-- Azure connect/status -->
+        <div v-if="!azureConnected" class="azure-connect">
           <button
-            class="login-btn login-btn--github"
-            :disabled="authLoading === 'github'"
-            @click="startAuth('github', '/auth/github')"
+            class="azure-connect-btn"
+            :disabled="authLoading === 'azure'"
+            @click="startAuth('azure', '/auth/microsoft')"
           >
-            <span v-if="authLoading === 'github'" class="auth-spinner"></span>
-            <svg
-              v-else
-              width="16"
-              height="16"
-              viewBox="0 0 16 16"
-              fill="currentColor"
-            >
-              <path
-                d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"
-              />
+            <span
+              v-if="authLoading === 'azure'"
+              class="auth-spinner auth-spinner--azure"
+            ></span>
+            <svg v-else width="16" height="16" viewBox="0 0 21 21" fill="none">
+              <rect width="10" height="10" fill="#f25022" />
+              <rect x="11" width="10" height="10" fill="#7fba00" />
+              <rect y="11" width="10" height="10" fill="#00a4ef" />
+              <rect x="11" y="11" width="10" height="10" fill="#ffb900" />
             </svg>
-            {{
-              authLoading === "github" ? "Connecting..." : "Sign in with GitHub"
-            }}
+            {{ authLoading === "azure" ? "Connecting..." : "Connect Azure" }}
           </button>
-        </template>
-
-        <!-- Logged in -->
-        <template v-else>
-          <!-- Azure connect/status -->
-          <div v-if="!azureConnected" class="azure-connect">
-            <button
-              class="azure-connect-btn"
-              :disabled="authLoading === 'azure'"
-              @click="startAuth('azure', '/auth/microsoft')"
-            >
-              <span
-                v-if="authLoading === 'azure'"
-                class="auth-spinner auth-spinner--azure"
-              ></span>
-              <svg
-                v-else
-                width="16"
-                height="16"
-                viewBox="0 0 21 21"
-                fill="none"
-              >
-                <rect width="10" height="10" fill="#f25022" />
-                <rect x="11" width="10" height="10" fill="#7fba00" />
-                <rect y="11" width="10" height="10" fill="#00a4ef" />
-                <rect x="11" y="11" width="10" height="10" fill="#ffb900" />
-              </svg>
-              {{ authLoading === "azure" ? "Connecting..." : "Connect Azure" }}
-            </button>
-          </div>
-          <div v-else class="azure-status">
-            <div class="azure-status-info">
-              <svg width="14" height="14" viewBox="0 0 21 21" fill="none">
-                <rect width="10" height="10" fill="#f25022" />
-                <rect x="11" width="10" height="10" fill="#7fba00" />
-                <rect y="11" width="10" height="10" fill="#00a4ef" />
-                <rect x="11" y="11" width="10" height="10" fill="#ffb900" />
-              </svg>
-              <span class="azure-status-text">{{
-                azureUserEmail || "Azure Connected"
-              }}</span>
-              <button
-                class="azure-disconnect-btn"
-                @click="disconnectAzure"
-                title="Disconnect Azure"
-              >
-                <svg
-                  width="12"
-                  height="12"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
-              </button>
-            </div>
-          </div>
-
-          <!-- Model selector -->
-          <div class="model-selector">
-            <label class="model-selector-label">Model</label>
-            <select v-model="selectedModel" class="model-selector-select">
-              <option v-for="m in availableModels" :key="m" :value="m">
-                {{ m }}
-              </option>
-            </select>
-          </div>
-
-          <button
-            v-if="messages.length > 0 && !streaming"
-            class="new-chat-btn"
-            @click="clearMessages"
-            title="New chat"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-              <path d="M3 3v5h5" />
+        </div>
+        <div v-else class="azure-status">
+          <div class="azure-status-info">
+            <svg width="14" height="14" viewBox="0 0 21 21" fill="none">
+              <rect width="10" height="10" fill="#f25022" />
+              <rect x="11" width="10" height="10" fill="#7fba00" />
+              <rect y="11" width="10" height="10" fill="#00a4ef" />
+              <rect x="11" y="11" width="10" height="10" fill="#ffb900" />
             </svg>
-            New Chat
-          </button>
-
-          <div class="sidebar-user">
-            <img
-              :src="user.avatar"
-              :alt="user.login"
-              class="sidebar-user-avatar"
-            />
-            <div class="sidebar-user-info">
-              <span class="sidebar-user-name">{{
-                user.name || user.login
-              }}</span>
-              <span class="sidebar-user-login">@{{ user.login }}</span>
-            </div>
+            <span class="azure-status-text">{{
+              azureUserEmail || "Azure Connected"
+            }}</span>
             <button
-              class="sidebar-logout-btn"
-              @click="emit('logout')"
-              title="Sign out"
+              class="azure-disconnect-btn"
+              @click="disconnectAzure"
+              title="Disconnect Azure"
             >
               <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="16"
-                height="16"
+                width="12"
+                height="12"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -302,13 +175,35 @@
                 stroke-linecap="round"
                 stroke-linejoin="round"
               >
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                <polyline points="16 17 21 12 16 7" />
-                <line x1="21" y1="12" x2="9" y2="12" />
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
               </svg>
             </button>
           </div>
-        </template>
+        </div>
+
+        <button
+          v-if="messages.length > 0 && !streaming"
+          class="new-chat-btn"
+          @click="clearMessages"
+          title="New chat"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+            <path d="M3 3v5h5" />
+          </svg>
+          New Chat
+        </button>
       </div>
     </aside>
 
@@ -329,47 +224,25 @@
 
             <div class="es-onboarding">
               <div class="es-steps">
-                <div
-                  class="es-step"
-                  :class="{
-                    'es-step--done': !!user,
-                    'es-step--active': !user,
-                  }"
-                >
+                <div class="es-step es-step--done">
                   <div class="es-step-badge">1</div>
                   <div class="es-step-body">
                     <div class="es-step-title-row">
-                      <strong class="es-step-title">Sign in with GitHub</strong>
-                      <span v-if="user" class="es-step-state">Connected</span>
-                      <span v-else class="es-step-state es-step-state--pending"
-                        >Required first</span
-                      >
+                      <strong class="es-step-title">Start Chatting</strong>
+                      <span class="es-step-state">Ready</span>
                     </div>
                     <p class="es-step-copy">
-                      Use your GitHub identity to start a chat session and
-                      unlock the agent.
+                      Ask any question about Azure costs, pricing, or FinOps
+                      best practices — no login required.
                     </p>
-                    <button
-                      v-if="!user"
-                      class="es-step-btn es-step-btn--github"
-                      :disabled="authLoading === 'github'"
-                      @click="startAuth('github', '/auth/github')"
-                    >
-                      {{
-                        authLoading === "github"
-                          ? "Connecting GitHub..."
-                          : "Sign in with GitHub"
-                      }}
-                    </button>
                   </div>
                 </div>
 
                 <div
                   class="es-step"
                   :class="{
-                    'es-step--done': !!user && azureConnected,
-                    'es-step--active': !!user && !azureConnected,
-                    'es-step--blocked': !user,
+                    'es-step--done': azureConnected,
+                    'es-step--active': !azureConnected,
                   }"
                 >
                   <div class="es-step-badge">2</div>
@@ -379,13 +252,8 @@
                       <span v-if="azureConnected" class="es-step-state"
                         >Connected</span
                       >
-                      <span
-                        v-else-if="user"
-                        class="es-step-state es-step-state--pending"
-                        >Next step</span
-                      >
-                      <span v-else class="es-step-state es-step-state--blocked"
-                        >Available after GitHub sign-in</span
+                      <span v-else class="es-step-state es-step-state--pending"
+                        >Optional — unlocks tenant-specific insights</span
                       >
                     </div>
                     <p class="es-step-copy">
@@ -394,7 +262,7 @@
                       opportunities.
                     </p>
                     <button
-                      v-if="user && !azureConnected"
+                      v-if="!azureConnected"
                       class="es-step-btn es-step-btn--azure"
                       :disabled="authLoading === 'azure'"
                       @click="startAuth('azure', '/auth/microsoft')"
@@ -697,120 +565,13 @@
       </div>
 
       <!-- Mobile auth bar (hidden on desktop, shown on mobile) -->
-      <div class="mobile-auth-bar">
-        <template v-if="!user">
-          <button
-            class="mobile-auth-btn mobile-auth-btn--github"
-            :disabled="authLoading === 'github'"
-            @click="startAuth('github', '/auth/github')"
-          >
-            <span v-if="authLoading === 'github'" class="auth-spinner"></span>
-            <svg
-              v-else
-              width="14"
-              height="14"
-              viewBox="0 0 16 16"
-              fill="currentColor"
-            >
-              <path
-                d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"
-              />
-            </svg>
-            {{ authLoading === "github" ? "Connecting..." : "Sign in" }}
-          </button>
-        </template>
-        <template v-else>
-          <div v-if="!azureConnected" class="mobile-auth-item">
-            <button
-              class="mobile-auth-btn mobile-auth-btn--azure"
-              :disabled="authLoading === 'azure'"
-              @click="startAuth('azure', '/auth/microsoft')"
-            >
-              <span
-                v-if="authLoading === 'azure'"
-                class="auth-spinner auth-spinner--azure"
-              ></span>
-              <svg
-                v-else
-                width="14"
-                height="14"
-                viewBox="0 0 21 21"
-                fill="none"
-              >
-                <rect width="10" height="10" fill="#f25022" />
-                <rect x="11" width="10" height="10" fill="#7fba00" />
-                <rect y="11" width="10" height="10" fill="#00a4ef" />
-                <rect x="11" y="11" width="10" height="10" fill="#ffb900" />
-              </svg>
-              {{ authLoading === "azure" ? "Connecting..." : "Azure" }}
-            </button>
-          </div>
-          <div v-else class="mobile-auth-item mobile-azure-status">
-            <svg width="12" height="12" viewBox="0 0 21 21" fill="none">
-              <rect width="10" height="10" fill="#f25022" />
-              <rect x="11" width="10" height="10" fill="#7fba00" />
-              <rect y="11" width="10" height="10" fill="#00a4ef" />
-              <rect x="11" y="11" width="10" height="10" fill="#ffb900" />
-            </svg>
-            <span class="mobile-azure-email">{{
-              azureUserEmail || "Azure"
-            }}</span>
-            <button
-              class="azure-disconnect-btn"
-              @click="disconnectAzure"
-              title="Disconnect"
-            >
-              <svg
-                width="10"
-                height="10"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
-            </button>
-          </div>
-          <div class="mobile-auth-item mobile-user-info">
-            <img
-              :src="user.avatar"
-              :alt="user.login"
-              class="mobile-user-avatar"
-            />
-            <span class="mobile-user-name">{{ user.name || user.login }}</span>
-            <button
-              class="sidebar-logout-btn"
-              @click="emit('logout')"
-              title="Sign out"
-            >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                <polyline points="16 17 21 12 16 7" />
-                <line x1="21" y1="12" x2="9" y2="12" />
-              </svg>
-            </button>
-          </div>
-        </template>
-      </div>
+      <div class="mobile-auth-bar"></div>
 
       <!-- Input bar -->
       <div class="input-area">
         <div
           class="input-wrapper"
-          :class="{ 'input-wrapper--disabled': !user }"
+          :class="{ 'input-wrapper--disabled': false }"
         >
           <input
             ref="inputEl"
@@ -820,7 +581,7 @@
             :placeholder="
               user
                 ? 'Ask about Azure pricing, cost comparisons, or FinOps insights...'
-                : 'Sign in with GitHub to start...'
+                : 'Ask about Azure costs, pricing, or optimization...'
             "
             class="input-field"
             :disabled="!user"
