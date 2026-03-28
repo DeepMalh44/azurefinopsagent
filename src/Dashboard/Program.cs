@@ -667,6 +667,7 @@ sharedTools.AddRange(PresentationTools.Create());
 sharedTools.AddRange(FileSystemTools.Create());
 sharedTools.AddRange(SearchTools.Create());
 sharedTools.AddRange(WebFetchTools.Create());
+sharedTools.AddRange(FollowUpTools.Create());
 
 // Per-user token holders and tool lists — tools capture the UserTokens instance
 // via closure, so they always read the latest tokens regardless of thread.
@@ -692,7 +693,7 @@ AIAgent GetOrCreateAgent(long userId)
     return userAgents.GetOrAdd(userId, uid =>
         azureOpenAIChatClient.AsIChatClient()
             .AsBuilder()
-            .ConfigureOptions(opts => opts.Reasoning = new() { Effort = ReasoningEffort.Low })
+            .ConfigureOptions(opts => opts.Reasoning = new() { Effort = ReasoningEffort.High })
             .UseFunctionInvocation(null, f => f.AllowConcurrentInvocation = true)
             .Build()
             .AsAIAgent(
