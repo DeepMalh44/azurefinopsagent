@@ -64,12 +64,9 @@ Public (no auth): https://prices.azure.com/api/retail/prices?$filter=... — ret
 
         var payload = JsonSerializer.Serialize(new
         {
-            properties = new
-            {
-                codeInputType = "inline",
-                executionType = "synchronous",
-                code = fullCode
-            }
+            codeInputType = "inline",
+            executionType = "synchronous",
+            code = fullCode
         });
 
         using var request = new HttpRequestMessage(HttpMethod.Post, url);
@@ -95,20 +92,19 @@ Public (no auth): https://prices.azure.com/api/retail/prices?$filter=... — ret
         try
         {
             var json = JsonSerializer.Deserialize<JsonElement>(body);
-            var props = json.GetProperty("properties");
 
-            var stdout = props.TryGetProperty("stdout", out var so) ? so.GetString() : null;
-            var stderr = props.TryGetProperty("stderr", out var se) ? se.GetString() : null;
-            var result = props.TryGetProperty("result", out var re) ? re.ToString() : null;
-            var status = props.TryGetProperty("status", out var st) ? st.GetString() : null;
+            var stdout = json.TryGetProperty("result", out var res) && res.TryGetProperty("stdout", out var so) ? so.GetString() : null;
+            var stderr = res.TryGetProperty("stderr", out var se) ? se.GetString() : null;
+            var execResult = res.TryGetProperty("executionResult", out var re) ? re.GetString() : null;
+            var status = json.TryGetProperty("status", out var st) ? st.GetString() : null;
 
             var output = new StringBuilder();
             if (!string.IsNullOrEmpty(stdout))
                 output.AppendLine($"=== STDOUT ===\n{Truncate(stdout)}");
             if (!string.IsNullOrEmpty(stderr))
                 output.AppendLine($"=== STDERR ===\n{Truncate(stderr)}");
-            if (!string.IsNullOrEmpty(result) && result != "null")
-                output.AppendLine($"=== RESULT ===\n{Truncate(result)}");
+            if (!string.IsNullOrEmpty(execResult))
+                output.AppendLine($"=== RESULT ===\n{Truncate(execResult)}");
             if (output.Length == 0)
                 output.AppendLine("(no output)");
 
