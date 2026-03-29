@@ -672,6 +672,38 @@ const inputEl = ref(null);
 const chartInstances = [];
 let intentAnimTimer = null;
 
+// Smooth text reveal — drains pending chars fast enough to never lag behind the LLM
+let pendingText = "";
+let textAnimFrame = null;
+
+function enqueueText(text) {
+  pendingText += text;
+  if (!textAnimFrame) drainText();
+}
+
+function drainText() {
+  if (pendingText.length === 0) {
+    textAnimFrame = null;
+    return;
+  }
+  // Reveal ~10 chars per frame (60fps = ~600 chars/sec — faster than any LLM)
+  const batch = Math.min(10, pendingText.length);
+  streamBuffer.value += pendingText.slice(0, batch);
+  pendingText = pendingText.slice(batch);
+  textAnimFrame = requestAnimationFrame(drainText);
+}
+
+function flushText() {
+  if (textAnimFrame) {
+    cancelAnimationFrame(textAnimFrame);
+    textAnimFrame = null;
+  }
+  if (pendingText.length > 0) {
+    streamBuffer.value += pendingText;
+    pendingText = "";
+  }
+}
+
 const hoveredTool = ref(null);
 const collapsedSections = reactive({
   subs: true,
@@ -2091,6 +2123,7 @@ async function send() {
   abortController = new AbortController();
   const toolCalls = [];
   let hasDeltas = false;
+
   try {
     const res = await fetch("/api/chat", {
       method: "POST",
@@ -2101,140 +2134,140 @@ async function send() {
 
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
-    let buffer = "";
+    let buf = "";
 
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
 
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split("\n");
-      buffer = lines.pop() || "";
+      buf += decoder.decode(value, { stream: true });
+      const lines = buf.split("\n");
+      buf = lines.pop() || "";
 
       for (const line of lines) {
         if (!line.startsWith("data: ")) continue;
-        const payload = line.slice(6);
-        if (payload === "[DONE]") break;
+        const raw = line.slice(6);
+        if (raw === "[DONE]") break;
 
+        let data;
         try {
-          const data = JSON.parse(payload);
-          switch (data.type) {
-            case "delta":
-              if (intentAnimTimer) {
-                clearInterval(intentAnimTimer);
-                intentAnimTimer = null;
-              }
-              streamIntent.value = "";
-              streamBuffer.value += data.content;
-              hasDeltas = true;
-              break;
-            case "message":
-              // The SDK sends a complete message after streaming deltas.
-              // Only use it if no deltas were received (e.g. non-streamed
-              // response after tool calls), otherwise it duplicates content.
-              if (data.content && !hasDeltas) {
-                streamBuffer.value += data.content;
-              }
-              break;
-            case "tool_start": {
-              activeTools.value.push(data.tool);
-              const tc = {
-                id: data.id,
-                tool: data.tool,
-                args: data.args || null,
-                result: null,
-                error: null,
-                success: null,
-                durationMs: null,
-                done: false,
-                expanded: false,
-              };
-              toolCalls.push(tc);
-              streamToolCalls.value = [...toolCalls];
-              // Show intent text next to AI avatar (NOT in streamBuffer)
-              if (data.tool === "report_intent" && data.args) {
-                try {
-                  const parsed =
-                    typeof data.args === "string"
-                      ? JSON.parse(data.args)
-                      : data.args;
-                  const intentText = parsed.intent;
-                  if (intentText) {
-                    clearInterval(intentAnimTimer);
-                    streamIntent.value = "";
-                    let i = 0;
-                    intentAnimTimer = setInterval(() => {
-                      if (i < intentText.length) {
-                        streamIntent.value = intentText.slice(0, i + 1) + "…";
-                        i++;
-                      } else {
-                        streamIntent.value = intentText + "…";
-                        clearInterval(intentAnimTimer);
-                        intentAnimTimer = null;
-                      }
-                    }, 25);
-                  }
-                } catch {}
-              }
-              break;
+          data = JSON.parse(raw);
+        } catch {
+          continue;
+        }
+
+        switch (data.type) {
+          case "delta":
+            clearInterval(intentAnimTimer);
+            intentAnimTimer = null;
+            streamIntent.value = "";
+            enqueueText(data.content);
+            hasDeltas = true;
+            break;
+
+          case "message":
+            if (data.content && !hasDeltas) enqueueText(data.content);
+            break;
+
+          case "tool_start":
+            activeTools.value = [...activeTools.value, data.tool];
+            toolCalls.push({
+              id: data.id,
+              tool: data.tool,
+              args: data.args || null,
+              result: null,
+              error: null,
+              success: null,
+              durationMs: null,
+              done: false,
+              expanded: false,
+            });
+            streamToolCalls.value = [...toolCalls];
+            if (data.tool === "report_intent" && data.args) {
+              try {
+                const parsed =
+                  typeof data.args === "string"
+                    ? JSON.parse(data.args)
+                    : data.args;
+                if (parsed.intent) {
+                  clearInterval(intentAnimTimer);
+                  streamIntent.value = "";
+                  let i = 0;
+                  const txt = parsed.intent;
+                  intentAnimTimer = setInterval(() => {
+                    i++;
+                    streamIntent.value =
+                      i >= txt.length ? txt + "…" : txt.slice(0, i) + "…";
+                    if (i >= txt.length) {
+                      clearInterval(intentAnimTimer);
+                      intentAnimTimer = null;
+                    }
+                  }, 25);
+                }
+              } catch {}
             }
-            case "tool_done": {
-              activeTools.value = activeTools.value.filter(
-                (t) => t !== data.tool,
-              );
-              const existing = toolCalls.find((t) => t.id === data.id);
-              if (existing) {
-                existing.done = true;
-                existing.success = data.success;
-                existing.durationMs = data.durationMs;
-                existing.result = data.result || null;
-                existing.error = data.error || null;
+            break;
+
+          case "tool_done":
+            activeTools.value = activeTools.value.filter(
+              (t) => t !== data.tool,
+            );
+            {
+              const tc = toolCalls.find((t) => t.id === data.id);
+              if (tc) {
+                tc.done = true;
+                tc.success = data.success;
+                tc.durationMs = data.durationMs;
+                tc.result = data.result || null;
+                tc.error = data.error || null;
               }
-              streamToolCalls.value = [...toolCalls];
-              // Detect SuggestFollowUp tool result
-              if (
-                data.tool === "SuggestFollowUp" &&
-                data.success &&
-                data.result
-              ) {
-                try {
-                  const fu = JSON.parse(data.result);
-                  if (fu.label && fu.prompt) streamFollowUp.value = fu;
-                } catch {}
-              }
-              break;
             }
-            case "chart": {
-              streamCharts.value = [...streamCharts.value, data.options];
-              scrollToBottom();
-              break;
+            streamToolCalls.value = [...toolCalls];
+            if (
+              data.tool === "SuggestFollowUp" &&
+              data.success &&
+              data.result
+            ) {
+              try {
+                const fu = JSON.parse(data.result);
+                if (fu.label && fu.prompt) streamFollowUp.value = fu;
+              } catch {}
             }
-            case "pptx_ready": {
-              pptxReady.value = {
-                fileId: data.fileId,
-                fileName: data.fileName,
-                slideCount: data.slideCount,
-              };
-              scrollToBottom();
-              break;
-            }
-            case "error":
-              streamBuffer.value += `\n**Error:** ${data.message}`;
-              break;
-          }
-        } catch {}
+            break;
+
+          case "chart":
+            streamCharts.value = [...streamCharts.value, data.options];
+            scrollToBottom();
+            break;
+
+          case "pptx_ready":
+            pptxReady.value = {
+              fileId: data.fileId,
+              fileName: data.fileName,
+              slideCount: data.slideCount,
+            };
+            scrollToBottom();
+            break;
+
+          case "error":
+            streamBuffer.value += `\n**Error:** ${data.message}`;
+            break;
+        }
       }
     }
 
-    // Strip LLM-generated thinking/progress lines (italic text ending with ...)
-    const cleanContent = streamBuffer.value
+    // Flush any remaining animated text before saving
+    flushText();
+
+    // Clean up final message: strip thinking lines, fix missing spaces after periods
+    const clean = streamBuffer.value
       .replace(/\n*\*[A-Z][^*]{3,60}\.{3}\*\n*/g, "\n")
+      .replace(/\.([A-Z])/g, ".\n\n$1")
       .replace(/^\n+/, "")
       .trim();
-
     const msgObj = {
       role: "assistant",
-      content: cleanContent,
+      content: clean,
       toolCalls: toolCalls.map((tc) => ({ ...tc, expanded: false })),
       charts: [...streamCharts.value],
       followUp: streamFollowUp.value ? { ...streamFollowUp.value } : null,
@@ -2264,6 +2297,7 @@ async function send() {
   } finally {
     clearInterval(intentAnimTimer);
     intentAnimTimer = null;
+    flushText();
     streaming.value = false;
     streamBuffer.value = "";
     activeTools.value = [];
