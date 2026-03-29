@@ -1183,6 +1183,7 @@ app.MapGet("/faq/{slug}", (string slug) =>
     Func<string?, string> e = System.Net.WebUtility.HtmlEncode!;
     var desc = answer.Length > 155 ? answer[..155] + "..." : answer;
     var faqUrl = $"https://azure-finops-agent.com/faq/{slug}";
+    var isoDate = date + "T00:00:00+00:00";
     var jsonLd = JsonSerializer.Serialize(new Dictionary<string, object>
     {
         ["@context"] = "https://schema.org",
@@ -1193,25 +1194,27 @@ app.MapGet("/faq/{slug}", (string slug) =>
             ["name"] = question,
             ["text"] = question,
             ["answerCount"] = 1,
-            ["dateCreated"] = date,
-            ["datePublished"] = date,
+            ["dateCreated"] = isoDate,
+            ["datePublished"] = isoDate,
             ["author"] = new Dictionary<string, object>
             {
                 ["@type"] = "Organization",
-                ["name"] = "Azure FinOps Agent"
+                ["name"] = "Azure FinOps Agent",
+                ["url"] = "https://azure-finops-agent.com"
             },
             ["acceptedAnswer"] = new Dictionary<string, object>
             {
                 ["@type"] = "Answer",
                 ["text"] = answer,
-                ["dateCreated"] = date,
-                ["datePublished"] = date,
+                ["dateCreated"] = isoDate,
+                ["datePublished"] = isoDate,
                 ["upvoteCount"] = 1,
                 ["url"] = faqUrl,
                 ["author"] = new Dictionary<string, object>
                 {
                     ["@type"] = "Organization",
-                    ["name"] = "Azure FinOps Agent"
+                    ["name"] = "Azure FinOps Agent",
+                    ["url"] = "https://azure-finops-agent.com"
                 }
             }
         }
