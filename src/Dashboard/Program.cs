@@ -688,6 +688,7 @@ You are the Azure FinOps Agent — a data-driven AI assistant for Azure cloud co
 - Always wait for QueryAzure/QueryGraph/QueryLogAnalytics results before rendering charts — never render charts with empty data.
 - For retail pricing, use the built-in fetch tool with https://prices.azure.com (no auth required).
 - Call multiple tools in parallel when they are independent (e.g. QueryAzure + QueryGraph simultaneously).
+- After answering a public FinOps question (pricing, cost optimization, best practices), call PublishFAQ to save it as an SEO page. Do NOT publish tenant-specific or private data.
 ";
 
 // ── Shared (stateless) AI tools — safe to share across all users ──
@@ -697,6 +698,7 @@ sharedTools.AddRange(ChartTools.Create(chartLogger));
 sharedTools.AddRange(HealthTools.Create());
 sharedTools.AddRange(PresentationTools.Create());
 sharedTools.AddRange(FollowUpTools.Create());
+sharedTools.AddRange(FaqTools.Create());
 
 // Per-user token holders and tool lists — tools capture the UserTokens instance
 // via closure, so they always read the latest tokens regardless of thread.
@@ -1163,30 +1165,42 @@ var faqPages = new Dictionary<string, (string Title, string Question, string Ans
 
 app.MapGet("/faq/{slug}", (string slug) =>
 {
-    if (!faqPages.TryGetValue(slug, out var page))
+    // Try static FAQ first, then dynamic
+    string title, question, answer, prompt, date;
+    if (faqPages.TryGetValue(slug, out var page))
+    {
+        title = page.Title; question = page.Question; answer = page.Answer; prompt = page.Prompt; date = "2026-03-29";
+    }
+    else if (FaqTools.TryGet(slug, out var dynamic))
+    {
+        title = dynamic.Title; question = dynamic.Question; answer = dynamic.Answer; prompt = question; date = dynamic.CreatedUtc;
+    }
+    else
+    {
         return Results.NotFound("FAQ page not found") as IResult;
+    }
 
     Func<string?, string> e = System.Net.WebUtility.HtmlEncode!;
-    var desc = page.Answer.Length > 155 ? page.Answer[..155] + "..." : page.Answer;
+    var desc = answer.Length > 155 ? answer[..155] + "..." : answer;
     var html = "<!DOCTYPE html><html lang=\"en\"><head>"
         + "<meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1.0\">"
-        + "<title>" + e(page.Title) + "</title>"
+        + "<title>" + e(title) + "</title>"
         + "<meta name=\"description\" content=\"" + e(desc) + "\">"
         + "<meta name=\"robots\" content=\"index, follow\">"
         + "<link rel=\"canonical\" href=\"https://azure-finops-agent.com/faq/" + slug + "\">"
         + "<meta property=\"og:type\" content=\"article\">"
-        + "<meta property=\"og:title\" content=\"" + e(page.Title) + "\">"
+        + "<meta property=\"og:title\" content=\"" + e(title) + "\">"
         + "<meta property=\"og:url\" content=\"https://azure-finops-agent.com/faq/" + slug + "\">"
         + "<script type=\"application/ld+json\">"
-        + "{\"@context\":\"https://schema.org\",\"@type\":\"QAPage\",\"mainEntity\":{\"@type\":\"Question\",\"name\":\"" + page.Question.Replace("\"", "\\\"") + "\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"" + page.Answer.Replace("\"", "\\\"") + "\"}}}"
+        + "{\"@context\":\"https://schema.org\",\"@type\":\"QAPage\",\"mainEntity\":{\"@type\":\"Question\",\"name\":\"" + question.Replace("\"", "\\\"") + "\",\"text\":\"" + question.Replace("\"", "\\\"") + "\",\"answerCount\":1,\"dateCreated\":\"" + date + "\",\"author\":{\"@type\":\"Organization\",\"name\":\"Azure FinOps Agent\"},\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"" + answer.Replace("\"", "\\\"") + "\",\"dateCreated\":\"" + date + "\",\"upvoteCount\":1,\"url\":\"https://azure-finops-agent.com/faq/" + slug + "\",\"author\":{\"@type\":\"Organization\",\"name\":\"Azure FinOps Agent\"}}}}"
         + "</script>"
         + "<style>body{font-family:Segoe UI,system-ui,sans-serif;max-width:800px;margin:0 auto;padding:2rem 1rem;color:#1a1a2e;line-height:1.7}h1{font-size:1.6rem;color:#0078d4}h2{font-size:1.2rem;margin-top:2rem}.answer{background:#f0f6ff;border-left:4px solid #0078d4;padding:1rem 1.5rem;border-radius:0 8px 8px 0;margin:1.5rem 0}.cta{display:inline-block;background:#0078d4;color:#fff;padding:0.75rem 1.5rem;border-radius:8px;text-decoration:none;margin-top:1.5rem;font-weight:600}.cta:hover{background:#106ebe}footer{margin-top:3rem;font-size:0.85rem;color:#888}</style>"
         + "</head><body>"
-        + "<h1>" + e(page.Title) + "</h1>"
-        + "<h2>" + e(page.Question) + "</h2>"
-        + "<div class=\"answer\"><p>" + e(page.Answer) + "</p></div>"
+        + "<h1>" + e(title) + "</h1>"
+        + "<h2>" + e(question) + "</h2>"
+        + "<div class=\"answer\"><p>" + e(answer) + "</p></div>"
         + "<p>Want a live, interactive answer with real-time Azure pricing data and charts?</p>"
-        + "<a class=\"cta\" href=\"/?q=" + Uri.EscapeDataString(page.Prompt) + "\">Ask the FinOps Agent</a>"
+        + "<a class=\"cta\" href=\"/?q=" + Uri.EscapeDataString(prompt) + "\">Ask the FinOps Agent</a>"
         + "<footer><p>Azure FinOps Agent &mdash; AI-powered cloud cost optimization. <a href=\"/\">Back to home</a></p>"
         + "<p>Pricing data from <a href=\"https://prices.azure.com\">Azure Retail Prices API</a>. Prices may vary.</p></footer>"
         + "</body></html>";
@@ -1200,6 +1214,10 @@ app.MapGet("/faq", () =>
     Func<string?, string> e = System.Net.WebUtility.HtmlEncode!;
     var listItems = string.Join("", faqPages.Select(kv =>
         "<li><a href=\"/faq/" + kv.Key + "\">" + e(kv.Value.Question) + "</a></li>"));
+    // Append dynamic FAQ entries
+    var dynamicItems = string.Join("", FaqTools.GetAll().Select(kv =>
+        "<li><a href=\"/faq/" + kv.Key + "\">" + e(kv.Value.Question) + "</a> <small style=\"color:#888\">(community)</small></li>"));
+    listItems += dynamicItems;
 
     var html = "<!DOCTYPE html><html lang=\"en\"><head>"
         + "<meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1.0\">"
@@ -1217,6 +1235,23 @@ app.MapGet("/faq", () =>
         + "</body></html>";
 
     return Results.Content(html, "text/html");
+});
+
+// Dynamic sitemap that includes static + community FAQs
+app.MapGet("/sitemap.xml", () =>
+{
+    var today = DateTime.UtcNow.ToString("yyyy-MM-dd");
+    var urls = "<url><loc>https://azure-finops-agent.com/</loc><lastmod>" + today + "</lastmod><changefreq>weekly</changefreq><priority>1.0</priority></url>"
+        + "<url><loc>https://azure-finops-agent.com/faq</loc><lastmod>" + today + "</lastmod><changefreq>weekly</changefreq><priority>0.9</priority></url>";
+
+    foreach (var kv in faqPages)
+        urls += "<url><loc>https://azure-finops-agent.com/faq/" + kv.Key + "</loc><lastmod>" + today + "</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>";
+
+    foreach (var kv in FaqTools.GetAll())
+        urls += "<url><loc>https://azure-finops-agent.com/faq/" + kv.Key + "</loc><lastmod>" + kv.Value.CreatedUtc + "</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>";
+
+    var xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">" + urls + "</urlset>";
+    return Results.Content(xml, "application/xml");
 });
 
 // ──────────────────────────────────────────────
