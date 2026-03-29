@@ -131,6 +131,7 @@ var msClientId = app.Configuration["Microsoft:ClientId"] ?? "";
 var msClientSecret = app.Configuration["Microsoft:ClientSecret"] ?? "";
 var msTenantId = app.Configuration["Microsoft:TenantId"] ?? "common";
 var msHomeTenantId = app.Configuration["Microsoft:HomeTenantId"] ?? msTenantId;
+var sessionPoolEndpoint = app.Configuration["SessionPool:Endpoint"] ?? "";
 
 // Auto-assign anonymous session user on first request (no login required for chat)
 app.Use(async (ctx, next) =>
@@ -679,7 +680,7 @@ List<AIFunction> GetOrCreateUserTools(long userId)
     {
         var tokens = userTokens.GetOrAdd(uid, _ => new UserTokens());
         var tools = new List<AIFunction>(sharedTools);
-        tools.AddRange(new CodeExecutionTools(tokens).Create());
+        tools.AddRange(new CodeExecutionTools(tokens, sessionPoolEndpoint, uid).Create());
         tools.AddRange(new AzureQueryTools(tokens).Create());
         tools.AddRange(new GraphQueryTools(tokens).Create());
         tools.AddRange(new LogAnalyticsQueryTools(tokens).Create());
