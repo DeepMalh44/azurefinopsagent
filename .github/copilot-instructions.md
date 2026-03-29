@@ -2,6 +2,13 @@
 
 ## Project Purpose
 
+Read all docs here:
+https://learn.microsoft.com/en-us/agent-framework/agents/tools/?pivots=programming-language-csharp
+
+https://learn.microsoft.com/en-us/agent-framework/agents/conversations/?pivots=programming-language-csharp
+
+https://learn.microsoft.com/en-us/agent-framework/agents/middleware/?pivots=programming-language-csharp
+
 Azure FinOps Agent is an AI-powered agentic solution for FinOps and InfraOps on Azure. It serves as a reference architecture and delivery accelerator (VBD) for Microsoft Customer Success teams to help Azure customers optimize cloud costs.
 
 The agent acts as a frontend on top of Microsoft IQ and Microsoft Graph APIs to:

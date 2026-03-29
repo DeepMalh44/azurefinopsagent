@@ -130,6 +130,7 @@ app.UseStaticFiles();
 var msClientId = app.Configuration["Microsoft:ClientId"] ?? "";
 var msClientSecret = app.Configuration["Microsoft:ClientSecret"] ?? "";
 var msTenantId = app.Configuration["Microsoft:TenantId"] ?? "common";
+var msHomeTenantId = app.Configuration["Microsoft:HomeTenantId"] ?? msTenantId;
 
 // Auto-assign anonymous session user on first request (no login required for chat)
 app.Use(async (ctx, next) =>
@@ -157,7 +158,7 @@ var azureOpenAIDeployment = app.Configuration["AzureOpenAI:DeploymentName"] ?? "
 #pragma warning disable OPENAI001
 var azureOpenAIChatClient = new AzureOpenAIClient(
     new Uri(azureOpenAIEndpoint),
-    new ClientSecretCredential(msTenantId, msClientId, msClientSecret))
+    new ClientSecretCredential(msHomeTenantId, msClientId, msClientSecret))
     .GetChatClient(azureOpenAIDeployment);
 #pragma warning restore OPENAI001
 logger.LogInformation("Azure OpenAI client created: endpoint={Endpoint} deployment={Deployment}", azureOpenAIEndpoint, azureOpenAIDeployment);
