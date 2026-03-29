@@ -11,7 +11,7 @@ namespace AzureFinOps.Dashboard.Tools;
 /// </summary>
 public class CodeExecutionTools
 {
-    private const int TimeoutSeconds = 30;
+    private const int TimeoutSeconds = 120;
     private const int MaxOutputChars = 50_000;
 
     private static readonly HashSet<string> AllowedLanguages = new(StringComparer.OrdinalIgnoreCase)
@@ -25,7 +25,7 @@ public class CodeExecutionTools
 
     public IEnumerable<AIFunction> Create()
     {
-        yield return AIFunctionFactory.Create(RunScript, "RunScript", @"Executes a script and returns stdout + stderr. 30s timeout, 50KB output limit.
+        yield return AIFunctionFactory.Create(RunScript, "RunScript", @"Executes a script and returns stdout + stderr. 120s timeout, 50KB output limit.
 Languages: python (requests, pandas, numpy, openpyxl, tabulate, python-dateutil available), bash (curl, jq, sqlite3, awk, sed, grep available), sqlite (in-memory).
 Use for data processing, calculations, and complex API workflows. Prefer QueryAzure tool for simple Azure API calls.
 Env vars available: AZURE_TOKEN (Azure ARM bearer), GRAPH_TOKEN (Microsoft Graph), LOG_ANALYTICS_TOKEN (Log Analytics / App Insights query APIs).
