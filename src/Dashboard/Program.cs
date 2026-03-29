@@ -1182,18 +1182,50 @@ app.MapGet("/faq/{slug}", (string slug) =>
 
     Func<string?, string> e = System.Net.WebUtility.HtmlEncode!;
     var desc = answer.Length > 155 ? answer[..155] + "..." : answer;
+    var faqUrl = $"https://azure-finops-agent.com/faq/{slug}";
+    var jsonLd = JsonSerializer.Serialize(new Dictionary<string, object>
+    {
+        ["@context"] = "https://schema.org",
+        ["@type"] = "QAPage",
+        ["mainEntity"] = new Dictionary<string, object>
+        {
+            ["@type"] = "Question",
+            ["name"] = question,
+            ["text"] = question,
+            ["answerCount"] = 1,
+            ["dateCreated"] = date,
+            ["datePublished"] = date,
+            ["author"] = new Dictionary<string, object>
+            {
+                ["@type"] = "Organization",
+                ["name"] = "Azure FinOps Agent"
+            },
+            ["acceptedAnswer"] = new Dictionary<string, object>
+            {
+                ["@type"] = "Answer",
+                ["text"] = answer,
+                ["dateCreated"] = date,
+                ["datePublished"] = date,
+                ["upvoteCount"] = 1,
+                ["url"] = faqUrl,
+                ["author"] = new Dictionary<string, object>
+                {
+                    ["@type"] = "Organization",
+                    ["name"] = "Azure FinOps Agent"
+                }
+            }
+        }
+    });
     var html = "<!DOCTYPE html><html lang=\"en\"><head>"
         + "<meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1.0\">"
         + "<title>" + e(title) + "</title>"
         + "<meta name=\"description\" content=\"" + e(desc) + "\">"
         + "<meta name=\"robots\" content=\"index, follow\">"
-        + "<link rel=\"canonical\" href=\"https://azure-finops-agent.com/faq/" + slug + "\">"
+        + "<link rel=\"canonical\" href=\"" + faqUrl + "\">"
         + "<meta property=\"og:type\" content=\"article\">"
         + "<meta property=\"og:title\" content=\"" + e(title) + "\">"
-        + "<meta property=\"og:url\" content=\"https://azure-finops-agent.com/faq/" + slug + "\">"
-        + "<script type=\"application/ld+json\">"
-        + "{\"@context\":\"https://schema.org\",\"@type\":\"QAPage\",\"mainEntity\":{\"@type\":\"Question\",\"name\":\"" + question.Replace("\"", "\\\"") + "\",\"text\":\"" + question.Replace("\"", "\\\"") + "\",\"answerCount\":1,\"dateCreated\":\"" + date + "\",\"author\":{\"@type\":\"Organization\",\"name\":\"Azure FinOps Agent\"},\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"" + answer.Replace("\"", "\\\"") + "\",\"dateCreated\":\"" + date + "\",\"upvoteCount\":1,\"url\":\"https://azure-finops-agent.com/faq/" + slug + "\",\"author\":{\"@type\":\"Organization\",\"name\":\"Azure FinOps Agent\"}}}}"
-        + "</script>"
+        + "<meta property=\"og:url\" content=\"" + faqUrl + "\">"
+        + "<script type=\"application/ld+json\">" + jsonLd + "</script>"
         + "<style>body{font-family:Segoe UI,system-ui,sans-serif;max-width:800px;margin:0 auto;padding:2rem 1rem;color:#1a1a2e;line-height:1.7}h1{font-size:1.6rem;color:#0078d4}h2{font-size:1.2rem;margin-top:2rem}.answer{background:#f0f6ff;border-left:4px solid #0078d4;padding:1rem 1.5rem;border-radius:0 8px 8px 0;margin:1.5rem 0}.cta{display:inline-block;background:#0078d4;color:#fff;padding:0.75rem 1.5rem;border-radius:8px;text-decoration:none;margin-top:1.5rem;font-weight:600}.cta:hover{background:#106ebe}footer{margin-top:3rem;font-size:0.85rem;color:#888}</style>"
         + "</head><body>"
         + "<h1>" + e(title) + "</h1>"
@@ -1205,7 +1237,7 @@ app.MapGet("/faq/{slug}", (string slug) =>
         + "<p>Pricing data from <a href=\"https://prices.azure.com\">Azure Retail Prices API</a>. Prices may vary.</p></footer>"
         + "</body></html>";
 
-    return Results.Content(html, "text/html");
+    return Results.Content(html, "text/html; charset=utf-8");
 });
 
 // FAQ index page
