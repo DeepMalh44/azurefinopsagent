@@ -1,5 +1,5 @@
 ---
-mode: agent
+agent: agent
 description: "Build and run the Azure FinOps Agent locally for debugging"
 ---
 

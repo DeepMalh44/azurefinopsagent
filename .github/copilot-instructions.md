@@ -3,11 +3,11 @@
 ## Project Purpose
 
 Read all docs here:
-https://learn.microsoft.com/en-us/agent-framework/agents/tools/?pivots=programming-language-csharp
+https://github.com/github/copilot-sdk/blob/main/docs/getting-started.md
 
-https://learn.microsoft.com/en-us/agent-framework/agents/conversations/?pivots=programming-language-csharp
+https://github.com/github/copilot-sdk/blob/main/docs/setup/azure-managed-identity.md
 
-https://learn.microsoft.com/en-us/agent-framework/agents/middleware/?pivots=programming-language-csharp
+https://github.com/github/copilot-sdk/blob/main/dotnet/README.md
 
 Azure FinOps Agent is an AI-powered agentic solution for FinOps and InfraOps on Azure. It serves as a reference architecture and delivery accelerator (VBD) for Microsoft Customer Success teams to help Azure customers optimize cloud costs.
 
@@ -21,7 +21,7 @@ The agent acts as a frontend on top of Microsoft IQ and Microsoft Graph APIs to:
 
 - **Backend**: .NET 10 minimal API (`src/Dashboard/`)
 - **Frontend**: Vue 3 + Vite SPA (`src/Dashboard/client/`) with ECharts for data visualization
-- **AI**: Microsoft Agent Framework (MAF) via `Microsoft.Agents.AI.OpenAI` + Azure OpenAI (`Azure.AI.OpenAI`) — sessions managed via `AIAgent` / `AgentSession`. Reasoning effort set to `Low` via `ConfigureOptions`. Parallel tool execution enabled via `UseFunctionInvocation(AllowConcurrentInvocation = true)`. Model deployment configurable in `appsettings.json` under `AzureOpenAI:DeploymentName`.
+- **AI**: GitHub Copilot SDK (`GitHub.Copilot.SDK`) with BYOK (Bring Your Own Key) using Azure OpenAI via Entra ID bearer tokens. Sessions managed via `CopilotClient` / `CopilotSession`. Reasoning effort set to `xhigh`. The Copilot CLI provides built-in tools (file operations, bash, grep, glob, web fetch, memory) — custom tools handle Azure-specific APIs.
 - **Auth**: Auto-assigned anonymous sessions (no login required for chat); Microsoft Entra ID OAuth (multi-tenant) for Azure ARM, Microsoft Graph, and Log Analytics APIs
 - **Data Sources**: Azure Retail Prices API (no auth), Azure Service Health (no auth), Azure Cost Management APIs, Microsoft Graph APIs, Azure Monitor / Log Analytics APIs, ECharts visualization
 - **Observability**: OpenTelemetry + Azure Monitor (Application Insights) — structured traces via `ActivitySource("AzureFinOps.AI")` and custom metrics via `Meter("AzureFinOps.AI")` (chat requests, tool calls, errors, token refreshes, session lifecycle, duration histograms). Frontend telemetry in `client/src/main.js` captures page views, failed browser dependencies, uncaught JS errors, unhandled promise rejections, Vue component errors, and CSP violations. Third-party correlation headers are excluded for `cdn.jsdelivr.net` and `js.monitor.azure.com` so browser telemetry does not break public fetches.
@@ -36,21 +36,16 @@ The agent acts as a frontend on top of Microsoft IQ and Microsoft Graph APIs to:
 ```
 src/Dashboard/
 ├── Program.cs              # .NET backend: auth (Microsoft Entra ID), SSE chat endpoint, models, version
-├── Dashboard.csproj        # .NET 10 project, Microsoft.Agents.AI.OpenAI + Azure.AI.OpenAI + Microsoft.Extensions.AI
+├── Dashboard.csproj        # .NET 10 project, GitHub.Copilot.SDK + Azure.Identity + Microsoft.Extensions.AI
 ├── Tools/
 │   ├── AzureQueryTools.cs  # QueryAzure — calls any Azure ARM REST API using user's delegated token
 │   ├── ChartTools.cs       # RenderChart + RenderAdvancedChart — ECharts visualization (bar, line, pie, scatter, funnel, world maps, heatmaps, treemaps, radar, gauge)
-│   ├── CodeExecutionTools.cs # RunScript — executes Python 3, bash, or SQLite scripts (⚠️ unsandboxed); passes Azure/Graph/LA tokens via env vars
+│   ├── FaqTools.cs         # PublishFAQ — dynamically publishes useful Q&As as SEO pages, pings IndexNow
+│   ├── FollowUpTools.cs    # SuggestFollowUp — suggests clickable follow-up actions in the UI
 │   ├── GraphQueryTools.cs  # QueryGraph — calls Microsoft Graph API using user's delegated token
 │   ├── HealthTools.cs      # GetAzureServiceHealth — Azure Status RSS feed (no auth required)
 │   ├── LogAnalyticsQueryTools.cs # QueryLogAnalytics — runs KQL queries against Log Analytics workspaces or App Insights
-│   ├── PricingTools.cs     # FetchUrl — minimal HTTP GET for allowed Azure API URLs (SSRF-protected)
 │   ├── PresentationTools.cs # GeneratePresentation — generates FinOps PowerPoint (.pptx) using python-pptx + matplotlib
-│   ├── FileSystemTools.cs  # ReadFile, WriteFile, EditFile, ListDirectory — file operations in agent workspace
-│   ├── SearchTools.cs      # Grep, Glob — search file contents and find files by pattern
-│   ├── WebFetchTools.cs    # FetchWebPage — fetch and extract text from public HTTPS URLs
-│   ├── MemoryTools.cs      # StoreMemory, RecallMemory, ListMemories, DeleteMemory — persistent per-user memory
-│   ├── LargeResultHelper.cs # Truncates large tool results to 300 chars, saves full data to disk for ReadFile access
 │   └── TokenContext.cs     # UserTokens — per-user mutable token holder with volatile fields for concurrent access
 ├── Dockerfile              # Multi-stage Docker build (node:22 + dotnet/sdk:10.0 + dotnet/aspnet:10.0 + Python 3)
 ├── .dockerignore           # Excludes bin/, obj/, node_modules/, wwwroot/ from Docker context
@@ -77,15 +72,15 @@ src/Dashboard/
 ## Architecture Principles
 
 - The solution follows an **agentic architecture** where the AI agent orchestrates calls to multiple data sources and tools to answer user questions.
-- Microsoft Agent Framework (MAF) manages the AI session lifecycle — one `AIAgent` per user with per-user tools, `AgentSession` reused across messages for conversation history.
-- Tools are registered as `AIFunction` instances and passed to `AIAgent` via `AsAIAgent(tools:)`. Shared (stateless) tools are created once; per-user tools (requiring tokens) are created per user via closure over `UserTokens`.
-- The `IChatClient` pipeline is wrapped with `ConfigureOptions` to set reasoning effort to `Low` and `UseFunctionInvocation` to enable concurrent tool invocation, before being passed to `AsAIAgent`.
-- The backend streams responses via **Server-Sent Events (SSE)** — deltas, tool starts/completions, chart events, errors.
-- The Vue frontend consumes SSE and renders streaming text, tool call status in the sidebar, and ECharts visualizations inline.
-- Data should be retrieved from APIs at runtime — the agent does not store data persistently.
-- **Session management**: `/api/chat/reset` removes the MAF `AgentSession` and clears persistent `MemoryTools` data. The next `/api/chat` creates a fresh session via `agent.CreateSessionAsync()`.
-- **Tool result truncation**: `LargeResultHelper` truncates API tool results (FetchUrl, QueryAzure, QueryGraph, QueryLogAnalytics, FetchWebPage) to 300 chars and saves full data to disk. The LLM uses `ReadFile` to access full data when needed. `RunScript` output is NOT truncated.
-- **Exception handling**: Tools do NOT use try/catch internally. Unhandled exceptions are caught by MAF's `FunctionInvokingChatClient`, which returns them as `FunctionResultContent` error results to the LLM. `UseAzureMonitor()` auto-instruments all `HttpClient` calls (URLs, status codes, durations, exceptions) as dependency telemetry in App Insights. The outer catch in the `/api/chat` endpoint logs via `LogError` and increments `chatErrorCounter` for anything that escapes MAF.
+- GitHub Copilot SDK manages the AI session lifecycle — a shared `CopilotClient` spawns the CLI process, per-user `CopilotSession` instances maintain conversation history.
+- The Copilot SDK provides built-in tools (file operations, bash, grep, glob, web fetch, memory) — custom tools handle Azure-specific APIs and unique UI features.
+- Custom tools are registered as `AIFunction` instances via `AIFunctionFactory.Create` and passed to `CopilotSession` via `SessionConfig.Tools`. Shared (stateless) tools are created once; per-user tools (requiring tokens) are created per user via closure over `UserTokens`.
+- BYOK authentication: `ClientSecretCredential` generates bearer tokens for `https://cognitiveservices.azure.com/.default`, passed to the Copilot SDK via `ProviderConfig.BearerToken`. Tokens are cached and auto-refreshed before expiry.
+- The backend streams responses via **Server-Sent Events (SSE)** using session event subscriptions (`session.On()`) — deltas, tool starts/completions, chart events, errors.
+- The Vue frontend consumes SSE and renders streaming text (character-by-character animation), tool call status in the sidebar, intent text next to the AI avatar, and ECharts visualizations inline.
+- Data should be retrieved from APIs at runtime — the agent stores dynamic FAQ entries to disk for SEO but no user data.
+- **Session management**: `/api/chat/reset` disposes the `CopilotSession`. The next `/api/chat` creates a fresh session via `copilotClient.CreateSessionAsync()`.
+- **Exception handling**: Tools do NOT use try/catch internally. The Copilot CLI handles tool errors and returns them to the LLM. `UseAzureMonitor()` auto-instruments all `HttpClient` calls as dependency telemetry in App Insights.
 - The solution is designed for **customer deployment** — customers deploy it in their own Azure subscription.
 
 ## Tool Development Patterns (Critical Learnings)
@@ -107,7 +102,7 @@ When creating tools for the agent:
   }
   ```
 - **ChartTools** (`RenderChart` / `RenderAdvancedChart`) returns a serialized JSON object with chart config — the frontend detects `tool_done` for `RenderChart` or `RenderAdvancedChart` and emits a separate `chart` SSE event. `RenderAdvancedChart` accepts raw ECharts option JSON for world maps, heatmaps, treemaps, radar, gauge, etc.
-- **CodeExecutionTools** (`RunScript`) executes Python 3, bash, or SQLite scripts on the App Service. In the Docker container deployment, all runtimes and pip packages are baked into the image (no `startup.sh` needed). For legacy zip deployment, runtimes are installed via `startup.sh` at container boot. Azure, Graph, and Log Analytics tokens are passed via per-process environment variables (`AZURE_TOKEN`, `GRAPH_TOKEN`, `LOG_ANALYTICS_TOKEN`) using `ProcessStartInfo.Environment` — not global env vars, to avoid race conditions between concurrent users. **⚠️ This is a temporary, unsandboxed implementation — see Future Improvements below.**
+- **FaqTools** (`PublishFAQ`) dynamically publishes useful public Q&As as SEO-indexable HTML pages at `/faq/{slug}`. Entries are stored in a JSON file on disk and auto-submitted to IndexNow for Bing indexing. The sitemap at `/sitemap.xml` is dynamically generated to include both static and community FAQ entries.
 - **PresentationTools** (`GeneratePresentation`) generates FinOps PowerPoint (.pptx) presentations using python-pptx + matplotlib (Charts are rendered as images via matplotlib and embedded in slides). The LLM passes structured JSON slide data (title, content, chart, two_column, section layouts). Returns a `__PPTX_READY__:{fileId}:{fileName}:{slideCount}` marker. The SSE handler emits a `pptx_ready` event, and the frontend shows a download button. Files are served via `/api/download/pptx/{fileId}` and auto-cleaned after 30 minutes.
 - **AzureQueryTools** (`QueryAzure`) calls any Azure ARM REST API (GET/POST) using the user's delegated token from `UserTokens.AzureToken`. Returns raw JSON for the LLM to interpret. Covers Cost Management (queries, forecasts, cost details report, reservation details report, exports, scheduled actions, views), Budgets, Billing, Consumption (pricesheets, reservation summaries/recommendations/transactions, lots, credits, balances, charges), Reservations, Savings Plans, Advisor, Resource Graph, Monitor, Activity Log, Compute/VMs/VMSS, AKS, Network (ExpressRoute, VPN, public IPs, App Gateways, NAT Gateways), Storage, SQL, SQL Managed Instances, App Service, Azure ML (workspaces, compute instances, GPU clusters, endpoints), Databricks (workspaces, pricing tiers), Cosmos DB (accounts, throughput/RU analysis), Redis Cache, Data Factory, Synapse (SQL pools, Spark pools), Container Apps, Resource Health, Defender for Cloud (security assessments, secure scores), RBAC (role assignments), Locks, Quota, Carbon, Policy/PolicyInsights, Management Groups, Tags, Migrate, and Support. Note: Consumption usageDetails/marketplaces are deprecated — prefer Cost Details API (2025-03-01) or Exports. Consumption reservationDetails is deprecated — prefer generateReservationDetailsReport (Microsoft.CostManagement).
 - **GraphQueryTools** (`QueryGraph`) calls Microsoft Graph API (GET) using `TokenContext.GraphToken`. Used for license inventory, M365 usage reports (Exchange, Teams, OneDrive, SharePoint), M365 Copilot seat usage, M365 app-level usage, Intune device management, directory objects, org structure for FinOps chargebacks.
@@ -242,7 +237,7 @@ The deploy script:
 - Include proper error handling for API calls (rate limiting, authentication failures, etc.) at the **system boundary** (e.g., the `/api/chat` endpoint). Tools themselves should NOT use try/catch — MAF and OpenTelemetry handle exception logging centrally.
 - All Azure resource interactions should use managed identity where possible.
 - Use `.NET 10` APIs — e.g., `KnownIPNetworks` not deprecated `KnownNetworks`.
-- Use `AIAgent` / `AgentSession` from `Microsoft.Agents.AI`.
+- Use `CopilotClient` / `CopilotSession` from `GitHub.Copilot.SDK`.
 
 ## Key Terminology
 
@@ -324,26 +319,10 @@ This file must always be kept up to date so that Copilot has accurate context ab
 
 ## Future Improvements
 
-### 🔴 Migrate RunScript to Azure Container Apps Dynamic Sessions (Security)
+### SEO & Community FAQ Growth
 
-**Current state**: The `RunScript` tool (`CodeExecutionTools.cs`) executes Python/bash/SQLite scripts **directly on the App Service** with no sandboxing. In the Docker container deployment, runtimes and pip packages are baked into the image. This is a **known security risk** — scripts run with the same permissions as the app and have access to environment variables, secrets, filesystem, and network.
-
-**Target state**: Replace `RunScript` with a tool that calls [Azure Container Apps dynamic sessions](https://learn.microsoft.com/azure/container-apps/sessions) — ephemeral, Hyper-V isolated Python sandboxes with:
-
-- No access to App Service secrets, filesystem, or network
-- Per-user session isolation via session identifiers
-- Automatic cleanup after cooldown period
-- Pre-installed Python with pandas, numpy, etc.
-
-**Migration steps**:
-
-1. Create a Container Apps session pool (code interpreter type) in the same resource group
-2. Enable managed identity on the App Service and assign `Azure ContainerApps Session Executor` role
-3. Replace `CodeExecutionTools.cs` to call the session pool REST API instead of `System.Diagnostics.Process`
-4. Remove `startup.sh` (no longer needed — runtimes are in the session pool)
-5. Update `deploy.ps1` to remove the startup command and add session pool provisioning
-
-**Why this matters**: Any prompt injection attack that tricks the LLM into running malicious code currently executes with full App Service permissions. Dynamic sessions eliminate this attack surface entirely.
+- The `PublishFAQ` tool dynamically creates SEO pages from useful public Q&As. Over time, the `/faq` section grows organically as users ask FinOps questions, creating a knowledge base that drives organic search traffic.
+- Consider adding a moderation layer to review dynamically published FAQs before they go live.
 
 I work for Microsoft, Ali Rexa Farahnak, and I am a Cloud Solution Architect within the AI and Apps domain and I work for Customer Success organization in Microsoft Denmark, I am participating in a cup I want you to help me win, this is the challenge:
 Skip to main content

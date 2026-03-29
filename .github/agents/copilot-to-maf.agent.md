@@ -1,1 +1,1 @@
-Copilot sdk to Microsoft Agent framewrk and purpos
+Copilot SDK BYOK integration with Azure OpenAI via Entra ID bearer tokens

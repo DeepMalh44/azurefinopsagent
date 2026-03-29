@@ -1,5 +1,5 @@
 ---
-mode: agent
+agent: agent
 description: "Deploy Azure FinOps Agent container to Azure App Service via ACR"
 ---
 

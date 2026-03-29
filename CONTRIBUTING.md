@@ -54,7 +54,7 @@ dotnet run --urls "http://localhost:5000"
 ```
 src/Dashboard/
 ├── Program.cs              # Auth, SSE chat, models, version endpoints
-├── Tools/                  # AI agent tools (QueryAzure, QueryGraph, RunScript, etc.)
+├── Tools/                  # AI agent tools (QueryAzure, QueryGraph, RenderChart, etc.)
 ├── client/src/components/  # Vue 3 components (ChatView, Dashboard)
 ├── deploy.ps1              # Azure App Service deployment
 └── startup.sh              # App Service startup — installs Python/tools

@@ -97,21 +97,16 @@ See also the Docker container deployment approach in [copilot-instructions.md](.
 ```
 src/Dashboard/
 ├── Program.cs                 # Auth endpoints, SSE chat, version
-├── Dashboard.csproj           # .NET 10, Microsoft.Agents.AI.OpenAI, Azure.AI.OpenAI
+├── Dashboard.csproj           # .NET 10, GitHub.Copilot.SDK, Azure.Identity
 ├── Tools/
 │   ├── AzureQueryTools.cs     # QueryAzure — any Azure ARM REST API (GET/POST)
 │   ├── ChartTools.cs          # RenderChart + RenderAdvancedChart — ECharts
-│   ├── CodeExecutionTools.cs  # RunScript — Python 3, bash, SQLite
+│   ├── FaqTools.cs            # PublishFAQ — dynamic SEO FAQ pages
+│   ├── FollowUpTools.cs       # SuggestFollowUp — clickable follow-up buttons
 │   ├── GraphQueryTools.cs     # QueryGraph — Microsoft Graph API
 │   ├── HealthTools.cs         # GetAzureServiceHealth — Azure Status RSS
 │   ├── LogAnalyticsQueryTools.cs  # QueryLogAnalytics — KQL queries
-│   ├── PricingTools.cs        # FetchUrl — Azure Retail Prices API (SSRF-protected)
 │   ├── PresentationTools.cs   # GeneratePresentation — FinOps PowerPoint (.pptx)
-│   ├── FileSystemTools.cs     # ReadFile, WriteFile, EditFile, ListDirectory
-│   ├── SearchTools.cs         # Grep, Glob — search files by content/pattern
-│   ├── WebFetchTools.cs       # FetchWebPage — fetch text from public URLs
-│   ├── MemoryTools.cs         # StoreMemory, RecallMemory — persistent per-user memory
-│   ├── LargeResultHelper.cs   # Truncates large tool results to 300 chars, saves full data to disk
 │   └── TokenContext.cs        # Per-user mutable token holder with volatile fields
 ├── client/                    # Vue 3 + Vite SPA
 │   ├── src/components/
