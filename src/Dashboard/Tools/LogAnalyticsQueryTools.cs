@@ -83,7 +83,7 @@ FinOps-relevant tables: Perf — VM CPU/memory/disk; InsightsMetrics — VM/cont
         if (!res.IsSuccessStatusCode)
             activity?.SetStatus(ActivityStatusCode.Error, $"HTTP {(int)res.StatusCode}");
 
-        return LargeResultHelper.Truncate(result, "QueryLogAnalytics");
+        return result;
     }
 
 }

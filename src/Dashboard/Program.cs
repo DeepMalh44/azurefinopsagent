@@ -3,10 +3,9 @@ using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using System.Net.Http.Headers;
 using System.Text.Json;
-using Azure.AI.OpenAI;
 using Azure.Identity;
 using Azure.Monitor.OpenTelemetry.AspNetCore;
-using Microsoft.Agents.AI;
+using GitHub.Copilot.SDK;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.AI;
@@ -131,7 +130,6 @@ var msClientId = app.Configuration["Microsoft:ClientId"] ?? "";
 var msClientSecret = app.Configuration["Microsoft:ClientSecret"] ?? "";
 var msTenantId = app.Configuration["Microsoft:TenantId"] ?? "common";
 var msHomeTenantId = app.Configuration["Microsoft:HomeTenantId"] ?? msTenantId;
-var sessionPoolEndpoint = app.Configuration["SessionPool:Endpoint"] ?? "";
 
 // Auto-assign anonymous session user on first request (no login required for chat)
 app.Use(async (ctx, next) =>
@@ -151,22 +149,52 @@ app.Use(async (ctx, next) =>
     await next();
 });
 
-// Azure OpenAI configuration
+// Azure OpenAI configuration (for BYOK bearer token)
 var azureOpenAIEndpoint = app.Configuration["AzureOpenAI:Endpoint"] ?? "https://finops-agent-ai.openai.azure.com/";
 var azureOpenAIDeployment = app.Configuration["AzureOpenAI:DeploymentName"] ?? "gpt-5.4";
 
-// Azure OpenAI ChatClient (shared singleton — tools are per-user, bound at agent creation)
-#pragma warning disable OPENAI001
-var azureOpenAIChatClient = new AzureOpenAIClient(
-    new Uri(azureOpenAIEndpoint),
-    new ClientSecretCredential(msHomeTenantId, msClientId, msClientSecret))
-    .GetChatClient(azureOpenAIDeployment);
-#pragma warning restore OPENAI001
-logger.LogInformation("Azure OpenAI client created: endpoint={Endpoint} deployment={Deployment}", azureOpenAIEndpoint, azureOpenAIDeployment);
+// Entra ID credential for Azure OpenAI BYOK — generates short-lived bearer tokens
+var azureOpenAICredential = new ClientSecretCredential(msHomeTenantId, msClientId, msClientSecret);
+var cognitiveServicesScope = new Azure.Core.TokenRequestContext(new[] { "https://cognitiveservices.azure.com/.default" });
 
-// Per-user AIAgent + AgentSession caches
-var userAgents = new ConcurrentDictionary<long, AIAgent>();
-var userSessions = new ConcurrentDictionary<long, AgentSession>();
+// Cache the bearer token (refresh when expired — ~1 hour lifetime)
+string? cachedBearerToken = null;
+DateTimeOffset bearerTokenExpiry = DateTimeOffset.MinValue;
+var bearerTokenLock = new SemaphoreSlim(1, 1);
+
+async Task<string> GetAzureOpenAIBearerTokenAsync()
+{
+    if (cachedBearerToken is not null && bearerTokenExpiry > DateTimeOffset.UtcNow.AddMinutes(5))
+        return cachedBearerToken;
+
+    await bearerTokenLock.WaitAsync();
+    try
+    {
+        // Double-check after acquiring lock
+        if (cachedBearerToken is not null && bearerTokenExpiry > DateTimeOffset.UtcNow.AddMinutes(5))
+            return cachedBearerToken;
+
+        var tokenResult = await azureOpenAICredential.GetTokenAsync(cognitiveServicesScope, CancellationToken.None);
+        cachedBearerToken = tokenResult.Token;
+        bearerTokenExpiry = tokenResult.ExpiresOn;
+        logger.LogInformation("Azure OpenAI bearer token refreshed, expires at {Expiry}", bearerTokenExpiry);
+        return cachedBearerToken;
+    }
+    finally
+    {
+        bearerTokenLock.Release();
+    }
+}
+
+logger.LogInformation("Azure OpenAI BYOK configured: endpoint={Endpoint} deployment={Deployment}", azureOpenAIEndpoint, azureOpenAIDeployment);
+
+// Shared CopilotClient — manages the CLI process lifecycle (no GitHub auth needed with BYOK)
+var copilotClient = new CopilotClient();
+await copilotClient.StartAsync();
+logger.LogInformation("CopilotClient started");
+
+// Per-user CopilotSession caches
+var userSessions = new ConcurrentDictionary<long, CopilotSession>();
 var userTokens = new ConcurrentDictionary<long, UserTokens>();
 var userTools = new ConcurrentDictionary<long, List<AIFunction>>();
 
@@ -213,15 +241,18 @@ app.MapGet("/auth/me", (HttpContext ctx) =>
 });
 
 // Reset session (clear conversation + cached state)
-app.MapPost("/auth/logout", (HttpContext ctx) =>
+app.MapPost("/auth/logout", async (HttpContext ctx) =>
 {
     var userJson = ctx.Session.GetString("user");
     if (userJson is not null)
     {
         var u = JsonSerializer.Deserialize<JsonElement>(userJson);
         var uid = u.GetProperty("id").GetInt64();
-        userSessions.TryRemove(uid, out _);
-        userAgents.TryRemove(uid, out _);
+        if (userSessions.TryRemove(uid, out var oldSession))
+        {
+            activeSessionsGauge.Add(-1);
+            try { await oldSession.DisposeAsync(); } catch { }
+        }
         userTokens.TryRemove(uid, out _);
         userTools.TryRemove(uid, out _);
     }
@@ -243,7 +274,7 @@ app.MapGet("/auth/microsoft", (HttpContext ctx) =>
     ctx.Session.SetString("ms_oauth_state", state);
 
     var redirectUri = $"{NormalizeCallbackHost(ctx)}/auth/microsoft/callback";
-    var scope = "openid profile email offline_access https://management.azure.com/user_impersonation https://graph.microsoft.com/User.Read https://graph.microsoft.com/Organization.Read.All https://graph.microsoft.com/Directory.Read.All";
+    var scope = "openid profile email offline_access https://management.azure.com/user_impersonation https://graph.microsoft.com/User.Read https://graph.microsoft.com/Organization.Read.All https://graph.microsoft.com/Directory.Read.All https://api.loganalytics.io/Data.Read";
     var url = $"https://login.microsoftonline.com/{Uri.EscapeDataString(msTenantId)}/oauth2/v2.0/authorize" +
               $"?client_id={Uri.EscapeDataString(msClientId)}" +
               $"&response_type=code" +
@@ -641,34 +672,30 @@ app.MapPost("/auth/azure/disconnect", (HttpContext ctx) =>
 });
 
 // ──────────────────────────────────────────────
-// CHAT SSE ENDPOINT (Azure OpenAI via Microsoft Agent Framework)
+// CHAT SSE ENDPOINT (Copilot SDK with Azure OpenAI BYOK)
 // ──────────────────────────────────────────────
 
 // System prompt for the FinOps Agent
 const string SystemPrompt = @"
-You are the Azure FinOps Agent — a concise, data-driven AI assistant for Azure cost optimization.
+You are the Azure FinOps Agent — a data-driven AI assistant for Azure cloud cost optimization and InfraOps.
 
-## Rules
-- Be concise. Answer directly in 1-3 sentences when possible.
-- Use tables ONLY for structured data. Keep columns minimal.
-- Max ONE chart per response. Only chart when asked or when it clearly adds value.
-- If the user has not connected Azure, tell them to click 'Connect Azure' in the sidebar.
-- FetchUrl, QueryAzure, QueryGraph, QueryLogAnalytics return truncated previews (300 chars). Full data is saved to a file — use ReadFile on the path shown, or use RunScript with Python `requests` to fetch data directly.
-- RunScript returns full output (not truncated). Prefer RunScript for multi-step data processing, chart data prep, and API calls that need full responses.
-- When building visualizations, prefer a single RunScript call that fetches + processes + prints chart-ready JSON, then pass it to RenderAdvancedChart — this avoids multiple round trips.
-- Call multiple tools in parallel when they are independent (e.g. QueryAzure + QueryGraph simultaneously) to reduce latency.
+## Domain Rules
+- Keep answers as short as possible. Lead with a brief 1-2 sentence summary.
+- Do NOT output thinking or progress text like '*Querying...*' or '*Fetching...*' — the UI shows tool progress separately. Only output the final answer.
+- If the user has not connected Azure, tell them to click 'Connect Azure' in the sidebar before querying Azure APIs.
+- For each response, choose EITHER a chart OR a table — never both. Use a chart when the visual pattern matters (trends, comparisons). Use a table when exact numbers matter.
+- Use QueryAzure for Azure ARM APIs, QueryGraph for Microsoft Graph, QueryLogAnalytics for KQL queries — these use the signed-in user's delegated tokens.
+- Always wait for QueryAzure/QueryGraph/QueryLogAnalytics results before rendering charts — never render charts with empty data.
+- For retail pricing, use the built-in fetch tool with https://prices.azure.com (no auth required).
+- Call multiple tools in parallel when they are independent (e.g. QueryAzure + QueryGraph simultaneously).
 ";
 
 // ── Shared (stateless) AI tools — safe to share across all users ──
 var sharedTools = new List<AIFunction>();
 var chartLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("AzureFinOps.AI.Charts");
 sharedTools.AddRange(ChartTools.Create(chartLogger));
-sharedTools.AddRange(PricingTools.Create());
 sharedTools.AddRange(HealthTools.Create());
 sharedTools.AddRange(PresentationTools.Create());
-sharedTools.AddRange(FileSystemTools.Create());
-sharedTools.AddRange(SearchTools.Create());
-sharedTools.AddRange(WebFetchTools.Create());
 sharedTools.AddRange(FollowUpTools.Create());
 
 // Per-user token holders and tool lists — tools capture the UserTokens instance
@@ -680,28 +707,36 @@ List<AIFunction> GetOrCreateUserTools(long userId)
     {
         var tokens = userTokens.GetOrAdd(uid, _ => new UserTokens());
         var tools = new List<AIFunction>(sharedTools);
-        tools.AddRange(new CodeExecutionTools(tokens, sessionPoolEndpoint, uid).Create());
         tools.AddRange(new AzureQueryTools(tokens).Create());
         tools.AddRange(new GraphQueryTools(tokens).Create());
         tools.AddRange(new LogAnalyticsQueryTools(tokens).Create());
-        tools.AddRange(new MemoryTools(uid).Create()); // Per-user memory
         return tools;
     });
 }
 
-// Get or create per-user AIAgent (Chat Completions API — MAF manages history via InMemoryChatHistoryProvider)
-AIAgent GetOrCreateAgent(long userId)
+// Create a Copilot SessionConfig with BYOK provider using a fresh Entra ID bearer token
+async Task<SessionConfig> CreateSessionConfigAsync(long userId)
 {
-    return userAgents.GetOrAdd(userId, uid =>
-        azureOpenAIChatClient.AsIChatClient()
-            .AsBuilder()
-            .ConfigureOptions(opts => opts.Reasoning = new() { Effort = ReasoningEffort.High })
-            .UseFunctionInvocation(null, f => f.AllowConcurrentInvocation = true)
-            .Build()
-            .AsAIAgent(
-                instructions: SystemPrompt,
-                name: "AzureFinOpsAgent",
-                tools: GetOrCreateUserTools(uid).Cast<AITool>().ToList()));
+    var bearerToken = await GetAzureOpenAIBearerTokenAsync();
+    return new SessionConfig
+    {
+        Model = azureOpenAIDeployment,
+        ReasoningEffort = "xhigh",
+        Streaming = true,
+        Tools = GetOrCreateUserTools(userId),
+        OnPermissionRequest = (_, _) => Task.FromResult(new PermissionRequestResult { Kind = PermissionRequestResultKind.Approved }),
+        Provider = new ProviderConfig
+        {
+            Type = "azure",
+            BaseUrl = azureOpenAIEndpoint.TrimEnd('/'),
+            BearerToken = bearerToken,
+        },
+        SystemMessage = new SystemMessageConfig
+        {
+            Mode = SystemMessageMode.Append,
+            Content = SystemPrompt,
+        },
+    };
 }
 
 app.MapPost("/api/chat", (Delegate)(async (HttpContext ctx, IHttpClientFactory httpFactory) =>
@@ -762,95 +797,111 @@ app.MapPost("/api/chat", (Delegate)(async (HttpContext ctx, IHttpClientFactory h
 
     try
     {
-        var agent = GetOrCreateAgent(userId);
+        // Get or create per-user CopilotSession
+        var sessionConfig = await CreateSessionConfigAsync(userId);
 
-        // Get or create per-user session (maintains conversation history via MAF)
         if (!userSessions.TryGetValue(userId, out var session))
         {
-            session = await agent.CreateSessionAsync();
+            session = await copilotClient.CreateSessionAsync(sessionConfig);
             userSessions[userId] = session;
-            logger.LogInformation("Created new agent session for {User}", userLogin);
+            activeSessionsGauge.Add(1);
+            logger.LogInformation("Created new Copilot session for {User} sessionId={SessionId}", userLogin, session.SessionId);
         }
 
-        // Track active tool calls for SSE events
-        var activeToolCalls = new Dictionary<string, (string Name, Stopwatch Timer, Activity? Activity)>();
+        var done = new TaskCompletionSource();
+        var cancelled = false;
+        // Track tool calls: id → (name, startTime, activity)
+        var toolTracker = new ConcurrentDictionary<string, (string Name, DateTimeOffset StartTime, Activity? Activity)>();
 
-        // Stream response — MAF handles the entire agentic loop (tool calls + results) automatically
-        await foreach (var update in agent.RunStreamingAsync(prompt, session))
+        ctx.RequestAborted.Register(async () =>
         {
-            if (ctx.RequestAborted.IsCancellationRequested) break;
-
-            // Stream text deltas
-            if (update.Text is { Length: > 0 })
+            if (!cancelled)
             {
-                var deltaData = JsonSerializer.Serialize(new { type = "delta", content = update.Text });
-                await ctx.Response.WriteAsync($"data: {deltaData}\n\n");
-                await ctx.Response.Body.FlushAsync();
+                cancelled = true;
+                try { await session.AbortAsync(); } catch { }
+                done.TrySetResult();
             }
+        });
 
-            // Detect tool calls and results from streaming contents
-            if (update.Contents is not null)
+        // Event handler for SSE streaming
+        using var subscription = session.On(async (SessionEvent evt) =>
+        {
+            if (cancelled) return;
+
+            try
             {
-                foreach (var content in update.Contents)
+                string? sseData = null;
+
+                if (evt is AssistantMessageDeltaEvent delta)
                 {
-                    // Tool call started
-                    if (content is FunctionCallContent fcc)
+                    sseData = JsonSerializer.Serialize(new { type = "delta", content = delta.Data.DeltaContent });
+                }
+                else if (evt is AssistantMessageEvent msg)
+                {
+                    sseData = JsonSerializer.Serialize(new { type = "message", content = msg.Data.Content });
+                }
+                else if (evt is ToolExecutionStartEvent toolStart)
+                {
+                    var toolId = toolStart.Data.ToolCallId ?? Guid.NewGuid().ToString();
+                    toolCallCounter.Add(1, new KeyValuePair<string, object?>("tool", toolStart.Data.ToolName), new KeyValuePair<string, object?>("user", userLogin));
+                    var toolActivity = aiActivitySource.StartActivity($"Tool:{toolStart.Data.ToolName}");
+                    toolActivity?.SetTag("ai.tool.name", toolStart.Data.ToolName);
+                    toolActivity?.SetTag("ai.tool.id", toolId);
+                    toolTracker[toolId] = (toolStart.Data.ToolName, DateTimeOffset.UtcNow, toolActivity);
+                    string? argsJson = null;
+                    if (toolStart.Data.Arguments is not null)
                     {
-                        var toolId = fcc.CallId ?? Guid.NewGuid().ToString();
-                        string? argsJson = null;
-                        try { argsJson = fcc.Arguments is not null ? JsonSerializer.Serialize(fcc.Arguments) : null; } catch { }
-
-                        toolCallCounter.Add(1, new KeyValuePair<string, object?>("tool", fcc.Name), new KeyValuePair<string, object?>("user", userLogin));
-                        var toolActivity = aiActivitySource.StartActivity($"Tool:{fcc.Name}");
-                        toolActivity?.SetTag("ai.tool.name", fcc.Name);
-                        toolActivity?.SetTag("ai.tool.id", toolId);
-                        toolActivity?.SetTag("ai.tool.args", argsJson?.Length > 1000 ? argsJson[..1000] + "..." : argsJson);
-                        activeToolCalls[toolId] = (fcc.Name, Stopwatch.StartNew(), toolActivity);
-                        logger.LogInformation("Tool start: {Tool} id={ToolId} args={Args}", fcc.Name, toolId, argsJson ?? "(none)");
-
-                        var startData = JsonSerializer.Serialize(new { type = "tool_start", tool = fcc.Name, id = toolId, args = argsJson });
-                        await ctx.Response.WriteAsync($"data: {startData}\n\n");
-                        await ctx.Response.Body.FlushAsync();
+                        try { argsJson = JsonSerializer.Serialize(toolStart.Data.Arguments); } catch { }
                     }
-
-                    // Tool result returned (MAF already invoked the tool)
-                    if (content is FunctionResultContent frc)
+                    toolActivity?.SetTag("ai.tool.args", argsJson?.Length > 1000 ? argsJson[..1000] + "..." : argsJson);
+                    logger.LogInformation("Tool start: {Tool} id={ToolId} args={Args}", toolStart.Data.ToolName, toolId, argsJson?.Length > 500 ? argsJson[..500] + "..." : argsJson);
+                    sseData = JsonSerializer.Serialize(new { type = "tool_start", tool = toolStart.Data.ToolName, id = toolId, args = argsJson });
+                }
+                else if (evt is ToolExecutionCompleteEvent toolDone)
+                {
+                    var toolId = toolDone.Data.ToolCallId ?? "";
+                    var toolName = toolTracker.TryGetValue(toolId, out var info) ? info.Name : "unknown";
+                    var durationMs = toolTracker.TryGetValue(toolId, out var info2) ? (long)(DateTimeOffset.UtcNow - info2.StartTime).TotalMilliseconds : (long?)null;
+                    // Complete the tool activity span
+                    if (toolTracker.TryRemove(toolId, out var removed))
                     {
-                        var toolId = frc.CallId ?? "";
-                        var resultText = frc.Result?.ToString();
-                        var toolName = activeToolCalls.TryGetValue(toolId, out var info) ? info.Name : "unknown";
-                        var durationMs = info.Timer?.ElapsedMilliseconds ?? 0;
-                        var success = resultText is not null && !resultText.StartsWith("Error");
+                        removed.Activity?.SetTag("ai.tool.success", toolDone.Data.Success);
+                        removed.Activity?.SetTag("ai.tool.durationMs", durationMs);
+                        if (toolDone.Data.Error?.Message is not null)
+                            removed.Activity?.SetTag("ai.tool.error", toolDone.Data.Error.Message);
+                        removed.Activity?.Dispose();
+                    }
+                    string? resultText = null;
+                    string? errorText = null;
+                    if (toolDone.Data.Result?.Content is not null)
+                        resultText = toolDone.Data.Result.Content;
+                    else if (toolDone.Data.Result?.DetailedContent is not null)
+                        resultText = toolDone.Data.Result.DetailedContent;
+                    if (toolDone.Data.Error?.Message is not null)
+                        errorText = toolDone.Data.Error.Message;
+                    if (!toolDone.Data.Success)
+                        toolErrorCounter.Add(1, new KeyValuePair<string, object?>("tool", toolName), new KeyValuePair<string, object?>("user", userLogin));
+                    sseData = JsonSerializer.Serialize(new { type = "tool_done", tool = toolName, id = toolId, success = toolDone.Data.Success, durationMs, result = resultText, error = errorText });
+                    logger.LogInformation("Tool done: {Tool} id={ToolId} success={Success} durationMs={Duration} resultLen={ResultLen}",
+                        toolName, toolId, toolDone.Data.Success, durationMs, resultText?.Length ?? 0);
 
-                        // Complete telemetry span
-                        if (activeToolCalls.Remove(toolId, out var removed))
+                    // Chart detection (RenderChart / RenderAdvancedChart)
+                    if ((toolName == "RenderChart" || toolName == "RenderAdvancedChart") && toolDone.Data.Success && resultText is not null)
+                    {
+                        try
                         {
-                            removed.Timer.Stop();
-                            removed.Activity?.SetTag("ai.tool.success", success);
-                            removed.Activity?.SetTag("ai.tool.durationMs", removed.Timer.ElapsedMilliseconds);
-                            removed.Activity?.Dispose();
-                        }
-                        if (!success) toolErrorCounter.Add(1, new KeyValuePair<string, object?>("tool", toolName), new KeyValuePair<string, object?>("user", userLogin));
-
-                        logger.LogInformation("Tool done: {Tool} id={ToolId} success={Success} durationMs={Duration} resultLen={ResultLen}",
-                            toolName, toolId, success, durationMs, resultText?.Length ?? 0);
-                        logger.LogDebug("Tool output: {Tool} id={ToolId} result={Result}",
-                            toolName, toolId, resultText?.Length > 2000 ? resultText[..2000] + "...(truncated)" : resultText ?? "(null)");
-
-                        // Emit tool_done SSE
-                        var errorText = success ? null : resultText;
-                        var doneData = JsonSerializer.Serialize(new { type = "tool_done", tool = toolName, id = toolId, success, durationMs, result = resultText, error = errorText });
-                        await ctx.Response.WriteAsync($"data: {doneData}\n\n");
-                        await ctx.Response.Body.FlushAsync();
-
-                        // Chart detection (RenderChart / RenderAdvancedChart)
-                        if ((toolName == "RenderChart" || toolName == "RenderAdvancedChart") && success && resultText is not null)
-                        {
+                            await ctx.Response.WriteAsync($"data: {sseData}\n\n");
+                            await ctx.Response.Body.FlushAsync();
                             var chartData = JsonSerializer.Serialize(new { type = "chart", options = resultText });
                             await ctx.Response.WriteAsync($"data: {chartData}\n\n");
                             await ctx.Response.Body.FlushAsync();
+                            sseData = null;
                         }
-                        else if (success && resultText is not null && resultText.Contains("__CHART__:"))
+                        catch { }
+                    }
+                    else if (toolDone.Data.Success && resultText is not null && resultText.Contains("__CHART__:"))
+                    {
+                        try
                         {
                             foreach (var line in resultText.Split('\n'))
                             {
@@ -858,16 +909,22 @@ app.MapPost("/api/chat", (Delegate)(async (HttpContext ctx, IHttpClientFactory h
                                 if (trimmed.StartsWith("__CHART__:"))
                                 {
                                     var chartJson = trimmed["__CHART__:".Length..].Trim();
+                                    await ctx.Response.WriteAsync($"data: {sseData}\n\n");
+                                    await ctx.Response.Body.FlushAsync();
                                     var chartPayload = JsonSerializer.Serialize(new { type = "chart", options = chartJson });
                                     await ctx.Response.WriteAsync($"data: {chartPayload}\n\n");
                                     await ctx.Response.Body.FlushAsync();
+                                    sseData = null;
                                     break;
                                 }
                             }
                         }
-
-                        // PPTX detection
-                        if (success && resultText is not null && resultText.Contains("__PPTX_READY__:"))
+                        catch { }
+                    }
+                    // PPTX detection
+                    if (toolDone.Data.Success && resultText is not null && resultText.Contains("__PPTX_READY__:"))
+                    {
+                        try
                         {
                             foreach (var line in resultText.Split('\n'))
                             {
@@ -878,21 +935,74 @@ app.MapPost("/api/chat", (Delegate)(async (HttpContext ctx, IHttpClientFactory h
                                     if (parts.Length >= 2)
                                     {
                                         var pptxPayload = JsonSerializer.Serialize(new { type = "pptx_ready", fileId = parts[0], fileName = parts[1], slideCount = parts.Length > 2 ? parts[2] : "" });
+                                        if (sseData is not null)
+                                        {
+                                            await ctx.Response.WriteAsync($"data: {sseData}\n\n");
+                                            await ctx.Response.Body.FlushAsync();
+                                        }
                                         await ctx.Response.WriteAsync($"data: {pptxPayload}\n\n");
                                         await ctx.Response.Body.FlushAsync();
+                                        sseData = null;
                                     }
                                     break;
                                 }
                             }
                         }
+                        catch { }
                     }
                 }
+                else if (evt is SessionErrorEvent error)
+                {
+                    sseData = JsonSerializer.Serialize(new { type = "error", message = error.Data.Message });
+                    logger.LogError("Session error for {User}: {Error}", userLogin, error.Data.Message);
+                    chatActivity?.SetTag("ai.error", error.Data.Message);
+                    // Remove stale session on error
+                    userSessions.TryRemove(userId, out _);
+                    activeSessionsGauge.Add(-1);
+                }
+
+                if (sseData is not null)
+                {
+                    await ctx.Response.WriteAsync($"data: {sseData}\n\n");
+                    await ctx.Response.Body.FlushAsync();
+                }
+
+                if (evt is SessionIdleEvent || evt is SessionErrorEvent)
+                {
+                    await ctx.Response.WriteAsync("data: [DONE]\n\n");
+                    await ctx.Response.Body.FlushAsync();
+                    done.TrySetResult();
+                }
             }
+            catch
+            {
+                cancelled = true;
+                done.TrySetResult();
+            }
+        });
+
+        try
+        {
+            await session.SendAsync(new MessageOptions { Prompt = prompt });
+        }
+        catch (Exception sendEx) when (sendEx.Message.Contains("Session not found", StringComparison.OrdinalIgnoreCase))
+        {
+            // Session expired on the Copilot CLI side — recreate and retry
+            logger.LogWarning("Copilot session expired for user {User}, recreating. Error: {Error}", userLogin, sendEx.Message);
+            chatActivity?.SetTag("ai.session_expired", true);
+            if (userSessions.TryRemove(userId, out _)) activeSessionsGauge.Add(-1);
+
+            var freshConfig = await CreateSessionConfigAsync(userId);
+            session = await copilotClient.CreateSessionAsync(freshConfig);
+            userSessions[userId] = session;
+            activeSessionsGauge.Add(1);
+            logger.LogInformation("Recreated Copilot session for {User} sessionId={SessionId}", userLogin, session.SessionId);
+
+            await session.SendAsync(new MessageOptions { Prompt = prompt });
         }
 
-        // Done
-        await ctx.Response.WriteAsync("data: [DONE]\n\n");
-        await ctx.Response.Body.FlushAsync();
+        try { await done.Task; }
+        finally { /* subscription disposed by using */ }
 
         chatSw.Stop();
         chatDurationHistogram.Record(chatSw.Elapsed.TotalMilliseconds, new KeyValuePair<string, object?>("model", azureOpenAIDeployment), new KeyValuePair<string, object?>("user", userLogin));
@@ -924,14 +1034,14 @@ app.MapPost("/api/chat/reset", async (HttpContext ctx) =>
     var user = JsonSerializer.Deserialize<JsonElement>(userJson);
     var userId = user.GetProperty("id").GetInt64();
 
-    // Drop the AgentSession — InMemoryChatHistoryProvider holds conversation history.
-    // Creating a new session starts a fresh conversation thread.
-    userSessions.TryRemove(userId, out _);
+    // Dispose and remove the CopilotSession — next chat creates a fresh one
+    if (userSessions.TryRemove(userId, out var oldSession))
+    {
+        activeSessionsGauge.Add(-1);
+        try { await oldSession.DisposeAsync(); } catch { }
+    }
 
-    // Clear persistent per-user memory (MemoryTools stores facts to disk that survive sessions)
-    MemoryTools.ClearMemory(userId);
-
-    logger.LogInformation("Agent session and memory cleared for user {UserId}", userId);
+    logger.LogInformation("Copilot session cleared for user {UserId}", userId);
 
     ctx.Response.StatusCode = 204;
 });

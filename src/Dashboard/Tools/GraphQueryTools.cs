@@ -68,6 +68,6 @@ APPS: GET /v1.0/applications — app registrations; GET /v1.0/servicePrincipals 
         if (!res.IsSuccessStatusCode)
             activity?.SetStatus(ActivityStatusCode.Error, $"HTTP {(int)res.StatusCode}");
 
-        return LargeResultHelper.Truncate(result, "QueryGraph");
+        return result;
     }
 }

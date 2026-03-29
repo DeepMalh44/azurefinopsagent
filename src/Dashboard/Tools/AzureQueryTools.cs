@@ -69,7 +69,7 @@ TAGS (Microsoft.Resources): GET /subscriptions/{id}/tagNames.
 MIGRATE (Microsoft.Migrate): GET .../migrateProjects; .../assessments; .../assessedMachines.
 SUPPORT (Microsoft.Support): GET .../supportTickets; .../services.
 Scope = /subscriptions/{subId} or /subscriptions/{subId}/resourceGroups/{rg}.
-For retail pricing use the FetchUrl tool with https://prices.azure.com (no auth required) instead of the deprecated Microsoft.Commerce/RateCard API.
+For retail pricing use the built-in fetch tool with https://prices.azure.com (no auth required) instead of the deprecated Microsoft.Commerce/RateCard API.
 Note: Only GET and POST methods are supported.");
     }
 
@@ -137,6 +137,6 @@ Note: Only GET and POST methods are supported.");
         if (!res.IsSuccessStatusCode)
             activity?.SetStatus(ActivityStatusCode.Error, $"HTTP {(int)res.StatusCode}");
 
-        return LargeResultHelper.Truncate(result, "QueryAzure");
+        return result;
     }
 }

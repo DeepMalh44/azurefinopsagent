@@ -5,7 +5,13 @@
       <div class="auth-overlay-card">
         <div class="auth-overlay-spinner"></div>
         <p class="auth-overlay-text">Connecting to Azure...</p>
-        <p class="auth-overlay-sub">You will be redirected to sign in</p>
+        <p class="auth-overlay-sub">
+          {{
+            azureConnected
+              ? "Loading subscriptions..."
+              : "Authenticating with Microsoft Entra ID..."
+          }}
+        </p>
       </div>
     </div>
 
@@ -297,7 +303,9 @@
               {{ msg.content }}
             </div>
             <div v-else class="ai-row">
-              <div class="ai-avatar">AI</div>
+              <div class="ai-header">
+                <div class="ai-avatar">AI</div>
+              </div>
               <div class="ai-content">
                 <div
                   v-for="(chart, ci) in msg.charts || []"
@@ -349,7 +357,12 @@
           <!-- Streaming indicator -->
           <div v-if="streaming" class="message-row message-row--ai">
             <div class="ai-row">
-              <div class="ai-avatar">AI</div>
+              <div class="ai-header">
+                <div class="ai-avatar">AI</div>
+                <span v-if="streamIntent" class="stream-intent">
+                  {{ streamIntent }}
+                </span>
+              </div>
               <div class="ai-content">
                 <div
                   v-for="(chart, ci) in streamCharts"
@@ -357,11 +370,11 @@
                   class="chart-container"
                   :ref="(el) => el && mountChart(el, chart)"
                 ></div>
-                <div class="message-text">
-                  <span
-                    v-if="streamBuffer"
-                    v-html="renderContent(streamBuffer)"
-                  ></span>
+                <div class="message-text" v-if="streamBuffer">
+                  <span v-html="renderContent(streamBuffer)"></span>
+                  <span class="streaming-cursor"></span>
+                </div>
+                <div class="message-text" v-else-if="!streamIntent">
                   <span class="streaming-cursor"></span>
                 </div>
               </div>
@@ -651,12 +664,14 @@ const activeTools = ref([]);
 const streamToolCalls = ref([]);
 const streamCharts = ref([]);
 const streamFollowUp = ref(null);
+const streamIntent = ref("");
 const pptxReady = ref(null);
 const pptxDownloads = ref([]);
 const messagesEl = ref(null);
 const inputEl = ref(null);
 const chartInstances = [];
 let intentAnimTimer = null;
+
 const hoveredTool = ref(null);
 const collapsedSections = reactive({
   subs: true,
@@ -708,6 +723,7 @@ async function checkAzureStatus() {
 
 function startAuth(provider, url) {
   authLoading.value = provider;
+  sessionStorage.setItem("authLoading", provider);
   setTimeout(() => {
     window.location.href = url;
   }, 100);
@@ -783,6 +799,11 @@ watch(
 
 onMounted(async () => {
   document.addEventListener("click", dismissPopover);
+  // Restore auth loading state after OAuth redirect (page reload clears ref)
+  const pendingAuth = sessionStorage.getItem("authLoading");
+  if (pendingAuth) {
+    authLoading.value = pendingAuth;
+  }
   // Handle Azure OAuth error redirect
   const params = new URLSearchParams(window.location.search);
   const azureError = params.get("azure_error");
@@ -804,6 +825,11 @@ onMounted(async () => {
   // Fetch available models and Azure status in parallel
   if (props.user) {
     await Promise.all([fetchModels(), checkAzureStatus()]);
+  }
+  // Clear auth loading overlay now that status is resolved
+  if (pendingAuth) {
+    sessionStorage.removeItem("authLoading");
+    authLoading.value = "";
   }
 });
 
@@ -1294,108 +1320,113 @@ const finopsCategories = [
       },
     ],
   },
-  // ── 10. Advanced Pricing Intelligence (public — no login) ──
+  // ── 10. Pricing & Estimator (public — no login) ──
   {
     key: "finops_pricing",
-    label: "Pricing Intelligence",
+    label: "Pricing & Estimates",
     icon: "$",
     colorClass: "cat-pricing",
     requiresAzure: false,
     prompts: [
       {
-        label: "Full stack cost model",
+        label: "Compare VM pricing by region",
         prompt:
-          "Price out a production-grade 3-tier web application on Azure in East US: (1) 2x D4s_v5 VMs behind a Standard Load Balancer, (2) Azure SQL Hyperscale 4-vCore with 500 GB, (3) 1 TB Premium SSD per VM, (4) Azure Front Door Standard, (5) 100 GB outbound data transfer. Show total monthly cost with a breakdown per component in a table and a pie chart. Then compare this against running the same stack in West Europe.",
+          "Compare the monthly cost of a D4s_v5 VM across the 10 cheapest Azure regions. Show a bar chart.",
       },
       {
-        label: "AI training cluster cost",
+        label: "Spot vs on-demand savings",
         prompt:
-          "I need to train a large language model. Compare the total monthly cost of: (1) 4x ND96asr_v4 (A100 80GB) on-demand, (2) 4x NC80adis_H100_v5 on-demand, (3) 4x ND96asr_v4 with spot instances (assume 60% availability). Include VM cost, 10 TB Premium SSD storage, and 5 TB inter-node networking. Show a comparison table with total cost and cost-per-GPU-hour for each option.",
+          "Compare spot vs on-demand pricing for D4s_v5, D8s_v5, and NC24ads_A100_v4 in East US. Show the discount % for each.",
       },
       {
-        label: "Microservices platform TCO",
+        label: "Reserved vs pay-as-you-go",
         prompt:
-          "Compare the total cost of ownership for running 20 microservices (avg 0.5 vCPU, 1 GB RAM each, 1M requests/day total) on: (1) AKS with autoscaling D4s_v5 nodes, (2) Azure Container Apps consumption, (3) Azure Functions consumption plan. Include compute, networking, load balancing, monitoring (Log Analytics), and container registry costs. Show a ranked table by total monthly cost.",
+          "Compare pay-as-you-go vs 1-year vs 3-year reserved pricing for a D4s_v5 VM in East US.",
       },
       {
-        label: "Multi-cloud VM benchmark",
+        label: "Storage tier comparison",
         prompt:
-          "Compare the monthly cost of a 4-vCPU, 16 GB RAM VM across Azure (D4s_v5), showing pricing in all Azure regions worldwide. Fetch all regions from the Azure Retail Prices API. Rank from cheapest to most expensive and show a bar chart of the top 10 cheapest and top 10 most expensive regions.",
+          "Compare Azure Blob Storage costs for 10 TB across Hot, Cool, Cold, and Archive tiers in East US.",
       },
       {
-        label: "Database pricing shootout",
+        label: "Database pricing comparison",
         prompt:
-          "Compare Azure database pricing for a workload of 10,000 transactions/sec with 500 GB storage: (1) Azure SQL Hyperscale 8-vCore, (2) Cosmos DB autoscale 10,000 RU/s, (3) Azure Database for PostgreSQL Flexible 8-vCore, (4) Azure Cache for Redis Premium P2 + PostgreSQL. Show monthly cost, throughput capacity, HA options, and cost-per-transaction for each in a comparison table.",
+          "Compare monthly cost of Azure SQL 8-vCore vs Cosmos DB 10K RU/s vs PostgreSQL Flexible 8-vCore with 500 GB storage.",
       },
       {
-        label: "Spot savings matrix",
+        label: "3-tier app cost estimate",
         prompt:
-          "Build a spot vs on-demand savings matrix for GPU and compute VMs in East US. Include: D4s_v5, D8s_v5, D16s_v5, E4s_v5, E8s_v5, NC24ads_A100_v4, NC48ads_H100_v5. For each, show on-demand price, spot price, discount %, and estimated monthly savings. Sort by highest discount percentage. Show a bar chart of the discounts.",
+          "Estimate monthly cost for a 3-tier app in East US: 2x D4s_v5 VMs, Azure SQL 4-vCore 500 GB, 1 TB Premium SSD, Standard LB.",
       },
       {
-        label: "Data platform cost comparison",
+        label: "AKS vs Container Apps vs Functions",
         prompt:
-          "I need to process 10 TB of data daily. Compare the monthly cost of: (1) Azure Databricks Premium with 50 DBU-hours/day Jobs Compute, (2) Azure Synapse Serverless SQL for 10 TB scanned/day, (3) Azure Data Factory with 1,000 pipeline runs/day + HDInsight Spark cluster. Include storage (ADLS Gen2), compute, and data movement costs in a detailed breakdown table.",
+          "Compare cost of running 20 microservices on AKS vs Azure Container Apps vs Azure Functions consumption plan.",
       },
       {
-        label: "Reserved pricing deep-dive",
+        label: "GPU training cluster cost",
         prompt:
-          "For D4s_v5, D8s_v5, D16s_v5, E4s_v5, E8s_v5, and L8s_v3 VMs in East US: compare pay-as-you-go vs 1-year reserved vs 3-year reserved monthly costs. Calculate the break-even point in months for each reservation term. Show a table with all SKUs and a grouped bar chart comparing the 3 pricing tiers.",
+          "Compare monthly cost of 4x A100 (ND96asr_v4) vs 4x H100 (NC80adis_H100_v5) on-demand in East US.",
       },
       {
-        label: "Networking cost simulator",
+        label: "Global VM pricing map",
         prompt:
-          "Simulate monthly networking costs for: (1) Azure ExpressRoute Premium 1 Gbps unlimited + Global Reach, (2) 2x Site-to-Site VPN Gateway VpnGw2AZ, (3) Azure Virtual WAN Standard hub with 10 branches. Include 5 TB outbound data transfer, NAT Gateway for 2 subnets, and Azure Firewall Premium. Show per-component costs and totals in a table.",
+          "Show a world map of Azure regions color-coded by D4s_v5 VM pricing.",
       },
       {
-        label: "Global pricing heat map",
+        label: "Azure service health",
         prompt:
-          "Show a world map of Azure regions color-coded by D4s_v5 VM pricing. Fetch prices for all available regions from the Azure Retail Prices API and display as an interactive heat map with exact monthly costs per region.",
-      },
-    ],
-  },
-  // ── 11. Architecture Cost Estimator (public — no login) ──
-  {
-    key: "finops_pricing_public",
-    label: "Architecture Estimator",
-    icon: "E",
-    colorClass: "cat-estimator",
-    requiresAzure: false,
-    prompts: [
-      {
-        label: "Enterprise landing zone cost",
-        prompt:
-          "Estimate the monthly cost of an Azure Enterprise Landing Zone: (1) Azure Firewall Premium in hub VNET, (2) 2x ExpressRoute Standard 200 Mbps, (3) Azure DDoS Protection Plan, (4) WAF v2 on Application Gateway, (5) Azure Bastion Standard for 3 VNETs, (6) Log Analytics workspace ingesting 50 GB/day, (7) Microsoft Defender for Cloud on 10 subscriptions. Show per-component cost breakdown and total.",
+          "Are there any active Azure service health incidents right now?",
       },
       {
-        label: "SaaS platform cost model",
+        label: "Kubernetes node pool sizing",
         prompt:
-          "Model the monthly Azure cost for a multi-tenant SaaS platform serving 10,000 users: (1) AKS with 5x D8s_v5 nodes, (2) Azure SQL Hyperscale 8-vCore with 1 TB, (3) Azure Cache for Redis Premium P2, (4) Azure Front Door Premium with WAF, (5) Azure Service Bus Standard 10M messages/month, (6) Azure Key Vault Standard 100K operations/month, (7) Cosmos DB autoscale 5,000 RU/s for user profiles. Show cost per component and cost-per-user/month.",
+          "Compare monthly cost of an AKS cluster with 3x D4s_v5 vs 3x D8s_v5 vs 3x D16s_v5 nodes in East US.",
       },
       {
-        label: "IoT at scale pricing",
+        label: "Managed disk pricing",
         prompt:
-          "Price an IoT solution processing 1 million device messages/day: (1) IoT Hub Standard S2 (3 units), (2) Azure Stream Analytics 6 SUs, (3) Cosmos DB autoscale 4,000 RU/s, (4) Azure Functions Consumption for 5M executions/month, (5) Time Series Insights Gen2 with 30 GB warm store, (6) Azure Data Explorer 2x D14_v2. Show cost per component and cost-per-device/month for 50K devices.",
+          "Compare pricing for 1 TB managed disks: Premium SSD v2 vs Premium SSD vs Standard SSD vs Standard HDD in East US.",
       },
       {
-        label: "AI/ML platform TCO",
+        label: "ExpressRoute vs VPN cost",
         prompt:
-          "Estimate total monthly cost for an enterprise AI/ML platform: (1) Azure ML workspace with 3x NC24ads_A100_v4 compute instances, (2) 2x ND96asr_v4 training cluster (auto-scale 0-4 nodes), (3) Azure Databricks Premium 200 DBU-hours/day, (4) ADLS Gen2 50 TB hot storage, (5) Azure Container Registry Premium, (6) Azure OpenAI gpt-4o 10M tokens/day. Show itemized costs and compare on-demand vs spot GPU pricing.",
+          "Compare monthly cost of ExpressRoute Standard 1 Gbps vs 2x VPN Gateway VpnGw2AZ for hybrid connectivity.",
       },
       {
-        label: "Disaster recovery cost",
+        label: "Serverless database cost",
         prompt:
-          "Estimate the monthly cost of a cross-region DR setup: Primary in East US, DR in West US 2. Include: (1) Azure Site Recovery for 20 VMs, (2) Geo-redundant storage (GRS) for 5 TB, (3) Azure SQL active geo-replication for 3 databases (8 vCores each), (4) Azure Traffic Manager, (5) Reserved IP addresses, (6) Cosmos DB multi-region write (3 regions). Compare active-active vs active-passive costs.",
+          "Compare Azure SQL Serverless vs Cosmos DB Serverless vs PostgreSQL Flexible for a workload with 1M requests/day and 100 GB storage.",
       },
       {
-        label: "Gaming backend cost",
+        label: "Azure OpenAI token pricing",
         prompt:
-          "Price a real-time gaming backend for 100K concurrent players: (1) Azure PlayFab + Cosmos DB autoscale 50,000 RU/s, (2) AKS with 10x E8s_v5 nodes for game servers, (3) Azure SignalR Premium (100 units) for real-time messaging, (4) Azure Cache for Redis Premium P3 for leaderboards, (5) Azure CDN Standard for 50 TB game assets, (6) 10 TB outbound data transfer. Show cost breakdown and cost-per-concurrent-player.",
+          "Compare Azure OpenAI pricing for GPT-4o vs GPT-4o-mini vs GPT-4.1 per 1M input and output tokens.",
       },
       {
-        label: "Service health",
+        label: "Windows vs Linux VM cost",
         prompt:
-          "Any active Azure service health incidents in East US, West Europe, Southeast Asia?",
+          "Compare the cost of D4s_v5 with Windows vs Linux in East US. What's the savings with Azure Hybrid Benefit?",
+      },
+      {
+        label: "App Service plan comparison",
+        prompt:
+          "Compare Azure App Service pricing: Free vs Basic B1 vs Standard S1 vs Premium P1v3 in East US.",
+      },
+      {
+        label: "CDN + Front Door pricing",
+        prompt:
+          "Compare monthly cost of Azure CDN Standard vs Azure Front Door Standard vs Front Door Premium for 10 TB transfer.",
+      },
+      {
+        label: "Backup and DR pricing",
+        prompt:
+          "Estimate monthly cost to back up 10 VMs with Azure Backup and protect them with Azure Site Recovery to a paired region.",
+      },
+      {
+        label: "Azure Firewall cost tiers",
+        prompt:
+          "Compare Azure Firewall Basic vs Standard vs Premium monthly cost including 5 TB data processed.",
       },
     ],
   },
@@ -2093,6 +2124,7 @@ async function send() {
                 clearInterval(intentAnimTimer);
                 intentAnimTimer = null;
               }
+              streamIntent.value = "";
               streamBuffer.value += data.content;
               hasDeltas = true;
               break;
@@ -2119,7 +2151,7 @@ async function send() {
               };
               toolCalls.push(tc);
               streamToolCalls.value = [...toolCalls];
-              // Animate intent text letter-by-letter
+              // Show intent text next to AI avatar (NOT in streamBuffer)
               if (data.tool === "report_intent" && data.args) {
                 try {
                   const parsed =
@@ -2129,18 +2161,14 @@ async function send() {
                   const intentText = parsed.intent;
                   if (intentText) {
                     clearInterval(intentAnimTimer);
-                    const prefix = streamBuffer.value;
+                    streamIntent.value = "";
                     let i = 0;
-                    streamBuffer.value = prefix + "*" + intentText.charAt(0);
-                    i = 1;
                     intentAnimTimer = setInterval(() => {
                       if (i < intentText.length) {
-                        streamBuffer.value =
-                          prefix + "*" + intentText.slice(0, i + 1);
+                        streamIntent.value = intentText.slice(0, i + 1) + "…";
                         i++;
                       } else {
-                        streamBuffer.value =
-                          prefix + "*" + intentText + "…*\n\n";
+                        streamIntent.value = intentText + "…";
                         clearInterval(intentAnimTimer);
                         intentAnimTimer = null;
                       }
@@ -2198,9 +2226,15 @@ async function send() {
       }
     }
 
+    // Strip LLM-generated thinking/progress lines (italic text ending with ...)
+    const cleanContent = streamBuffer.value
+      .replace(/\n*\*[A-Z][^*]{3,60}\.{3}\*\n*/g, "\n")
+      .replace(/^\n+/, "")
+      .trim();
+
     const msgObj = {
       role: "assistant",
-      content: streamBuffer.value,
+      content: cleanContent,
       toolCalls: toolCalls.map((tc) => ({ ...tc, expanded: false })),
       charts: [...streamCharts.value],
       followUp: streamFollowUp.value ? { ...streamFollowUp.value } : null,
@@ -2236,6 +2270,7 @@ async function send() {
     streamToolCalls.value = [];
     streamCharts.value = [];
     streamFollowUp.value = null;
+    streamIntent.value = "";
     pptxReady.value = null;
     abortController = null;
     nextTick(() => inputEl.value?.focus());
@@ -3245,7 +3280,13 @@ async function send() {
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-top: 2px;
+}
+.ai-header {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 28px;
 }
 .ai-content {
   min-width: 0;
@@ -3266,6 +3307,23 @@ async function send() {
   margin-left: 2px;
   vertical-align: text-bottom;
   animation: cursor-pulse 1s ease-in-out infinite;
+}
+.stream-intent {
+  font-style: italic;
+  color: #9ca3af;
+  font-size: 0.82rem;
+  white-space: nowrap;
+  animation: intent-in 0.3s ease-out;
+}
+@keyframes intent-in {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 @keyframes cursor-pulse {
   0%,
