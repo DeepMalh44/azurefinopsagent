@@ -2,7 +2,7 @@
 
 Turn weeks of KQL queries, Graph API calls, and portal hopping into a single conversation — surface savings, forecast spend, and generate a PowerPoint deck you can walk into a stakeholder meeting with. From data to decision in minutes, not weeks.
 
-Built with .NET 10, Vue 3, and Microsoft Agent Framework + Azure OpenAI. Deploys to Azure App Service.
+Built with .NET 10, Vue 3, and GitHub Copilot SDK + Azure OpenAI (BYOK). Deploys to Azure App Service.
 
 **[Try it live →](https://azure-finops-agent.com/)**
 
@@ -28,21 +28,22 @@ Built with .NET 10, Vue 3, and Microsoft Agent Framework + Azure OpenAI. Deploys
 ```
 ┌─────────────────┐    SSE     ┌──────────────────────────────────┐
 │  Vue 3 + Vite   │◄──────────│  .NET 10 Minimal API             │
-│  (ECharts)       │──────────►│  Microsoft Agent Framework (MAF) │
+│  (ECharts)       │──────────►│  GitHub Copilot SDK (BYOK)       │
 └─────────────────┘   POST    │  + Azure OpenAI                  │
                                │                                  │
-                               │  Tools:                          │
+                               │  Custom Tools:                   │
                                │  ├─ QueryAzure (ARM REST APIs)   │
                                │  ├─ QueryGraph (Microsoft Graph)  │
                                │  ├─ QueryLogAnalytics (KQL)      │
-                               │  ├─ FetchUrl (Retail Prices)     │
-┌─────────────────┐            │  ├─ GetAzureServiceHealth (RSS)  │
-│  Microsoft      │◄──────────│  ├─ RenderChart / Advanced       │
-│  Entra ID OAuth │            │  ├─ RunScript (Python/bash/SQL)  │
-│  (ARM + Graph   │            │  ├─ GeneratePresentation (.pptx) │
-│   + Log Analyt.)│            │  ├─ ReadFile / WriteFile / Edit   │
-│   + Log Analyt.)│            │  ├─ StoreMemory / RecallMemory   │
-└─────────────────┘            │  └─ FetchWebPage                 │
+                               │  ├─ GetAzureServiceHealth (RSS)  │
+┌─────────────────┐            │  ├─ RenderChart / Advanced       │
+│  Microsoft      │◄──────────│  ├─ GeneratePresentation (.pptx) │
+│  Entra ID OAuth │            │  ├─ PublishFAQ (SEO pages)       │
+│  (ARM + Graph   │            │  └─ SuggestFollowUp              │
+│   + Log Analyt.)│            │                                  │
+└─────────────────┘            │  Built-in SDK Tools:             │
+                               │  bash, file ops, web fetch,      │
+                               │  grep, glob, memory              │
                                └──────────────────────────────────┘
 ```
 
@@ -97,7 +98,7 @@ See also the Docker container deployment approach in [copilot-instructions.md](.
 ```
 src/Dashboard/
 ├── Program.cs                 # Auth endpoints, SSE chat, version
-├── Dashboard.csproj           # .NET 10, GitHub.Copilot.SDK, Azure.Identity
+├── Dashboard.csproj           # .NET 10, GitHub.Copilot.SDK, Azure.Identity, Azure.Monitor.OpenTelemetry
 ├── Tools/
 │   ├── AzureQueryTools.cs     # QueryAzure — any Azure ARM REST API (GET/POST)
 │   ├── ChartTools.cs          # RenderChart + RenderAdvancedChart — ECharts

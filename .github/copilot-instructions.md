@@ -1,5 +1,25 @@
 # Azure FinOps Agent - Copilot Instructions
 
+always check if you are logged into:
+Basic information
+Name
+Contoso
+Tenant ID
+51650aad-d085-4ecb-8b07-d7ed4f5355e0
+Primary domain
+MngEnvMCAP237604.onmicrosoft.com
+License
+Microsoft Entra ID Free
+Users
+2
+Groups
+3
+Applications
+3
+Devices
+2
+admin@MngEnvMCAP237604.onmicrosoft.com
+
 ## Project Purpose
 
 Read all docs here:
@@ -28,7 +48,7 @@ The agent acts as a frontend on top of Microsoft IQ and Microsoft Graph APIs to:
 - **Deployment**: Azure App Service (Linux, P0v3 Premium) via Docker container image from Azure Container Registry (ACR). Multi-stage Dockerfile bakes Python 3, pip packages (python-pptx, matplotlib, pandas, numpy, lxml), and CLI tools into the image — no runtime install needed. Legacy zip deployment via `deploy.ps1` still supported for the original `finops-agent` app.
 - **Container Registry**: Azure Container Registry (`crfinopsagent.azurecr.io`) — Basic SKU, admin credentials, images built via `az acr build`
 - **Container App (staging)**: `finops-agent-container.azurewebsites.net` — Docker container on same P0v3 plan, used for testing before swapping to production
-- **Custom Domain**: `https://www.azure-finops-agent.com` (Namecheap DNS → Azure App Service with managed SSL)
+- **Custom Domain**: `https://www.azure-finops-agent.com` (Azure DNS → Azure App Service with managed SSL)
 - **License**: MIT
 
 ## Project Structure
@@ -234,7 +254,7 @@ The deploy script:
 - Use clean, well-structured C# for the .NET backend following Microsoft coding conventions.
 - Use modern JavaScript patterns for the frontend (Vue 3 Composition API with `<script setup>`).
 - Keep API endpoints RESTful and well-documented.
-- Include proper error handling for API calls (rate limiting, authentication failures, etc.) at the **system boundary** (e.g., the `/api/chat` endpoint). Tools themselves should NOT use try/catch — MAF and OpenTelemetry handle exception logging centrally.
+- Include proper error handling for API calls (rate limiting, authentication failures, etc.) at the **system boundary** (e.g., the `/api/chat` endpoint). Tools themselves should NOT use try/catch — the Copilot CLI and OpenTelemetry handle exception logging centrally.
 - All Azure resource interactions should use managed identity where possible.
 - Use `.NET 10` APIs — e.g., `KnownIPNetworks` not deprecated `KnownNetworks`.
 - Use `CopilotClient` / `CopilotSession` from `GitHub.Copilot.SDK`.
