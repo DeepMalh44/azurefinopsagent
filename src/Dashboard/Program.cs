@@ -521,10 +521,23 @@ async Task<string?> GetSessionTokenAsync(HttpContext ctx, IHttpClientFactory htt
     if (expiryStr is not null && DateTimeOffset.TryParse(expiryStr, out var expiry) && expiry <= DateTimeOffset.UtcNow)
     {
         var refreshToken = ctx.Session.GetString("azure_refresh_token");
-        if (refreshToken is null) return null;
+        if (refreshToken is null)
+        {
+            // No refresh token but we have an expired access token — return it anyway.
+            // Azure may still accept it within a short grace window, and if not,
+            // the tool will get a clear 401 from Azure (better than silent null).
+            logger.LogWarning("Token {Key} expired but no refresh token available, returning expired token", tokenKey);
+            return token;
+        }
         var http = httpFactory.CreateClient();
         var result = await ExchangeRefreshTokenForResource(http, refreshToken, refreshScope);
-        if (result is null) return null;
+        if (result is null)
+        {
+            // Refresh failed (transient error) — return the expired token as fallback
+            // so the tool can attempt the call and get a proper API error.
+            logger.LogWarning("Token refresh failed for {Key}, returning expired token as fallback", tokenKey);
+            return token;
+        }
         ctx.Session.SetString(tokenKey, result.Value.Token);
         ctx.Session.SetString(expiryKey, result.Value.Expiry.ToString("o"));
         return result.Value.Token;
@@ -719,7 +732,7 @@ You are the Azure FinOps Agent — a data-driven AI assistant for Azure cloud co
 ## Rules
 - Keep answers as short as possible. Lead with a 1-2 sentence summary.
 - Do NOT output thinking or progress text like '*Querying...*' — the UI shows tool progress separately. Only output the final answer.
-- If the user has not connected Azure, tell them to click 'Connect Azure' in the sidebar.
+- The user's Azure connection status is injected at the start of each message. Trust that status. NEVER proactively suggest connecting Azure unless a tool call returns an authentication/token error.
 - Choose EITHER a chart OR a table per response — never both. Chart for visual patterns, table for exact numbers.
 - Use QueryAzure for ARM APIs, QueryGraph for Microsoft Graph, QueryLogAnalytics for KQL — these use the user's delegated tokens.
 - For retail pricing, use the built-in fetch tool with https://prices.azure.com (public, no auth). Always filter by armRegionName + serviceName + armSkuName and use $top=20.
@@ -833,6 +846,16 @@ app.MapPost("/api/chat", (Delegate)(async (HttpContext ctx, IHttpClientFactory h
 
     logger.LogInformation("Chat tokens: azure={HasAzure} graph={HasGraph} la={HasLA}",
         tokens.AzureToken is not null, tokens.GraphToken is not null, tokens.LogAnalyticsToken is not null);
+
+    // Inject connection context so the LLM knows the user's actual state
+    var connectedApis = new List<string>();
+    if (tokens.AzureToken is not null) connectedApis.Add("Azure ARM (QueryAzure)");
+    if (tokens.GraphToken is not null) connectedApis.Add("Microsoft Graph (QueryGraph)");
+    if (tokens.LogAnalyticsToken is not null) connectedApis.Add("Log Analytics (QueryLogAnalytics)");
+    var connectionContext = connectedApis.Count > 0
+        ? $"[CONTEXT: User IS connected to Azure. Available APIs: {string.Join(", ", connectedApis)}. Proceed with tool calls directly.]"
+        : "[CONTEXT: User is NOT connected to Azure. Tell them to click 'Connect Azure' in the sidebar.]";
+    prompt = $"{connectionContext}\n{prompt}";
 
     // SSE headers
     ctx.Response.Headers.ContentType = "text/event-stream";

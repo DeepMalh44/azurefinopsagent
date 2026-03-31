@@ -749,13 +749,13 @@
 <script setup>
 import * as echarts from "echarts";
 import {
-    computed,
-    nextTick,
-    onBeforeUnmount,
-    onMounted,
-    reactive,
-    ref,
-    watch,
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  reactive,
+  ref,
+  watch,
 } from "vue";
 
 const props = defineProps({
@@ -848,6 +848,7 @@ const graphEnabled = ref(false);
 const licensesEnabled = ref(false);
 const chargebackEnabled = ref(false);
 const logAnalyticsEnabled = ref(false);
+const clearing = ref(false);
 
 async function checkAzureStatus() {
   try {
@@ -918,22 +919,22 @@ async function revokeAllPermissions() {
 }
 
 // When Azure connects, expand Cost Analysis and collapse the public categories
-watch(azureConnected, (connected, wasConnected) => {
+watch(azureConnected, async (connected, wasConnected) => {
   if (!connected) return;
   collapsedSections.finops_cost = false;
   collapsedSections.finops_pricing = true;
   collapsedSections.finops_pricing_public = true;
   // Auto-clear chat when Azure connects — removes stale "Connect Azure first" messages
   // and resets the Copilot session so the LLM knows the user is now connected
-  if (!wasConnected) clearMessages();
+  if (!wasConnected) await clearMessages();
 });
 
 // Reset Copilot session when addon tiers are enabled so LLM picks up new tokens
-watch(graphEnabled, (enabled, was) => {
-  if (enabled && !was) clearMessages();
+watch(graphEnabled, async (enabled, was) => {
+  if (enabled && !was) await clearMessages();
 });
-watch(logAnalyticsEnabled, (enabled, was) => {
-  if (enabled && !was) clearMessages();
+watch(logAnalyticsEnabled, async (enabled, was) => {
+  if (enabled && !was) await clearMessages();
 });
 
 function dismissPopover() {
@@ -1023,6 +1024,8 @@ onMounted(async () => {
 let abortController = null;
 
 async function clearMessages() {
+  // Prevent concurrent send() while resetting
+  clearing.value = true;
   // Abort any in-flight request first
   if (abortController) {
     abortController.abort();
@@ -1047,6 +1050,7 @@ async function clearMessages() {
   try {
     await fetch("/api/chat/reset", { method: "POST" });
   } catch {}
+  clearing.value = false;
 }
 
 function stopGeneration() {
@@ -1620,7 +1624,7 @@ const finopsCategories = [
 ];
 
 function sendQuestion(q) {
-  if (streaming.value || !props.user) return;
+  if (streaming.value || clearing.value || !props.user) return;
   input.value = q;
   send();
 }
@@ -2251,7 +2255,7 @@ function renderContent(text) {
 }
 
 function sendPrompt(text) {
-  if (!props.user) return;
+  if (!props.user || clearing.value) return;
   input.value = text;
   send();
 }
@@ -2263,7 +2267,7 @@ function requestPresentation() {
 }
 
 async function send() {
-  if (!props.user) return;
+  if (!props.user || clearing.value) return;
   const prompt = input.value.trim();
   if (!prompt || streaming.value) return;
 
