@@ -16,7 +16,7 @@
     </div>
 
     <!-- Permission picker modal -->
-    <div v-if="showPermissionPicker" class="perm-overlay" @click.self="showPermissionPicker = false">
+    <div v-if="showPermissionPicker" class="perm-overlay" @click.self="showPermissionPicker = false; isChangingPermissions = false">
       <div class="perm-card">
         <div class="perm-header">
           <svg width="20" height="20" viewBox="0 0 21 21" fill="none">
@@ -25,10 +25,11 @@
             <rect y="11" width="10" height="10" fill="#00a4ef" />
             <rect x="11" y="11" width="10" height="10" fill="#ffb900" />
           </svg>
-          <h2>Connect Azure</h2>
-          <button class="perm-close" @click="showPermissionPicker = false">&times;</button>
+          <h2>{{ isChangingPermissions ? 'Change Permissions' : 'Connect Azure' }}</h2>
+          <button class="perm-close" @click="showPermissionPicker = false; isChangingPermissions = false">&times;</button>
         </div>
-        <p class="perm-intro">Choose which data sources the agent can access. Azure Cost &amp; Resources is always included. You can connect with fewer permissions and add more later by reconnecting.</p>
+        <p class="perm-intro" v-if="!isChangingPermissions">Choose which data sources the agent can access. Azure Cost &amp; Resources is always included. You can add more permissions later by reconnecting.</p>
+        <p class="perm-intro" v-else>Select the permissions you want and click Reconnect. You'll see the Microsoft consent screen to approve any new permissions. <strong>To remove previously granted permissions</strong>, click "Revoke all" below — this opens Microsoft My Account where you can fully revoke access, then reconnect with only what you need.</p>
 
         <!-- Always-on base -->
         <div class="perm-group perm-group--base">
@@ -54,16 +55,22 @@
         </div>
 
         <div class="perm-actions">
-          <button class="perm-cancel" @click="showPermissionPicker = false">Cancel</button>
-          <button class="perm-connect" @click="connectWithPermissions">
-            <svg width="14" height="14" viewBox="0 0 21 21" fill="none">
-              <rect width="10" height="10" fill="#fff" fill-opacity="0.9" />
-              <rect x="11" width="10" height="10" fill="#fff" fill-opacity="0.7" />
-              <rect y="11" width="10" height="10" fill="#fff" fill-opacity="0.7" />
-              <rect x="11" y="11" width="10" height="10" fill="#fff" fill-opacity="0.5" />
-            </svg>
-            Connect with {{ selectedPermissionCount }} permission{{ selectedPermissionCount === 1 ? '' : 's' }}
-          </button>
+          <a v-if="isChangingPermissions" class="perm-revoke-link" href="https://myaccount.microsoft.com/permissions" target="_blank" rel="noopener">
+            Revoke all at Microsoft
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          </a>
+          <div class="perm-actions-right">
+            <button class="perm-cancel" @click="showPermissionPicker = false; isChangingPermissions = false">Cancel</button>
+            <button class="perm-connect" @click="connectWithPermissions">
+              <svg width="14" height="14" viewBox="0 0 21 21" fill="none">
+                <rect width="10" height="10" fill="#fff" fill-opacity="0.9" />
+                <rect x="11" width="10" height="10" fill="#fff" fill-opacity="0.7" />
+                <rect y="11" width="10" height="10" fill="#fff" fill-opacity="0.7" />
+                <rect x="11" y="11" width="10" height="10" fill="#fff" fill-opacity="0.5" />
+              </svg>
+              {{ isChangingPermissions ? 'Reconnect' : 'Connect' }} with {{ selectedPermissionCount }} permission{{ selectedPermissionCount === 1 ? '' : 's' }}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -809,6 +816,7 @@ const azurePermissionGroups = ref([]);
 
 // Permission picker
 const showPermissionPicker = ref(false);
+const isChangingPermissions = ref(false);
 const permissionGroups = reactive([
   {
     key: "directory",
@@ -854,7 +862,9 @@ function connectWithPermissions() {
     .map((g) => g.key)
     .join(",");
   showPermissionPicker.value = false;
-  startAuth("azure", `/auth/microsoft?scopes=${encodeURIComponent(selected)}`);
+  const reconsent = isChangingPermissions.value ? "&reconsent=1" : "";
+  isChangingPermissions.value = false;
+  startAuth("azure", `/auth/microsoft?scopes=${encodeURIComponent(selected)}${reconsent}`);
 }
 
 async function checkAzureStatus() {
@@ -896,7 +906,7 @@ async function disconnectAzure() {
 }
 
 async function changePermissions() {
-  // Disconnect first, then show the permission picker
+  // Disconnect first, then show the permission picker with reconsent flag
   try {
     await fetch("/auth/azure/disconnect", { method: "POST" });
     azureConnected.value = false;
@@ -906,6 +916,7 @@ async function changePermissions() {
     azureApis.value = [];
     azurePermissionGroups.value = [];
   } catch {}
+  isChangingPermissions.value = true;
   showPermissionPicker.value = true;
 }
 
@@ -3923,9 +3934,28 @@ async function send() {
 }
 .perm-actions {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
   gap: 10px;
   margin-top: 18px;
+}
+.perm-actions-right {
+  display: flex;
+  gap: 10px;
+  margin-left: auto;
+}
+.perm-revoke-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #cf222e;
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.15s;
+}
+.perm-revoke-link:hover {
+  color: #a40e26;
+  text-decoration: underline;
 }
 .perm-cancel {
   padding: 8px 18px;

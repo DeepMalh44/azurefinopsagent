@@ -327,6 +327,12 @@ app.MapGet("/auth/microsoft", (HttpContext ctx) =>
     }
 
     var scope = string.Join(" ", scopes);
+
+    // Use prompt=consent when user is re-authenticating to change permissions — forces the consent screen
+    // to appear even if previously consented. Default prompt=select_account for first-time connect.
+    var forceConsent = ctx.Request.Query["reconsent"].ToString() == "1";
+    var promptType = forceConsent ? "consent" : "select_account";
+
     var url = $"https://login.microsoftonline.com/{Uri.EscapeDataString(msTenantId)}/oauth2/v2.0/authorize" +
               $"?client_id={Uri.EscapeDataString(msClientId)}" +
               $"&response_type=code" +
@@ -334,7 +340,7 @@ app.MapGet("/auth/microsoft", (HttpContext ctx) =>
               $"&scope={Uri.EscapeDataString(scope)}" +
               $"&state={state}" +
               $"&response_mode=query" +
-              $"&prompt=select_account";
+              $"&prompt={promptType}";
 
     logger.LogInformation("Microsoft OAuth redirect initiated from {Host}", ctx.Request.Host);
     return Results.Redirect(url);
