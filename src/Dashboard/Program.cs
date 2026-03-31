@@ -17,8 +17,11 @@ var builder = WebApplication.CreateBuilder(args);
 if (builder.Environment.IsDevelopment())
     builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: false);
 
-// Data protection for cookie encryption
-builder.Services.AddDataProtection();
+// Data protection for cookie encryption — persist keys so sessions survive container restarts
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(
+        Path.Combine(builder.Environment.IsDevelopment() ? Path.GetTempPath() : "/home", "dataprotection-keys")))
+    .SetApplicationName("AzureFinOpsAgent");
 
 // Session
 builder.Services.AddDistributedMemoryCache();
