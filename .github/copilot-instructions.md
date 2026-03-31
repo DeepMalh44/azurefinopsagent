@@ -31,7 +31,7 @@ https://github.com/github/copilot-sdk/blob/main/dotnet/README.md
 
 Azure FinOps Agent is an AI-powered agentic solution for FinOps and InfraOps on Azure. It serves as a reference architecture and delivery accelerator (VBD) for Microsoft Customer Success teams to help Azure customers optimize cloud costs.
 
-The agent acts as a frontend on top of Microsoft IQ and Microsoft Graph APIs to:
+The agent acts as a frontend on top of Azure Cost Management, Billing, ARM REST APIs, and Microsoft Graph APIs to:
 
 - **Simulate potential cost outcomes** — model scenarios and forecast Azure spend under different configurations.
 - **Surface immediate cost-optimization actions** — identify low-hanging fruit such as idle resources, oversized VMs, and unattached disks.
@@ -48,7 +48,7 @@ The agent acts as a frontend on top of Microsoft IQ and Microsoft Graph APIs to:
 - **Deployment**: Azure App Service (Linux, P0v3 Premium) via Docker container image from Azure Container Registry (ACR). Multi-stage Dockerfile bakes Python 3, pip packages (python-pptx, matplotlib, pandas, numpy, lxml), and CLI tools into the image — no runtime install needed. Legacy zip deployment via `deploy.ps1` still supported for the original `finops-agent` app.
 - **Container Registry**: Azure Container Registry (`crfinopsagent.azurecr.io`) — Basic SKU, admin credentials, images built via `az acr build`
 - **Container App (staging)**: `finops-agent-container.azurewebsites.net` — Docker container on same P0v3 plan, used for testing before swapping to production
-- **Custom Domain**: `https://www.azure-finops-agent.com` (Azure DNS → Azure App Service with managed SSL)
+- **Custom Domain**: `https://azure-finops-agent.com` (Azure DNS → Azure App Service with managed SSL; `www.` redirects to bare domain via middleware)
 - **License**: MIT
 
 ## Project Structure
@@ -138,8 +138,10 @@ No login is required to use the chat. Users are auto-assigned an anonymous sessi
 A single **multi-tenant** Microsoft Entra ID app registration (`Azure FinOps Agent`) is shared between local development and production — both use the same ClientId/ClientSecret. The OAuth flow exchanges tokens for three separate resources:
 
 - **Azure ARM token** (`https://management.azure.com/user_impersonation`) — for Cost Management, Billing, Advisor, Resource Graph, Monitor, etc.
-- **Microsoft Graph token** (`https://graph.microsoft.com/.default`) — for license inventory, directory objects, org structure
-- **Log Analytics token** (`https://api.loganalytics.io/.default`) — for KQL queries against Log Analytics and App Insights
+- **Microsoft Graph token** (explicit granular scopes) — for license inventory, M365 usage reports, Intune device management, directory objects, org structure. Scopes: `User.Read`, `User.Read.All`, `Organization.Read.All`, `Group.Read.All`, `Application.Read.All`, `Reports.Read.All`, `DeviceManagementManagedDevices.Read.All`, `DeviceManagementConfiguration.Read.All`
+- **Log Analytics token** (`https://api.loganalytics.io/Data.Read`) — for KQL queries against Log Analytics and App Insights
+
+**Security**: All Graph and Log Analytics token exchanges use explicit scopes (not `.default`) to prevent silent permission creep. The broad `Directory.Read.All` scope was removed in favor of granular `User.Read.All` + `Group.Read.All` + `Application.Read.All`.
 
 The flow:
 
@@ -303,7 +305,7 @@ Always use Playwright when portal interaction is required rather than asking the
 
 ## Custom Domain Setup
 
-The production app is available at `https://www.azure-finops-agent.com` and `https://azure-finops-agent.com`.
+The production app is available at `https://azure-finops-agent.com` (canonical) and `https://www.azure-finops-agent.com` (redirects to bare domain).
 
 - **Domain Registrar**: Namecheap (domain registration + WHOIS privacy only)
 - **DNS Provider**: Azure DNS (zone: `azure-finops-agent.com` in `rg-finops-agent`)
