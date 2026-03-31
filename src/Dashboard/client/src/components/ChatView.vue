@@ -867,12 +867,19 @@ async function revokeAllPermissions() {
 }
 
 // When Azure connects, expand Cost Analysis and collapse the public categories
-watch(azureConnected, (connected) => {
+watch(azureConnected, (connected, wasConnected) => {
   if (!connected) return;
   collapsedSections.finops_cost = false;
   collapsedSections.finops_pricing = true;
   collapsedSections.finops_pricing_public = true;
+  // Auto-clear chat when Azure connects — removes stale "Connect Azure first" messages
+  // and resets the Copilot session so the LLM knows the user is now connected
+  if (!wasConnected) clearMessages();
 });
+
+// Reset Copilot session when addon tiers are enabled so LLM picks up new tokens
+watch(graphEnabled, (enabled, was) => { if (enabled && !was) clearMessages(); });
+watch(logAnalyticsEnabled, (enabled, was) => { if (enabled && !was) clearMessages(); });
 
 function dismissPopover() {
   hoveredTool.value = null;
