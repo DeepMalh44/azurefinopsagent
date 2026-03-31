@@ -38,23 +38,34 @@ async function logout() {
 
 :root {
   --bg: #ffffff;
-  --surface: #f6f8fa;
-  --border: #d1d9e0;
-  --text: #1f2328;
-  --text-muted: #656d76;
-  --accent: #0969da;
-  --accent-hover: #0550ae;
-  --green: #2da44e;
-  --red: #f85149;
+  --surface: #ffffff;
+  --border: #e1dfdd;
+  --text: #323130;
+  --text-muted: #605e5c;
+  --accent: #0078d4;
+  --accent-hover: #106ebe;
+  --green: #107c10;
+  --red: #d13438;
+  --azure-blue: #0078d4;
+  --azure-dark-blue: #005a9e;
+  --azure-header: #0078d4;
 }
 
 body {
   font-family:
-    -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    "Segoe UI",
+    "Segoe UI Web (West European)",
+    -apple-system,
+    BlinkMacSystemFont,
+    Roboto,
+    Helvetica,
+    Arial,
+    sans-serif;
   background: var(--bg);
   color: var(--text);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  font-size: 14px;
 }
 
 .app {

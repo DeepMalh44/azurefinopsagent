@@ -1,5 +1,52 @@
 <template>
   <div class="chat-view">
+    <!-- Azure Portal-style top bar -->
+    <header class="portal-header">
+      <div class="portal-header-left">
+        <button
+          class="portal-burger"
+          @click="sidebarOpen = !sidebarOpen"
+          title="Toggle menu"
+        >
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <line x1="3" y1="6" x2="21" y2="6" />
+            <line x1="3" y1="12" x2="21" y2="12" />
+            <line x1="3" y1="18" x2="21" y2="18" />
+          </svg>
+        </button>
+        <span class="portal-title">Azure FinOps Agent</span>
+      </div>
+      <div class="portal-header-right">
+        <div v-if="azureConnected && azureUserEmail" class="portal-user-identity" @click="disconnectAzure" title="Disconnect Azure">
+          <div class="portal-user-text">
+            <span class="portal-user-email">{{ azureUserEmail }}</span>
+            <span class="portal-user-tenant">AZURE TENANT</span>
+          </div>
+          <div class="portal-user-avatar">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+            </svg>
+          </div>
+        </div>
+        <div v-else-if="!azureConnected" class="portal-user-identity portal-user-identity--anon">
+          <div class="portal-user-avatar">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+    </header>
+
     <!-- Auth loading overlay -->
     <div v-if="authLoading" class="auth-overlay">
       <div class="auth-overlay-card">
@@ -15,147 +62,553 @@
       </div>
     </div>
 
-    <!-- Left sidebar -->
-    <aside class="sidebar">
-      <div class="sidebar-scroll">
-        <!-- FinOps Prompt Categories -->
-        <div
-          v-for="cat in visibleCategories"
-          :key="cat.key"
-          class="sidebar-category"
-          :class="{ 'sidebar-category--border': cat !== visibleCategories[0] }"
-        >
+    <!-- Main content area -->
+    <div class="portal-body">
+      <!-- Left sidebar -->
+      <aside class="sidebar" :class="{ 'sidebar--collapsed': !sidebarOpen }">
+        <div class="sidebar-scroll">
+          <!-- FinOps Prompt Categories -->
           <div
-            class="sidebar-category-label sidebar-category-label--toggle"
-            @click="toggleSection(cat.key)"
-          >
-            <span>{{ cat.label }}</span>
-            <svg
-              class="collapse-chevron"
-              :class="{
-                'collapse-chevron--collapsed': collapsedSections[cat.key],
-              }"
-              viewBox="0 0 16 16"
-              fill="none"
-            >
-              <path
-                d="M4 6l4 4 4-4"
-                stroke="currentColor"
-                stroke-width="1.5"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-            </svg>
-          </div>
-          <div
-            class="collapse-body"
+            v-for="cat in visibleCategories"
+            :key="cat.key"
+            class="sidebar-category"
             :class="{
-              'collapse-body--collapsed': collapsedSections[cat.key],
+              'sidebar-category--border': cat !== visibleCategories[0],
             }"
           >
-            <button
-              v-for="q in cat.prompts"
-              :key="q.label"
-              class="sidebar-question"
-              :disabled="streaming"
-              :title="q.prompt"
-              @click="sendQuestion(q.prompt)"
+            <div
+              class="sidebar-category-label sidebar-category-label--toggle"
+              @click="toggleSection(cat.key)"
             >
-              <span
-                class="sidebar-question-icon"
-                :class="'sidebar-question-icon--' + cat.colorClass"
+              <span>{{ cat.label }}</span>
+              <svg
+                class="collapse-chevron"
+                :class="{
+                  'collapse-chevron--collapsed': collapsedSections[cat.key],
+                }"
+                viewBox="0 0 16 16"
+                fill="none"
               >
-                {{ cat.icon }}
-              </span>
-              <span>{{ q.label }}</span>
-            </button>
-          </div>
-        </div>
-
-        <!-- Subscriptions (after Azure login) -->
-        <div
-          v-if="azureConnected && azureSubscriptions.length"
-          class="sidebar-category sidebar-category--border"
-        >
-          <div
-            class="sidebar-category-label sidebar-category-label--toggle"
-            @click="toggleSection('subs')"
-          >
-            <span>Subscriptions ({{ azureSubscriptions.length }})</span>
-            <svg
-              class="collapse-chevron"
-              :class="{ 'collapse-chevron--collapsed': collapsedSections.subs }"
-              viewBox="0 0 16 16"
-              fill="none"
+                <path
+                  d="M4 6l4 4 4-4"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </div>
+            <div
+              class="collapse-body"
+              :class="{
+                'collapse-body--collapsed': collapsedSections[cat.key],
+              }"
             >
-              <path
-                d="M4 6l4 4 4-4"
-                stroke="currentColor"
-                stroke-width="1.5"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-            </svg>
+              <button
+                v-for="q in cat.prompts"
+                :key="q.label"
+                class="sidebar-question"
+                :disabled="streaming"
+                :title="q.prompt"
+                @click="sendQuestion(q.prompt)"
+              >
+                <span
+                  class="sidebar-question-icon"
+                  :class="'sidebar-question-icon--' + cat.colorClass"
+                >
+                  {{ cat.icon }}
+                </span>
+                <span>{{ q.label }}</span>
+              </button>
+            </div>
           </div>
+
+          <!-- Subscriptions (after Azure login) -->
           <div
-            class="collapse-body"
-            :class="{ 'collapse-body--collapsed': collapsedSections.subs }"
+            v-if="azureConnected && azureSubscriptions.length"
+            class="sidebar-category sidebar-category--border"
           >
             <div
-              v-for="sub in azureSubscriptions"
-              :key="sub.id"
-              class="sidebar-sub"
+              class="sidebar-category-label sidebar-category-label--toggle"
+              @click="toggleSection('subs')"
             >
-              <span class="sidebar-sub-name">{{ sub.name }}</span>
-              <span class="sidebar-sub-id"
-                >{{ sub.id.substring(0, 8) }}...</span
+              <span>Subscriptions ({{ azureSubscriptions.length }})</span>
+              <svg
+                class="collapse-chevron"
+                :class="{
+                  'collapse-chevron--collapsed': collapsedSections.subs,
+                }"
+                viewBox="0 0 16 16"
+                fill="none"
               >
+                <path
+                  d="M4 6l4 4 4-4"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </div>
+            <div
+              class="collapse-body"
+              :class="{ 'collapse-body--collapsed': collapsedSections.subs }"
+            >
+              <div
+                v-for="sub in azureSubscriptions"
+                :key="sub.id"
+                class="sidebar-sub"
+              >
+                <span class="sidebar-sub-name">{{ sub.name }}</span>
+                <span class="sidebar-sub-id"
+                  >{{ sub.id.substring(0, 8) }}...</span
+                >
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- Bottom section -->
-      <div class="sidebar-footer">
-        <!-- Azure connect/status -->
-        <div v-if="!azureConnected" class="azure-connect">
-          <button
-            class="azure-connect-btn"
-            :disabled="authLoading === 'azure'"
-            @click="startAuth('azure', '/auth/microsoft')"
-          >
-            <span
-              v-if="authLoading === 'azure'"
-              class="auth-spinner auth-spinner--azure"
-            ></span>
-            <svg v-else width="16" height="16" viewBox="0 0 21 21" fill="none">
-              <rect width="10" height="10" fill="#f25022" />
-              <rect x="11" width="10" height="10" fill="#7fba00" />
-              <rect y="11" width="10" height="10" fill="#00a4ef" />
-              <rect x="11" y="11" width="10" height="10" fill="#ffb900" />
-            </svg>
-            {{ authLoading === "azure" ? "Connecting..." : "Connect Azure" }}
-          </button>
-        </div>
-        <div v-else class="azure-status">
-          <div class="azure-status-info">
-            <svg width="14" height="14" viewBox="0 0 21 21" fill="none">
-              <rect width="10" height="10" fill="#f25022" />
-              <rect x="11" width="10" height="10" fill="#7fba00" />
-              <rect y="11" width="10" height="10" fill="#00a4ef" />
-              <rect x="11" y="11" width="10" height="10" fill="#ffb900" />
-            </svg>
-            <span class="azure-status-text">{{
-              azureUserEmail || "Azure Connected"
-            }}</span>
+        <!-- Bottom section -->
+        <div class="sidebar-footer">
+          <!-- Azure connect/status -->
+          <div v-if="!azureConnected" class="azure-connect">
             <button
-              class="azure-disconnect-btn"
-              @click="disconnectAzure"
-              title="Disconnect session (keeps Entra ID consent)"
+              class="azure-connect-btn"
+              :disabled="authLoading === 'azure'"
+              @click="startAuth('azure', '/auth/microsoft')"
+            >
+              <span
+                v-if="authLoading === 'azure'"
+                class="auth-spinner auth-spinner--azure"
+              ></span>
+              <svg
+                v-else
+                width="16"
+                height="16"
+                viewBox="0 0 21 21"
+                fill="none"
+              >
+                <rect width="10" height="10" fill="#f25022" />
+                <rect x="11" width="10" height="10" fill="#7fba00" />
+                <rect y="11" width="10" height="10" fill="#00a4ef" />
+                <rect x="11" y="11" width="10" height="10" fill="#ffb900" />
+              </svg>
+              {{ authLoading === "azure" ? "Connecting..." : "Connect Azure" }}
+            </button>
+          </div>
+          <div v-else class="azure-status">
+            <div class="azure-status-info">
+              <svg width="14" height="14" viewBox="0 0 21 21" fill="none">
+                <rect width="10" height="10" fill="#f25022" />
+                <rect x="11" width="10" height="10" fill="#7fba00" />
+                <rect y="11" width="10" height="10" fill="#00a4ef" />
+                <rect x="11" y="11" width="10" height="10" fill="#ffb900" />
+              </svg>
+              <span class="azure-status-text">{{
+                azureUserEmail || "Azure Connected"
+              }}</span>
+              <button
+                class="azure-disconnect-btn"
+                @click="disconnectAzure"
+                title="Disconnect session (keeps Entra ID consent)"
+              >
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+            <!-- Incremental consent: each button navigates to Microsoft Entra ID consent screen -->
+            <div class="azure-addons">
+              <button
+                v-if="!licensesEnabled"
+                class="azure-addon-btn"
+                @click="startAuth('azure', '/auth/microsoft?tier=licenses')"
+                title="Opens Microsoft consent screen for: Read organization info, Read usage reports"
+              >
+                <span class="azure-addon-icon">+</span>
+                License Optimization
+              </button>
+              <span
+                v-else
+                class="azure-addon-active"
+                title="M365 license inventory + usage reports — consented in Entra ID"
+                >✓ Licenses</span
+              >
+
+              <button
+                v-if="!chargebackEnabled"
+                class="azure-addon-btn"
+                @click="startAuth('azure', '/auth/microsoft?tier=chargeback')"
+                title="Opens Microsoft consent screen for: Read all users' profiles, Read all groups"
+              >
+                <span class="azure-addon-icon">+</span>
+                Cost Allocation
+              </button>
+              <span
+                v-else
+                class="azure-addon-active"
+                title="User profiles + groups for department chargeback — consented in Entra ID"
+                >✓ Chargeback</span
+              >
+
+              <button
+                v-if="!logAnalyticsEnabled"
+                class="azure-addon-btn"
+                @click="startAuth('azure', '/auth/microsoft?tier=loganalytics')"
+                title="Opens Microsoft consent screen for: Read Log Analytics data"
+              >
+                <span class="azure-addon-icon">+</span>
+                Log Analytics
+              </button>
+              <span
+                v-else
+                class="azure-addon-active"
+                title="Log Analytics & App Insights KQL — consented in Entra ID"
+                >✓ KQL</span
+              >
+            </div>
+            <button
+              class="azure-revoke-btn"
+              @click="revokeAllPermissions"
+              title="Disconnect and revoke all Entra ID permissions for this app"
+            >
+              Revoke all permissions
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Center: chat area -->
+      <div class="chat-main">
+        <!-- Messages -->
+        <div class="messages" ref="messagesEl">
+          <div class="messages-inner">
+            <div v-if="messages.length === 0" class="empty-state">
+              <h1 class="es-headline">Azure FinOps Agent</h1>
+              <p class="es-sub">
+                Analyze costs, forecast spend, optimize resources, and export
+                executive-ready PowerPoint decks — all from a single
+                conversation.
+              </p>
+
+              <div v-if="!azureConnected" class="es-connect-bar">
+                <button
+                  class="es-step-btn es-step-btn--azure"
+                  :disabled="authLoading === 'azure'"
+                  @click="startAuth('azure', '/auth/microsoft')"
+                >
+                  <svg width="14" height="14" viewBox="0 0 21 21" fill="none">
+                    <rect
+                      width="10"
+                      height="10"
+                      fill="#fff"
+                      fill-opacity="0.9"
+                    />
+                    <rect
+                      x="11"
+                      width="10"
+                      height="10"
+                      fill="#fff"
+                      fill-opacity="0.7"
+                    />
+                    <rect
+                      y="11"
+                      width="10"
+                      height="10"
+                      fill="#fff"
+                      fill-opacity="0.7"
+                    />
+                    <rect
+                      x="11"
+                      y="11"
+                      width="10"
+                      height="10"
+                      fill="#fff"
+                      fill-opacity="0.5"
+                    />
+                  </svg>
+                  {{
+                    authLoading === "azure"
+                      ? "Connecting..."
+                      : "Connect Azure tenant for contextual FinOps"
+                  }}
+                </button>
+              </div>
+
+              <!-- Capabilities -->
+              <div class="es-capabilities">
+                <div class="es-capabilities-grid">
+                  <div class="es-cap-item">
+                    <div class="es-cap-title">
+                      Cost analysis across all scopes
+                    </div>
+                    <div class="es-cap-desc">
+                      Break down spend by service, resource group, tag,
+                      subscription, and region — across all subscriptions and
+                      management groups at once
+                    </div>
+                  </div>
+                  <div class="es-cap-item">
+                    <div class="es-cap-title">20+ interactive chart types</div>
+                    <div class="es-cap-desc">
+                      Bar, line, pie, scatter, world maps, treemaps, heatmaps,
+                      radar, gauge, funnel, sankey — rendered inline, not static
+                      screenshots
+                    </div>
+                  </div>
+                  <div class="es-cap-item">
+                    <div class="es-cap-title">Python data processing</div>
+                    <div class="es-cap-desc">
+                      Chains multiple API calls and runs Python with pandas and
+                      numpy for complex calculations and transformations
+                    </div>
+                  </div>
+                  <div class="es-cap-item">
+                    <div class="es-cap-title">PowerPoint export</div>
+                    <div class="es-cap-desc">
+                      Generates .pptx presentations with embedded charts and
+                      data tables — walk into a stakeholder meeting ready
+                    </div>
+                  </div>
+                  <div class="es-cap-item">
+                    <div class="es-cap-title">M365 license and Copilot ROI</div>
+                    <div class="es-cap-desc">
+                      Queries Microsoft Graph for unused licenses, Copilot seat
+                      usage, and license waste across your tenant
+                    </div>
+                  </div>
+                  <div class="es-cap-item">
+                    <div class="es-cap-title">KQL on Log Analytics</div>
+                    <div class="es-cap-desc">
+                      Runs queries for ingestion costs, VM performance,
+                      container insights, and activity audit telemetry
+                    </div>
+                  </div>
+                  <div class="es-cap-item">
+                    <div class="es-cap-title">Every Azure resource type</div>
+                    <div class="es-cap-desc">
+                      Reservations, savings plans, Cosmos DB, AKS, Databricks,
+                      Redis, Synapse, ML, Carbon, and 30+ more
+                    </div>
+                  </div>
+                  <div class="es-cap-item">
+                    <div class="es-cap-title">Chargeback and tag audit</div>
+                    <div class="es-cap-desc">
+                      Auto-generates chargeback reports by tag or owner and
+                      quantifies untagged cost across your environment
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Message list -->
+            <div
+              v-for="(msg, i) in messages"
+              :key="i"
+              class="message-row"
+              :class="
+                msg.role === 'user' ? 'message-row--user' : 'message-row--ai'
+              "
+            >
+              <div v-if="msg.role === 'user'" class="bubble bubble--user">
+                {{ msg.content }}
+              </div>
+              <div v-else class="ai-row">
+                <div class="ai-header">
+                  <div class="ai-avatar">AI</div>
+                </div>
+                <div class="ai-content">
+                  <div
+                    v-for="(chart, ci) in msg.charts || []"
+                    :key="'chart-' + i + '-' + ci"
+                    class="chart-container"
+                    :ref="(el) => el && mountChart(el, chart)"
+                  ></div>
+                  <div
+                    class="message-text"
+                    v-html="renderContent(msg.content)"
+                  ></div>
+                  <div v-if="msg.followUp" class="follow-up-buttons">
+                    <button
+                      class="follow-up-btn"
+                      @click="sendQuestion(msg.followUp.prompt)"
+                    >
+                      {{ msg.followUp.label }}
+                    </button>
+                  </div>
+                  <div v-if="msg.pptx" class="pptx-inline-download">
+                    <a
+                      :href="'/api/download/pptx/' + msg.pptx.fileId"
+                      class="pptx-download-btn"
+                      download
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      >
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                        <polyline points="7 10 12 15 17 10" />
+                        <line x1="12" y1="15" x2="12" y2="3" />
+                      </svg>
+                      Download {{ msg.pptx.fileName }} ({{
+                        msg.pptx.slideCount
+                      }}
+                      slides)
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Streaming indicator -->
+            <div v-if="streaming" class="message-row message-row--ai">
+              <div class="ai-row">
+                <div class="ai-header">
+                  <div class="ai-avatar">AI</div>
+                  <span v-if="streamIntent" class="stream-intent">
+                    {{ streamIntent }}
+                  </span>
+                </div>
+                <div class="ai-content">
+                  <div
+                    v-for="(chart, ci) in streamCharts"
+                    :key="'stream-chart-' + ci"
+                    class="chart-container"
+                    :ref="(el) => el && mountChart(el, chart)"
+                  ></div>
+                  <div class="message-text" v-if="streamBuffer">
+                    <span v-html="renderContent(streamBuffer)"></span>
+                    <span class="streaming-cursor"></span>
+                  </div>
+                  <div class="message-text" v-else-if="!streamIntent">
+                    <span class="streaming-cursor"></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- PPTX download (streaming) -->
+        <div v-if="pptxReady" class="pptx-download-bar">
+          <a
+            :href="'/api/download/pptx/' + pptxReady.fileId"
+            class="pptx-download-btn"
+            download
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            Download {{ pptxReady.fileName }} ({{ pptxReady.slideCount }}
+            slides)
+          </a>
+        </div>
+
+        <!-- Mobile auth bar (hidden on desktop, shown on mobile) -->
+        <div class="mobile-auth-bar"></div>
+
+        <!-- Input bar -->
+        <div class="input-area">
+          <div
+            class="input-wrapper"
+            :class="{ 'input-wrapper--disabled': false }"
+          >
+            <input
+              ref="inputEl"
+              v-model="input"
+              type="text"
+              @keydown.enter.prevent="send"
+              :placeholder="
+                user
+                  ? 'Ask about Azure pricing, cost comparisons, or FinOps insights...'
+                  : 'Ask about Azure costs, pricing, or optimization...'
+              "
+              class="input-field"
+              :disabled="!user"
+            />
+            <button
+              v-if="streaming"
+              class="action-btn action-btn--stop"
+              @click="stopGeneration"
             >
               <svg
-                width="12"
-                height="12"
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
+                <rect x="6" y="6" width="12" height="12" rx="2" />
+              </svg>
+            </button>
+            <button
+              v-else
+              class="action-btn"
+              :class="
+                input.trim() ? 'action-btn--active' : 'action-btn--disabled'
+              "
+              :disabled="!input.trim()"
+              @click="send"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <line x1="12" y1="19" x2="12" y2="5" />
+                <polyline points="5 12 12 5 19 12" />
+              </svg>
+            </button>
+          </div>
+          <div class="input-side-actions">
+            <button
+              class="input-pill-btn"
+              :class="{
+                'input-pill-btn--disabled': messages.length === 0 || streaming,
+              }"
+              :disabled="messages.length === 0 || streaming"
+              @click="clearMessages"
+              title="Clear chat"
+            >
+              <svg
+                width="14"
+                height="14"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -163,502 +616,119 @@
                 stroke-linecap="round"
                 stroke-linejoin="round"
               >
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
+                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                <path d="M3 3v5h5" />
               </svg>
+              <span class="input-pill-label">Clear</span>
             </button>
-          </div>
-          <!-- Incremental consent: each button navigates to Microsoft Entra ID consent screen -->
-          <div class="azure-addons">
             <button
-              v-if="!licensesEnabled"
-              class="azure-addon-btn"
-              @click="startAuth('azure', '/auth/microsoft?tier=licenses')"
-              title="Opens Microsoft consent screen for: Read organization info, Read usage reports"
+              class="input-pill-btn"
+              :class="{
+                'input-pill-btn--disabled': messages.length < 2 || streaming,
+              }"
+              :disabled="messages.length < 2 || streaming"
+              @click="requestPresentation"
+              title="Generate PowerPoint"
             >
-              <span class="azure-addon-icon">+</span>
-              License Optimization
-            </button>
-            <span
-              v-else
-              class="azure-addon-active"
-              title="M365 license inventory + usage reports — consented in Entra ID"
-              >✓ Licenses</span
-            >
-
-            <button
-              v-if="!chargebackEnabled"
-              class="azure-addon-btn"
-              @click="startAuth('azure', '/auth/microsoft?tier=chargeback')"
-              title="Opens Microsoft consent screen for: Read all users' profiles, Read all groups"
-            >
-              <span class="azure-addon-icon">+</span>
-              Cost Allocation
-            </button>
-            <span
-              v-else
-              class="azure-addon-active"
-              title="User profiles + groups for department chargeback — consented in Entra ID"
-              >✓ Chargeback</span
-            >
-
-            <button
-              v-if="!logAnalyticsEnabled"
-              class="azure-addon-btn"
-              @click="startAuth('azure', '/auth/microsoft?tier=loganalytics')"
-              title="Opens Microsoft consent screen for: Read Log Analytics data"
-            >
-              <span class="azure-addon-icon">+</span>
-              Log Analytics
-            </button>
-            <span
-              v-else
-              class="azure-addon-active"
-              title="Log Analytics & App Insights KQL — consented in Entra ID"
-              >✓ KQL</span
-            >
-          </div>
-          <button
-            class="azure-revoke-btn"
-            @click="revokeAllPermissions"
-            title="Disconnect and revoke all Entra ID permissions for this app"
-          >
-            Revoke all permissions
-          </button>
-        </div>
-      </div>
-    </aside>
-
-    <!-- Center: chat area -->
-    <div class="chat-main">
-      <!-- Messages -->
-      <div class="messages" ref="messagesEl">
-        <div class="messages-inner">
-          <div v-if="messages.length === 0" class="empty-state">
-            <h1 class="es-headline">FinOps Agent</h1>
-            <p class="es-sub">
-              Analyze costs, forecast spend, optimize resources, and export
-              executive-ready PowerPoint decks — all from a single conversation.
-            </p>
-
-            <div v-if="!azureConnected" class="es-connect-bar">
-              <button
-                class="es-step-btn es-step-btn--azure"
-                :disabled="authLoading === 'azure'"
-                @click="startAuth('azure', '/auth/microsoft')"
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
               >
-                <svg width="14" height="14" viewBox="0 0 21 21" fill="none">
-                  <rect width="10" height="10" fill="#fff" fill-opacity="0.9" />
-                  <rect
-                    x="11"
-                    width="10"
-                    height="10"
-                    fill="#fff"
-                    fill-opacity="0.7"
-                  />
-                  <rect
-                    y="11"
-                    width="10"
-                    height="10"
-                    fill="#fff"
-                    fill-opacity="0.7"
-                  />
-                  <rect
-                    x="11"
-                    y="11"
-                    width="10"
-                    height="10"
-                    fill="#fff"
-                    fill-opacity="0.5"
-                  />
-                </svg>
-                {{
-                  authLoading === "azure"
-                    ? "Connecting..."
-                    : "Connect Azure tenant for contextual FinOps"
-                }}
-              </button>
-            </div>
-
-            <!-- Capabilities -->
-            <div class="es-capabilities">
-              <div class="es-capabilities-grid">
-                <div class="es-cap-item">
-                  <div class="es-cap-title">
-                    Cost analysis across all scopes
-                  </div>
-                  <div class="es-cap-desc">
-                    Break down spend by service, resource group, tag,
-                    subscription, and region — across all subscriptions and
-                    management groups at once
-                  </div>
-                </div>
-                <div class="es-cap-item">
-                  <div class="es-cap-title">20+ interactive chart types</div>
-                  <div class="es-cap-desc">
-                    Bar, line, pie, scatter, world maps, treemaps, heatmaps,
-                    radar, gauge, funnel, sankey — rendered inline, not static
-                    screenshots
-                  </div>
-                </div>
-                <div class="es-cap-item">
-                  <div class="es-cap-title">Python data processing</div>
-                  <div class="es-cap-desc">
-                    Chains multiple API calls and runs Python with pandas and
-                    numpy for complex calculations and transformations
-                  </div>
-                </div>
-                <div class="es-cap-item">
-                  <div class="es-cap-title">PowerPoint export</div>
-                  <div class="es-cap-desc">
-                    Generates .pptx presentations with embedded charts and data
-                    tables — walk into a stakeholder meeting ready
-                  </div>
-                </div>
-                <div class="es-cap-item">
-                  <div class="es-cap-title">M365 license and Copilot ROI</div>
-                  <div class="es-cap-desc">
-                    Queries Microsoft Graph for unused licenses, Copilot seat
-                    usage, and license waste across your tenant
-                  </div>
-                </div>
-                <div class="es-cap-item">
-                  <div class="es-cap-title">KQL on Log Analytics</div>
-                  <div class="es-cap-desc">
-                    Runs queries for ingestion costs, VM performance, container
-                    insights, and activity audit telemetry
-                  </div>
-                </div>
-                <div class="es-cap-item">
-                  <div class="es-cap-title">Every Azure resource type</div>
-                  <div class="es-cap-desc">
-                    Reservations, savings plans, Cosmos DB, AKS, Databricks,
-                    Redis, Synapse, ML, Carbon, and 30+ more
-                  </div>
-                </div>
-                <div class="es-cap-item">
-                  <div class="es-cap-title">Chargeback and tag audit</div>
-                  <div class="es-cap-desc">
-                    Auto-generates chargeback reports by tag or owner and
-                    quantifies untagged cost across your environment
-                  </div>
-                </div>
-              </div>
-            </div>
+                <path
+                  d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+                />
+                <polyline points="14 2 14 8 20 8" />
+                <path d="M9 13h2v4h-2z" />
+                <path d="M9 11h4" />
+              </svg>
+              <span class="input-pill-label">PowerPoint</span>
+            </button>
           </div>
+        </div>
+      </div>
 
-          <!-- Message list -->
+      <!-- Right sidebar: Tool calls -->
+      <aside
+        class="tools-sidebar"
+        :class="{ 'tools-sidebar--open': allToolCalls.length > 0 }"
+      >
+        <div class="tools-sidebar-header">
+          <span class="tools-sidebar-title">Tools</span>
+          <span class="st-count">{{ allToolCalls.length }}</span>
+        </div>
+        <div class="tools-sidebar-scroll">
           <div
-            v-for="(msg, i) in messages"
-            :key="i"
-            class="message-row"
-            :class="
-              msg.role === 'user' ? 'message-row--user' : 'message-row--ai'
+            v-for="tc in reversedToolCalls"
+            :key="tc._uid"
+            :class="[
+              'st-row',
+              { 'st-row--running': !tc.done, 'st-row--clickable': tc.done },
+            ]"
+            @click.stop="
+              tc.done && (hoveredTool = hoveredTool === tc ? null : tc)
             "
           >
-            <div v-if="msg.role === 'user'" class="bubble bubble--user">
-              {{ msg.content }}
-            </div>
-            <div v-else class="ai-row">
-              <div class="ai-header">
-                <div class="ai-avatar">AI</div>
-              </div>
-              <div class="ai-content">
-                <div
-                  v-for="(chart, ci) in msg.charts || []"
-                  :key="'chart-' + i + '-' + ci"
-                  class="chart-container"
-                  :ref="(el) => el && mountChart(el, chart)"
-                ></div>
-                <div
-                  class="message-text"
-                  v-html="renderContent(msg.content)"
-                ></div>
-                <div v-if="msg.followUp" class="follow-up-buttons">
-                  <button
-                    class="follow-up-btn"
-                    @click="sendQuestion(msg.followUp.prompt)"
-                  >
-                    {{ msg.followUp.label }}
-                  </button>
-                </div>
-                <div v-if="msg.pptx" class="pptx-inline-download">
-                  <a
-                    :href="'/api/download/pptx/' + msg.pptx.fileId"
-                    class="pptx-download-btn"
-                    download
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    >
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                      <polyline points="7 10 12 15 17 10" />
-                      <line x1="12" y1="15" x2="12" y2="3" />
-                    </svg>
-                    Download {{ msg.pptx.fileName }} ({{ msg.pptx.slideCount }}
-                    slides)
-                  </a>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Streaming indicator -->
-          <div v-if="streaming" class="message-row message-row--ai">
-            <div class="ai-row">
-              <div class="ai-header">
-                <div class="ai-avatar">AI</div>
-                <span v-if="streamIntent" class="stream-intent">
-                  {{ streamIntent }}
-                </span>
-              </div>
-              <div class="ai-content">
-                <div
-                  v-for="(chart, ci) in streamCharts"
-                  :key="'stream-chart-' + ci"
-                  class="chart-container"
-                  :ref="(el) => el && mountChart(el, chart)"
-                ></div>
-                <div class="message-text" v-if="streamBuffer">
-                  <span v-html="renderContent(streamBuffer)"></span>
-                  <span class="streaming-cursor"></span>
-                </div>
-                <div class="message-text" v-else-if="!streamIntent">
-                  <span class="streaming-cursor"></span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- PPTX download (streaming) -->
-      <div v-if="pptxReady" class="pptx-download-bar">
-        <a
-          :href="'/api/download/pptx/' + pptxReady.fileId"
-          class="pptx-download-btn"
-          download
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-            <polyline points="7 10 12 15 17 10" />
-            <line x1="12" y1="15" x2="12" y2="3" />
-          </svg>
-          Download {{ pptxReady.fileName }} ({{ pptxReady.slideCount }} slides)
-        </a>
-      </div>
-
-      <!-- Mobile auth bar (hidden on desktop, shown on mobile) -->
-      <div class="mobile-auth-bar"></div>
-
-      <!-- Input bar -->
-      <div class="input-area">
-        <div
-          class="input-wrapper"
-          :class="{ 'input-wrapper--disabled': false }"
-        >
-          <input
-            ref="inputEl"
-            v-model="input"
-            type="text"
-            @keydown.enter.prevent="send"
-            :placeholder="
-              user
-                ? 'Ask about Azure pricing, cost comparisons, or FinOps insights...'
-                : 'Ask about Azure costs, pricing, or optimization...'
-            "
-            class="input-field"
-            :disabled="!user"
-          />
-          <button
-            v-if="streaming"
-            class="action-btn action-btn--stop"
-            @click="stopGeneration"
-          >
             <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="currentColor"
-            >
-              <rect x="6" y="6" width="12" height="12" rx="2" />
-            </svg>
-          </button>
-          <button
-            v-else
-            class="action-btn"
-            :class="
-              input.trim() ? 'action-btn--active' : 'action-btn--disabled'
-            "
-            :disabled="!input.trim()"
-            @click="send"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
+              v-if="!tc.done"
+              class="st-icon st-icon--spin"
+              viewBox="0 0 16 16"
               fill="none"
-              stroke="currentColor"
-              stroke-width="2.5"
-              stroke-linecap="round"
-              stroke-linejoin="round"
             >
-              <line x1="12" y1="19" x2="12" y2="5" />
-              <polyline points="5 12 12 5 19 12" />
-            </svg>
-          </button>
-        </div>
-        <div class="input-side-actions">
-          <button
-            class="input-pill-btn"
-            :class="{
-              'input-pill-btn--disabled': messages.length === 0 || streaming,
-            }"
-            :disabled="messages.length === 0 || streaming"
-            @click="clearMessages"
-            title="Clear chat"
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-              <path d="M3 3v5h5" />
-            </svg>
-            <span class="input-pill-label">Clear</span>
-          </button>
-          <button
-            class="input-pill-btn"
-            :class="{
-              'input-pill-btn--disabled': messages.length < 2 || streaming,
-            }"
-            :disabled="messages.length < 2 || streaming"
-            @click="requestPresentation"
-            title="Generate PowerPoint"
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <path
-                d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+              <circle
+                cx="8"
+                cy="8"
+                r="6"
+                stroke="#bf8700"
+                stroke-width="2"
+                stroke-dasharray="28"
+                stroke-dashoffset="8"
+                stroke-linecap="round"
               />
-              <polyline points="14 2 14 8 20 8" />
-              <path d="M9 13h2v4h-2z" />
-              <path d="M9 11h4" />
             </svg>
-            <span class="input-pill-label">PowerPoint</span>
-          </button>
+            <svg
+              v-else-if="tc.success"
+              class="st-icon st-icon--ok"
+              viewBox="0 0 16 16"
+              fill="none"
+            >
+              <circle cx="8" cy="8" r="7" stroke="#1a7f37" stroke-width="1.5" />
+              <path
+                d="M5 8.2 7 10.2 11 6"
+                stroke="#1a7f37"
+                stroke-width="1.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+            <svg
+              v-else
+              class="st-icon st-icon--fail"
+              viewBox="0 0 16 16"
+              fill="none"
+            >
+              <circle cx="8" cy="8" r="7" stroke="#cf222e" stroke-width="1.5" />
+              <path
+                d="M5.5 5.5 10.5 10.5M10.5 5.5 5.5 10.5"
+                stroke="#cf222e"
+                stroke-width="1.5"
+                stroke-linecap="round"
+              />
+            </svg>
+            <span class="st-name">{{ tc.tool }}</span>
+            <span v-if="tc.done" class="st-time">{{
+              formatDuration(tc.durationMs)
+            }}</span>
+          </div>
         </div>
-      </div>
+      </aside>
     </div>
-
-    <!-- Right sidebar: Tool calls -->
-    <aside
-      class="tools-sidebar"
-      :class="{ 'tools-sidebar--open': allToolCalls.length > 0 }"
-    >
-      <div class="tools-sidebar-header">
-        <span class="tools-sidebar-title">Tools</span>
-        <span class="st-count">{{ allToolCalls.length }}</span>
-      </div>
-      <div class="tools-sidebar-scroll">
-        <div
-          v-for="tc in reversedToolCalls"
-          :key="tc._uid"
-          :class="[
-            'st-row',
-            { 'st-row--running': !tc.done, 'st-row--clickable': tc.done },
-          ]"
-          @click.stop="
-            tc.done && (hoveredTool = hoveredTool === tc ? null : tc)
-          "
-        >
-          <svg
-            v-if="!tc.done"
-            class="st-icon st-icon--spin"
-            viewBox="0 0 16 16"
-            fill="none"
-          >
-            <circle
-              cx="8"
-              cy="8"
-              r="6"
-              stroke="#bf8700"
-              stroke-width="2"
-              stroke-dasharray="28"
-              stroke-dashoffset="8"
-              stroke-linecap="round"
-            />
-          </svg>
-          <svg
-            v-else-if="tc.success"
-            class="st-icon st-icon--ok"
-            viewBox="0 0 16 16"
-            fill="none"
-          >
-            <circle cx="8" cy="8" r="7" stroke="#1a7f37" stroke-width="1.5" />
-            <path
-              d="M5 8.2 7 10.2 11 6"
-              stroke="#1a7f37"
-              stroke-width="1.5"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-          </svg>
-          <svg
-            v-else
-            class="st-icon st-icon--fail"
-            viewBox="0 0 16 16"
-            fill="none"
-          >
-            <circle cx="8" cy="8" r="7" stroke="#cf222e" stroke-width="1.5" />
-            <path
-              d="M5.5 5.5 10.5 10.5M10.5 5.5 5.5 10.5"
-              stroke="#cf222e"
-              stroke-width="1.5"
-              stroke-linecap="round"
-            />
-          </svg>
-          <span class="st-name">{{ tc.tool }}</span>
-          <span v-if="tc.done" class="st-time">{{
-            formatDuration(tc.durationMs)
-          }}</span>
-        </div>
-      </div>
-    </aside>
+    <!-- end portal-body -->
 
     <!-- Tool popover -->
     <Teleport to="body">
@@ -699,13 +769,13 @@
 <script setup>
 import * as echarts from "echarts";
 import {
-  computed,
-  nextTick,
-  onBeforeUnmount,
-  onMounted,
-  reactive,
-  ref,
-  watch,
+    computed,
+    nextTick,
+    onBeforeUnmount,
+    onMounted,
+    reactive,
+    ref,
+    watch,
 } from "vue";
 
 const props = defineProps({
@@ -781,6 +851,7 @@ function toggleSection(key) {
 }
 const buildSha = ref("");
 const buildNumber = ref("0");
+const sidebarOpen = ref(true);
 const availableModels = ref(["claude-sonnet-4.6"]);
 const selectedModel = ref("claude-sonnet-4.6");
 
@@ -2432,41 +2503,176 @@ async function send() {
 <style scoped>
 .chat-view {
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   height: 100%;
   min-height: 0;
   overflow: hidden;
 }
-.sidebar {
-  width: 260px;
+
+/* ── Azure Portal Top Bar ── */
+.portal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 40px;
+  background: #0078d4;
+  color: #fff;
+  padding: 0 12px;
   flex-shrink: 0;
-  border-right: 1px solid var(--border);
-  background: var(--surface);
+  z-index: 100;
+  font-family:
+    "Segoe UI",
+    "Segoe UI Web (West European)",
+    -apple-system,
+    BlinkMacSystemFont,
+    sans-serif;
+}
+.portal-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.portal-burger {
+  background: none;
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+.portal-burger:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+.portal-title {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0;
+  color: #fff;
+}
+.portal-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.portal-user-identity {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 2px 8px;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+.portal-user-identity:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+.portal-user-identity--anon {
+  cursor: default;
+}
+.portal-user-identity--anon:hover {
+  background: none;
+}
+.portal-user-text {
   display: flex;
   flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.2;
+}
+.portal-user-email {
+  font-size: 12px;
+  font-weight: 400;
+  color: #fff;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.portal-user-tenant {
+  font-size: 10px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.7);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.portal-user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* ── Main content area below header ── */
+.chat-view
+  > .auth-overlay
+  ~ *:not(.auth-overlay):not(.portal-header):not(.build-badge),
+.chat-view-body {
+  /* fallback */
+}
+
+/* Wrap sidebar + chat + tools in a row below the header */
+.sidebar,
+.chat-main,
+.tools-sidebar {
+  /* These are direct children in the flex column; we need them in a row */
+}
+
+.sidebar {
+  width: 230px;
+  flex-shrink: 0;
+  border-right: 1px solid #e1dfdd;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition:
+    width 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.2s ease;
+}
+.sidebar--collapsed {
+  width: 0;
+  opacity: 0;
+  border-right: none;
+  overflow: hidden;
+}
+
+/* ── Portal body: row layout below header ── */
+.portal-body {
+  display: flex;
+  flex-direction: row;
+  flex: 1;
+  min-height: 0;
   overflow: hidden;
 }
 .sidebar-scroll {
   flex: 1;
   overflow-y: auto;
-  padding: 12px 14px;
+  padding: 8px 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 .sidebar-category-label {
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--text-muted);
-  margin-bottom: 6px;
-  padding: 0 6px;
+  letter-spacing: 0.04em;
+  color: #605e5c;
+  margin-bottom: 4px;
+  padding: 0 16px;
 }
 .sidebar-category--border {
-  margin-top: 6px;
-  border-top: 1px solid var(--border);
-  padding-top: 10px;
+  margin-top: 4px;
+  border-top: 1px solid #edebe9;
+  padding-top: 8px;
 }
 
 .sidebar-category-label--toggle {
@@ -2475,13 +2681,13 @@ async function send() {
   justify-content: space-between;
   cursor: pointer;
   user-select: none;
-  border-radius: 4px;
-  padding: 2px 6px;
-  margin-left: -2px;
-  margin-right: -2px;
+  border-radius: 2px;
+  padding: 4px 16px;
+  margin-left: 0;
+  margin-right: 0;
 }
 .sidebar-category-label--toggle:hover {
-  background: rgba(0, 0, 0, 0.04);
+  background: #f3f2f1;
 }
 .collapse-chevron {
   width: 14px;
@@ -2512,22 +2718,22 @@ async function send() {
   align-items: center;
   gap: 10px;
   width: 100%;
-  padding: 7px 10px;
+  padding: 6px 16px;
   border: none;
-  border-radius: 8px;
+  border-radius: 0;
   background: transparent;
   font-size: 13px;
   font-weight: 400;
-  color: var(--text);
+  color: #323130;
   cursor: pointer;
   text-align: left;
   line-height: 1.4;
-  transition: all 0.15s;
+  transition: background 0.1s;
   font-family: inherit;
 }
 .sidebar-question:hover {
-  background: rgba(9, 105, 218, 0.06);
-  color: var(--accent);
+  background: #f3f2f1;
+  color: #0078d4;
 }
 .sidebar-question:disabled {
   opacity: 0.4;
@@ -2652,8 +2858,8 @@ async function send() {
 .tools-sidebar {
   width: 0;
   flex-shrink: 0;
-  border-left: 1px solid var(--border);
-  background: var(--surface);
+  border-left: 1px solid #e1dfdd;
+  background: #ffffff;
   overflow: hidden;
   transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
@@ -2735,7 +2941,7 @@ async function send() {
   min-height: 28px;
 }
 .st-row:hover {
-  background: rgba(9, 105, 218, 0.06);
+  background: rgba(0, 120, 212, 0.06);
 }
 .st-row--clickable {
   cursor: pointer;
@@ -2893,13 +3099,10 @@ async function send() {
 }
 .es-headline {
   font-size: 1.6rem;
-  font-weight: 800;
+  font-weight: 600;
   margin: 0 0 0.3rem;
-  letter-spacing: -0.03em;
-  background: linear-gradient(135deg, #1f2328 25%, #0078d4 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  letter-spacing: -0.01em;
+  color: #323130;
 }
 .es-sub {
   font-size: 0.82rem;
@@ -3392,8 +3595,8 @@ async function send() {
   max-width: 80%;
   border-radius: 1rem;
   padding: 0.75rem 1rem;
-  background: #f4f4f5;
-  color: #18181b;
+  background: #e1dfdd;
+  color: #323130;
   font-size: 0.9rem;
   line-height: 1.5;
   word-wrap: break-word;
@@ -3411,7 +3614,7 @@ async function send() {
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  background: #18181b;
+  background: #323130;
   color: #fff;
   font-size: 11px;
   font-weight: 700;
@@ -3587,7 +3790,7 @@ async function send() {
   flex: 1;
   background: transparent;
   border: none;
-  color: #18181b;
+  color: #323130;
   font-size: 0.875rem;
   font-family: inherit;
   padding: 0;
@@ -3595,7 +3798,7 @@ async function send() {
   line-height: 1.5;
 }
 .input-field::placeholder {
-  color: #a1a1aa;
+  color: #a19f9d;
 }
 .input-pill-btn {
   flex-shrink: 0;
@@ -3644,11 +3847,11 @@ async function send() {
   transition: all 0.15s;
 }
 .action-btn--active {
-  background: #18181b;
+  background: #0078d4;
   color: #fff;
 }
 .action-btn--active:hover {
-  background: #3f3f46;
+  background: #106ebe;
 }
 .action-btn--disabled {
   background: #e4e4e7;
@@ -3656,19 +3859,20 @@ async function send() {
   cursor: default;
 }
 .action-btn--stop {
-  background: #18181b;
+  background: #323130;
   color: #fff;
 }
 .action-btn--stop:hover {
-  background: #3f3f46;
+  background: #484644;
 }
 .sidebar-footer {
   flex-shrink: 0;
-  padding: 8px 10px;
-  border-top: 1px solid var(--border);
+  padding: 8px 12px;
+  border-top: 1px solid #edebe9;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  background: #fff;
 }
 .sidebar-linkedin {
   display: flex;
@@ -3703,11 +3907,11 @@ async function send() {
   border: none;
 }
 .login-btn--github {
-  background: #1f2328;
+  background: #323130;
   color: #fff;
 }
 .login-btn--github:hover:not(:disabled) {
-  background: #2da44e;
+  background: #0078d4;
 }
 .login-btn:disabled,
 .azure-connect-btn:disabled {
@@ -3819,7 +4023,7 @@ async function send() {
 }
 .azure-status-text {
   flex: 1;
-  font-size: 11px;
+  font-size: 13px;
   color: var(--text);
   white-space: nowrap;
   overflow: hidden;
@@ -3848,13 +4052,13 @@ async function send() {
 .azure-addon-btn {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
-  padding: 3px 8px;
+  gap: 4px;
+  padding: 5px 10px;
   border-radius: 6px;
   border: 1px dashed var(--border, #d1d9e0);
   background: transparent;
   color: var(--text-muted, #656d76);
-  font-size: 10.5px;
+  font-size: 13px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.15s;
@@ -3872,22 +4076,22 @@ async function send() {
 .azure-addon-active {
   display: inline-flex;
   align-items: center;
-  padding: 3px 8px;
+  padding: 5px 10px;
   border-radius: 6px;
   background: rgba(0, 120, 212, 0.08);
   color: #0078d4;
-  font-size: 10.5px;
+  font-size: 13px;
   font-weight: 500;
 }
 .azure-revoke-btn {
   width: 100%;
-  padding: 4px 8px;
+  padding: 6px 8px;
   margin-top: 6px;
   border-radius: 5px;
   border: none;
   background: transparent;
   color: var(--text-muted, #8b949e);
-  font-size: 10px;
+  font-size: 13px;
   cursor: pointer;
   transition: color 0.15s;
   text-decoration: underline;
@@ -3994,12 +4198,15 @@ async function send() {
 }
 .build-badge {
   position: fixed;
-  bottom: 8px;
-  right: 12px;
-  font-size: 4.5px;
+  bottom: 12px;
+  right: 16px;
+  font-size: 11px;
   font-family: monospace;
   color: #1f2328;
-  opacity: 0.7;
+  background: rgba(200, 200, 200, 0.35);
+  padding: 2px 8px;
+  border-radius: 6px;
+  opacity: 0.85;
   pointer-events: none;
   z-index: 1000;
   font-weight: 600;
@@ -4015,6 +4222,9 @@ async function send() {
     display: none;
   }
   .build-badge {
+    display: none;
+  }
+  .portal-user-text {
     display: none;
   }
   .es-sub {
@@ -4163,11 +4373,11 @@ async function send() {
   min-height: 40px;
 }
 .mobile-auth-btn--github {
-  background: #1f2328;
+  background: #323130;
   color: #fff;
 }
 .mobile-auth-btn--github:hover:not(:disabled) {
-  background: #2da44e;
+  background: #0078d4;
 }
 .mobile-auth-btn--azure {
   background: var(--surface, #f6f8fa);
