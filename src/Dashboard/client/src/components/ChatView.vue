@@ -15,6 +15,59 @@
       </div>
     </div>
 
+    <!-- Permission picker modal -->
+    <div v-if="showPermissionPicker" class="perm-overlay" @click.self="showPermissionPicker = false">
+      <div class="perm-card">
+        <div class="perm-header">
+          <svg width="20" height="20" viewBox="0 0 21 21" fill="none">
+            <rect width="10" height="10" fill="#f25022" />
+            <rect x="11" width="10" height="10" fill="#7fba00" />
+            <rect y="11" width="10" height="10" fill="#00a4ef" />
+            <rect x="11" y="11" width="10" height="10" fill="#ffb900" />
+          </svg>
+          <h2>Connect Azure</h2>
+          <button class="perm-close" @click="showPermissionPicker = false">&times;</button>
+        </div>
+        <p class="perm-intro">Choose which data sources the agent can access. Azure Cost &amp; Resources is always included. You can connect with fewer permissions and add more later by reconnecting.</p>
+
+        <!-- Always-on base -->
+        <div class="perm-group perm-group--base">
+          <label class="perm-label">
+            <input type="checkbox" checked disabled />
+            <div class="perm-info">
+              <span class="perm-name">Azure Cost &amp; Resources</span>
+              <span class="perm-desc">Cost Management, Billing, Advisor, Resource Graph, Monitor, VMs, Storage, AKS, and all ARM APIs — uses your Azure RBAC permissions</span>
+            </div>
+          </label>
+        </div>
+
+        <!-- Optional groups -->
+        <div class="perm-group" v-for="g in permissionGroups" :key="g.key">
+          <label class="perm-label">
+            <input type="checkbox" v-model="g.selected" />
+            <div class="perm-info">
+              <span class="perm-name">{{ g.name }}</span>
+              <span class="perm-desc">{{ g.desc }}</span>
+              <span class="perm-scopes">Permissions: {{ g.scopes }}</span>
+            </div>
+          </label>
+        </div>
+
+        <div class="perm-actions">
+          <button class="perm-cancel" @click="showPermissionPicker = false">Cancel</button>
+          <button class="perm-connect" @click="connectWithPermissions">
+            <svg width="14" height="14" viewBox="0 0 21 21" fill="none">
+              <rect width="10" height="10" fill="#fff" fill-opacity="0.9" />
+              <rect x="11" width="10" height="10" fill="#fff" fill-opacity="0.7" />
+              <rect y="11" width="10" height="10" fill="#fff" fill-opacity="0.7" />
+              <rect x="11" y="11" width="10" height="10" fill="#fff" fill-opacity="0.5" />
+            </svg>
+            Connect with {{ selectedPermissionCount }} permission{{ selectedPermissionCount === 1 ? '' : 's' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Left sidebar -->
     <aside class="sidebar">
       <div class="sidebar-scroll">
@@ -122,7 +175,7 @@
           <button
             class="azure-connect-btn"
             :disabled="authLoading === 'azure'"
-            @click="startAuth('azure', '/auth/microsoft')"
+            @click="showPermissionPicker = true"
           >
             <span
               v-if="authLoading === 'azure'"
@@ -188,7 +241,7 @@
               <button
                 class="es-step-btn es-step-btn--azure"
                 :disabled="authLoading === 'azure'"
-                @click="startAuth('azure', '/auth/microsoft')"
+                @click="showPermissionPicker = true"
               >
                 <svg width="14" height="14" viewBox="0 0 21 21" fill="none">
                   <rect width="10" height="10" fill="#fff" fill-opacity="0.9" />
@@ -736,6 +789,53 @@ const azureUserEmail = ref("");
 const azureSubscriptions = ref([]);
 const azureManagementGroups = ref([]);
 const azureApis = ref([]);
+const azurePermissionGroups = ref([]);
+
+// Permission picker
+const showPermissionPicker = ref(false);
+const permissionGroups = reactive([
+  {
+    key: "directory",
+    name: "M365 Licenses & Directory",
+    desc: "License inventory, user profiles, groups, and app registrations — for chargeback mapping and license waste detection",
+    scopes: "User.Read.All, Organization.Read.All, Group.Read.All, Application.Read.All",
+    selected: true,
+  },
+  {
+    key: "reports",
+    name: "M365 Usage Reports",
+    desc: "Exchange, Teams, OneDrive, SharePoint, and Copilot usage reports — identifies unused licenses and Copilot ROI",
+    scopes: "Reports.Read.All",
+    selected: true,
+  },
+  {
+    key: "intune",
+    name: "Intune Device Management",
+    desc: "Managed devices and compliance summaries — for device license reconciliation",
+    scopes: "DeviceManagement.Read.All (devices + configuration)",
+    selected: false,
+  },
+  {
+    key: "loganalytics",
+    name: "Log Analytics & App Insights",
+    desc: "Run KQL queries for VM metrics, container insights, ingestion costs, and activity audit trails",
+    scopes: "Data.Read (Log Analytics API)",
+    selected: true,
+  },
+]);
+
+const selectedPermissionCount = computed(() => {
+  return 1 + permissionGroups.filter((g) => g.selected).length; // 1 for base Azure
+});
+
+function connectWithPermissions() {
+  const selected = permissionGroups
+    .filter((g) => g.selected)
+    .map((g) => g.key)
+    .join(",");
+  showPermissionPicker.value = false;
+  startAuth("azure", `/auth/microsoft?scopes=${encodeURIComponent(selected)}`);
+}
 
 async function checkAzureStatus() {
   try {
@@ -748,6 +848,7 @@ async function checkAzureStatus() {
         azureSubscriptions.value = data.subscriptions || [];
         azureManagementGroups.value = data.managementGroups || [];
         azureApis.value = data.apis || [];
+        azurePermissionGroups.value = data.permissionGroups || [];
       }
     }
   } catch {}
@@ -3675,6 +3776,152 @@ async function send() {
   font-size: 13px;
   color: #656d76;
   margin: 0;
+}
+
+/* Permission picker modal */
+.perm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(4px);
+  animation: auth-overlay-in 0.2s ease;
+}
+.perm-card {
+  background: var(--surface, #fff);
+  border-radius: 16px;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.18);
+  padding: 28px 32px;
+  max-width: 520px;
+  width: 90vw;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+.perm-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.perm-header h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text, #1f2328);
+  flex: 1;
+}
+.perm-close {
+  background: none;
+  border: none;
+  font-size: 22px;
+  color: var(--text-muted, #656d76);
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+}
+.perm-close:hover {
+  color: var(--text, #1f2328);
+}
+.perm-intro {
+  font-size: 13px;
+  color: var(--text-muted, #656d76);
+  margin: 0 0 18px 0;
+  line-height: 1.5;
+}
+.perm-group {
+  border: 1px solid var(--border, #d1d9e0);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  transition: border-color 0.15s, background 0.15s;
+}
+.perm-group:hover {
+  border-color: #0078d4;
+}
+.perm-group--base {
+  background: rgba(0, 120, 212, 0.04);
+  border-color: rgba(0, 120, 212, 0.2);
+}
+.perm-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+}
+.perm-label input[type="checkbox"] {
+  margin-top: 3px;
+  width: 16px;
+  height: 16px;
+  accent-color: #0078d4;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+.perm-label input[type="checkbox"]:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+.perm-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.perm-name {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text, #1f2328);
+}
+.perm-desc {
+  font-size: 12px;
+  color: var(--text-muted, #656d76);
+  line-height: 1.45;
+}
+.perm-scopes {
+  font-size: 11px;
+  color: var(--text-muted, #8b949e);
+  font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
+  margin-top: 2px;
+}
+.perm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 18px;
+}
+.perm-cancel {
+  padding: 8px 18px;
+  border-radius: 8px;
+  border: 1px solid var(--border, #d1d9e0);
+  background: var(--surface, #fff);
+  color: var(--text, #1f2328);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.perm-cancel:hover {
+  background: var(--surface-hover, #f6f8fa);
+}
+.perm-connect {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 20px;
+  border-radius: 8px;
+  border: none;
+  background: #0078d4;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.perm-connect:hover {
+  background: #106ebe;
 }
 .azure-connect-btn {
   display: flex;

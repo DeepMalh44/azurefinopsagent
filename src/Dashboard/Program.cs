@@ -268,6 +268,9 @@ app.MapPost("/auth/logout", async (HttpContext ctx) =>
 // ──────────────────────────────────────────────
 
 // Redirect to Microsoft Entra ID login
+// Accepts optional ?scopes= query parameter with comma-separated permission group keys:
+//   directory, reports, intune, loganalytics
+// If omitted, only base scopes (Azure ARM + User.Read) are requested.
 app.MapGet("/auth/microsoft", (HttpContext ctx) =>
 {
     if (string.IsNullOrEmpty(msClientId))
@@ -277,19 +280,53 @@ app.MapGet("/auth/microsoft", (HttpContext ctx) =>
     ctx.Session.SetString("ms_oauth_state", state);
 
     var redirectUri = $"{NormalizeCallbackHost(ctx)}/auth/microsoft/callback";
-    // Granular Graph scopes — only what the tools actually use (no broad Directory.Read.All)
-    var scope = string.Join(" ",
+
+    // Base scopes (always required)
+    var scopes = new List<string>
+    {
         "openid", "profile", "email", "offline_access",
         "https://management.azure.com/user_impersonation",
-        "https://graph.microsoft.com/User.Read",              // signed-in user profile
-        "https://graph.microsoft.com/User.Read.All",           // list users for chargeback mapping
-        "https://graph.microsoft.com/Organization.Read.All",   // org info + subscribedSkus (licenses)
-        "https://graph.microsoft.com/Group.Read.All",           // groups for chargeback mapping
-        "https://graph.microsoft.com/Application.Read.All",    // app registrations + service principals
-        "https://graph.microsoft.com/Reports.Read.All",        // M365 usage reports + Copilot usage
-        "https://graph.microsoft.com/DeviceManagementManagedDevices.Read.All",  // Intune managed devices
-        "https://graph.microsoft.com/DeviceManagementConfiguration.Read.All",  // Intune compliance
-        "https://api.loganalytics.io/Data.Read");
+        "https://graph.microsoft.com/User.Read",
+    };
+
+    // Parse optional permission groups from ?scopes= query parameter
+    var requestedGroups = (ctx.Request.Query["scopes"].ToString() ?? "")
+        .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+        .Select(s => s.ToLowerInvariant())
+        .ToHashSet();
+
+    // Store selected groups in session for status endpoint
+    ctx.Session.SetString("permission_groups", string.Join(",", requestedGroups));
+
+    // M365 Licenses & Directory
+    if (requestedGroups.Contains("directory"))
+    {
+        scopes.Add("https://graph.microsoft.com/User.Read.All");
+        scopes.Add("https://graph.microsoft.com/Organization.Read.All");
+        scopes.Add("https://graph.microsoft.com/Group.Read.All");
+        scopes.Add("https://graph.microsoft.com/Application.Read.All");
+    }
+
+    // M365 Usage Reports (Exchange, Teams, OneDrive, Copilot)
+    if (requestedGroups.Contains("reports"))
+    {
+        scopes.Add("https://graph.microsoft.com/Reports.Read.All");
+    }
+
+    // Intune Device Management
+    if (requestedGroups.Contains("intune"))
+    {
+        scopes.Add("https://graph.microsoft.com/DeviceManagementManagedDevices.Read.All");
+        scopes.Add("https://graph.microsoft.com/DeviceManagementConfiguration.Read.All");
+    }
+
+    // Log Analytics & App Insights KQL
+    if (requestedGroups.Contains("loganalytics"))
+    {
+        scopes.Add("https://api.loganalytics.io/Data.Read");
+    }
+
+    var scope = string.Join(" ", scopes);
     var url = $"https://login.microsoftonline.com/{Uri.EscapeDataString(msTenantId)}/oauth2/v2.0/authorize" +
               $"?client_id={Uri.EscapeDataString(msClientId)}" +
               $"&response_type=code" +
@@ -402,33 +439,63 @@ app.MapGet("/auth/microsoft/callback", async (HttpContext ctx, IHttpClientFactor
 
         logger.LogInformation("Microsoft OAuth login successful");
 
-        // Exchange refresh token for Graph + Log Analytics tokens
+        // Exchange refresh token for Graph + Log Analytics tokens (only if user selected those permission groups)
+        var selectedGroups = (ctx.Session.GetString("permission_groups") ?? "")
+            .Split(',', StringSplitOptions.RemoveEmptyEntries)
+            .Select(s => s.Trim().ToLowerInvariant())
+            .ToHashSet();
+
+        var needsGraph = selectedGroups.Contains("directory") || selectedGroups.Contains("reports") || selectedGroups.Contains("intune");
+        var needsLogAnalytics = selectedGroups.Contains("loganalytics");
+
         if (refreshToken is not null)
         {
-            // Graph token — explicit scopes matching what tools use
-            try
+            // Graph token — only exchange if user opted into directory/reports/intune
+            if (needsGraph)
             {
-                var graphToken = await ExchangeRefreshTokenForResource(http, refreshToken,
-                    "https://graph.microsoft.com/User.Read https://graph.microsoft.com/User.Read.All https://graph.microsoft.com/Organization.Read.All https://graph.microsoft.com/Group.Read.All https://graph.microsoft.com/Application.Read.All https://graph.microsoft.com/Reports.Read.All https://graph.microsoft.com/DeviceManagementManagedDevices.Read.All https://graph.microsoft.com/DeviceManagementConfiguration.Read.All offline_access");
-                if (graphToken is not null)
+                try
                 {
-                    ctx.Session.SetString("graph_token", graphToken.Value.Token);
-                    ctx.Session.SetString("graph_token_expiry", graphToken.Value.Expiry.ToString("o"));
-                }
-            }
-            catch (Exception ex) { logger.LogWarning(ex, "Failed to get Graph token"); }
+                    // Build explicit Graph scopes based on selected groups
+                    var graphScopes = new List<string> { "https://graph.microsoft.com/User.Read", "offline_access" };
+                    if (selectedGroups.Contains("directory"))
+                    {
+                        graphScopes.Add("https://graph.microsoft.com/User.Read.All");
+                        graphScopes.Add("https://graph.microsoft.com/Organization.Read.All");
+                        graphScopes.Add("https://graph.microsoft.com/Group.Read.All");
+                        graphScopes.Add("https://graph.microsoft.com/Application.Read.All");
+                    }
+                    if (selectedGroups.Contains("reports"))
+                        graphScopes.Add("https://graph.microsoft.com/Reports.Read.All");
+                    if (selectedGroups.Contains("intune"))
+                    {
+                        graphScopes.Add("https://graph.microsoft.com/DeviceManagementManagedDevices.Read.All");
+                        graphScopes.Add("https://graph.microsoft.com/DeviceManagementConfiguration.Read.All");
+                    }
 
-            // Log Analytics token (also works for App Insights query API) — explicit scope
-            try
-            {
-                var laToken = await ExchangeRefreshTokenForResource(http, refreshToken, "https://api.loganalytics.io/Data.Read offline_access");
-                if (laToken is not null)
-                {
-                    ctx.Session.SetString("loganalytics_token", laToken.Value.Token);
-                    ctx.Session.SetString("loganalytics_token_expiry", laToken.Value.Expiry.ToString("o"));
+                    var graphToken = await ExchangeRefreshTokenForResource(http, refreshToken, string.Join(" ", graphScopes));
+                    if (graphToken is not null)
+                    {
+                        ctx.Session.SetString("graph_token", graphToken.Value.Token);
+                        ctx.Session.SetString("graph_token_expiry", graphToken.Value.Expiry.ToString("o"));
+                    }
                 }
+                catch (Exception ex) { logger.LogWarning(ex, "Failed to get Graph token"); }
             }
-            catch (Exception ex) { logger.LogWarning(ex, "Failed to get Log Analytics token"); }
+
+            // Log Analytics token — only exchange if user opted in
+            if (needsLogAnalytics)
+            {
+                try
+                {
+                    var laToken = await ExchangeRefreshTokenForResource(http, refreshToken, "https://api.loganalytics.io/Data.Read offline_access");
+                    if (laToken is not null)
+                    {
+                        ctx.Session.SetString("loganalytics_token", laToken.Value.Token);
+                        ctx.Session.SetString("loganalytics_token_expiry", laToken.Value.Expiry.ToString("o"));
+                    }
+                }
+                catch (Exception ex) { logger.LogWarning(ex, "Failed to get Log Analytics token"); }
+            }
         }
 
         return Results.Redirect("/");
@@ -645,13 +712,23 @@ app.MapGet("/auth/azure/status", async (HttpContext ctx, IHttpClientFactory http
         "Subscriptions"
     };
 
+    // Permission groups the user opted into
+    var permGroups = (ctx.Session.GetString("permission_groups") ?? "")
+        .Split(',', StringSplitOptions.RemoveEmptyEntries)
+        .ToList();
+    var hasGraphToken = ctx.Session.GetString("graph_token") is not null;
+    var hasLaToken = ctx.Session.GetString("loganalytics_token") is not null;
+
     return Results.Json(new
     {
         connected = true,
         user = azureUser,
         subscriptions,
         managementGroups,
-        apis = connectedApis
+        apis = connectedApis,
+        permissionGroups = permGroups,
+        hasGraphToken,
+        hasLogAnalyticsToken = hasLaToken
     });
 });
 
