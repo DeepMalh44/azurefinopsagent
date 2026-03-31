@@ -699,13 +699,13 @@
 <script setup>
 import * as echarts from "echarts";
 import {
-    computed,
-    nextTick,
-    onBeforeUnmount,
-    onMounted,
-    reactive,
-    ref,
-    watch,
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  reactive,
+  ref,
+  watch,
 } from "vue";
 
 const props = defineProps({
@@ -878,8 +878,12 @@ watch(azureConnected, (connected, wasConnected) => {
 });
 
 // Reset Copilot session when addon tiers are enabled so LLM picks up new tokens
-watch(graphEnabled, (enabled, was) => { if (enabled && !was) clearMessages(); });
-watch(logAnalyticsEnabled, (enabled, was) => { if (enabled && !was) clearMessages(); });
+watch(graphEnabled, (enabled, was) => {
+  if (enabled && !was) clearMessages();
+});
+watch(logAnalyticsEnabled, (enabled, was) => {
+  if (enabled && !was) clearMessages();
+});
 
 function dismissPopover() {
   hoveredTool.value = null;
@@ -2302,7 +2306,7 @@ async function send() {
                       clearInterval(intentAnimTimer);
                       intentAnimTimer = null;
                     }
-                  }, 25);
+                  }, 45);
                 }
               } catch {}
             }
@@ -3444,9 +3448,11 @@ async function send() {
 }
 .stream-intent {
   font-style: italic;
-  color: #9ca3af;
-  font-size: 0.82rem;
-  white-space: nowrap;
+  color: #6b7280;
+  font-size: 0.88rem;
+  font-weight: 500;
+  white-space: normal;
+  line-height: 1.4;
   animation: intent-in 0.3s ease-out;
 }
 @keyframes intent-in {

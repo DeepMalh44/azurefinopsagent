@@ -1,6 +1,5 @@
 using System.ComponentModel;
 using System.Diagnostics;
-using System.Net.Http.Headers;
 using Microsoft.Extensions.AI;
 
 namespace AzureFinOps.Dashboard.Tools;
@@ -12,15 +11,6 @@ namespace AzureFinOps.Dashboard.Tools;
 /// </summary>
 public class AzureQueryTools
 {
-    private static readonly HttpClient Http = new()
-    {
-        Timeout = TimeSpan.FromSeconds(30)
-    };
-
-    private static readonly ActivitySource Telemetry = new("AzureFinOps.AI");
-
-    private const int MaxResponseChars = 80_000;
-
     private readonly UserTokens _tokens;
 
     public AzureQueryTools(UserTokens tokens) => _tokens = tokens;
@@ -79,7 +69,7 @@ Note: Only GET and POST methods are supported.");
         [Description("API path starting with /, e.g. /subscriptions?api-version=2022-12-01")] string path,
         [Description("Optional JSON request body for POST requests. Omit or leave empty for GET.")] string? body = null)
     {
-        using var activity = Telemetry.StartActivity("QueryAzure");
+        using var activity = HttpHelper.Telemetry.StartActivity("QueryAzure");
         activity?.SetTag("azure.method", method);
         activity?.SetTag("azure.path", path);
         activity?.SetTag("azure.has_body", !string.IsNullOrWhiteSpace(body));
@@ -88,11 +78,7 @@ Note: Only GET and POST methods are supported.");
 
         var token = _tokens.AzureToken;
         if (string.IsNullOrEmpty(token))
-        {
-            activity?.SetTag("azure.result", "not_connected");
-            activity?.SetStatus(ActivityStatusCode.Error, "Azure not connected");
-            return "HTTP 401 Unauthorized\nTokenContext.AzureToken is null — no Azure token available for this request. The user must click 'Connect Azure' in the sidebar to authenticate via Microsoft Entra ID, then retry.";
-        }
+            return HttpHelper.TokenMissing("AzureToken", activity, "azure");
 
         if (string.IsNullOrWhiteSpace(path) || !path.StartsWith('/'))
         {
@@ -115,29 +101,11 @@ Note: Only GET and POST methods are supported.");
             return $"HTTP 400 BadRequest\nInvalid method: '{method}'. Only GET and POST are supported.";
         }
 
-        var url = $"https://management.azure.com{path}";
-
-        using var req = new HttpRequestMessage(httpMethod, url);
-        req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-        req.Headers.Add("User-Agent", "FinOps-Dashboard/1.0");
-
-        if (httpMethod == HttpMethod.Post && !string.IsNullOrWhiteSpace(body))
-            req.Content = new StringContent(body, System.Text.Encoding.UTF8, "application/json");
-
-        var res = await Http.SendAsync(req);
-        var responseBody = await res.Content.ReadAsStringAsync();
-
-        activity?.SetTag("azure.status_code", (int)res.StatusCode);
-        activity?.SetTag("azure.response_length", responseBody.Length);
-        activity?.SetTag("azure.result", res.IsSuccessStatusCode ? "success" : "http_error");
-
-        var result = $"HTTP {(int)res.StatusCode} {res.StatusCode}\n";
-        result += $"Current UTC time: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}\n";
-        result += responseBody;
-
-        if (!res.IsSuccessStatusCode)
-            activity?.SetStatus(ActivityStatusCode.Error, $"HTTP {(int)res.StatusCode}");
-
-        return result;
+        return await HttpHelper.SendWithRetryAsync(
+            $"https://management.azure.com{path}",
+            token, activity, "azure",
+            method: httpMethod,
+            jsonBody: httpMethod == HttpMethod.Post && !string.IsNullOrWhiteSpace(body) ? body : null,
+            includeTimestamp: true);
     }
 }

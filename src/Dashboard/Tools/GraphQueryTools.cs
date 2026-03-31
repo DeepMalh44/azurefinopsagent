@@ -1,6 +1,5 @@
 using System.ComponentModel;
 using System.Diagnostics;
-using System.Net.Http.Headers;
 using Microsoft.Extensions.AI;
 
 namespace AzureFinOps.Dashboard.Tools;
@@ -11,10 +10,6 @@ namespace AzureFinOps.Dashboard.Tools;
 /// </summary>
 public class GraphQueryTools
 {
-    private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(30) };
-    private static readonly ActivitySource Telemetry = new("AzureFinOps.AI");
-    private const int MaxResponseChars = 80_000;
-
     private readonly UserTokens _tokens;
 
     public GraphQueryTools(UserTokens tokens) => _tokens = tokens;
@@ -35,16 +30,12 @@ APPS: GET /v1.0/applications — app registrations; GET /v1.0/servicePrincipals 
     private async Task<string> QueryGraph(
         [Description("API path starting with /, e.g. /v1.0/subscribedSkus")] string path)
     {
-        using var activity = Telemetry.StartActivity("QueryGraph");
+        using var activity = HttpHelper.Telemetry.StartActivity("QueryGraph");
         activity?.SetTag("graph.path", path);
 
         var token = _tokens.GraphToken;
         if (string.IsNullOrEmpty(token))
-        {
-            activity?.SetTag("graph.result", "not_connected");
-            activity?.SetStatus(ActivityStatusCode.Error, "Graph not connected");
-            return "HTTP 401 Unauthorized\nTokenContext.GraphToken is null — no Microsoft Graph token available. The user must click 'Connect Azure' in the sidebar to authenticate, then retry.";
-        }
+            return HttpHelper.TokenMissing("GraphToken", activity, "graph");
 
         if (string.IsNullOrWhiteSpace(path) || !path.StartsWith('/'))
         {
@@ -52,23 +43,8 @@ APPS: GET /v1.0/applications — app registrations; GET /v1.0/servicePrincipals 
             return $"HTTP 400 BadRequest\nInvalid path: '{path}'. Path must start with /.";
         }
 
-        using var req = new HttpRequestMessage(HttpMethod.Get, $"https://graph.microsoft.com{path}");
-        req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-        req.Headers.Add("User-Agent", "FinOps-Dashboard/1.0");
-
-        var res = await Http.SendAsync(req);
-        var responseBody = await res.Content.ReadAsStringAsync();
-
-        activity?.SetTag("graph.status_code", (int)res.StatusCode);
-        activity?.SetTag("graph.response_length", responseBody.Length);
-        activity?.SetTag("graph.result", res.IsSuccessStatusCode ? "success" : "http_error");
-
-        var result = $"HTTP {(int)res.StatusCode} {res.StatusCode}\n";
-        result += responseBody;
-
-        if (!res.IsSuccessStatusCode)
-            activity?.SetStatus(ActivityStatusCode.Error, $"HTTP {(int)res.StatusCode}");
-
-        return result;
+        return await HttpHelper.SendWithRetryAsync(
+            $"https://graph.microsoft.com{path}",
+            token, activity, "graph");
     }
 }

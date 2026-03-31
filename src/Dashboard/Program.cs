@@ -485,50 +485,6 @@ app.MapGet("/auth/microsoft/callback", async (HttpContext ctx, IHttpClientFactor
     }
 });
 
-// Helper: refresh Azure token silently
-async Task<string?> RefreshAzureTokenAsync(HttpContext ctx, IHttpClientFactory httpFactory)
-{
-    var refreshToken = ctx.Session.GetString("azure_refresh_token");
-    if (refreshToken is null) return null;
-
-    var http = httpFactory.CreateClient();
-    using var req = new HttpRequestMessage(HttpMethod.Post,
-        $"https://login.microsoftonline.com/{Uri.EscapeDataString(msTenantId)}/oauth2/v2.0/token");
-    req.Content = new FormUrlEncodedContent(new Dictionary<string, string>
-    {
-        ["client_id"] = msClientId,
-        ["client_secret"] = msClientSecret,
-        ["refresh_token"] = refreshToken,
-        ["grant_type"] = "refresh_token",
-        ["scope"] = "openid profile email https://management.azure.com/user_impersonation offline_access"
-    });
-
-    var res = await http.SendAsync(req);
-    if (!res.IsSuccessStatusCode)
-    {
-        logger.LogWarning("Azure token refresh failed: status={Status}", (int)res.StatusCode);
-        return null;
-    }
-
-    var body = await res.Content.ReadAsStringAsync();
-    var json = JsonSerializer.Deserialize<JsonElement>(body);
-    if (!json.TryGetProperty("access_token", out var newToken))
-    {
-        logger.LogWarning("Azure token refresh: no access_token in response");
-        return null;
-    }
-
-    var newAccessToken = newToken.GetString()!;
-    var expiresIn = json.TryGetProperty("expires_in", out var expProp) ? expProp.GetInt32() : 3600;
-    ctx.Session.SetString("azure_token", newAccessToken);
-    ctx.Session.SetString("azure_token_expiry", DateTimeOffset.UtcNow.AddSeconds(expiresIn - 60).ToString("o"));
-    if (json.TryGetProperty("refresh_token", out var newRt))
-        ctx.Session.SetString("azure_refresh_token", newRt.GetString()!);
-
-    logger.LogInformation("Azure token refreshed successfully");
-    return newAccessToken;
-}
-
 // Helper: exchange refresh token for a token scoped to a specific resource
 async Task<(string Token, DateTimeOffset Expiry)?> ExchangeRefreshTokenForResource(HttpClient http, string refreshToken, string scope)
 {
@@ -554,62 +510,39 @@ async Task<(string Token, DateTimeOffset Expiry)?> ExchangeRefreshTokenForResour
     return (tokenProp.GetString()!, DateTimeOffset.UtcNow.AddSeconds(expiresIn - 60));
 }
 
-// Helper: get valid Graph token
-async Task<string?> GetGraphTokenAsync(HttpContext ctx, IHttpClientFactory httpFactory)
+// Helper: get valid token from session, auto-refresh if expired
+async Task<string?> GetSessionTokenAsync(HttpContext ctx, IHttpClientFactory httpFactory,
+    string tokenKey, string expiryKey, string refreshScope)
 {
-    var token = ctx.Session.GetString("graph_token");
+    var token = ctx.Session.GetString(tokenKey);
     if (token is null) return null;
 
-    var expiryStr = ctx.Session.GetString("graph_token_expiry");
+    var expiryStr = ctx.Session.GetString(expiryKey);
     if (expiryStr is not null && DateTimeOffset.TryParse(expiryStr, out var expiry) && expiry <= DateTimeOffset.UtcNow)
     {
         var refreshToken = ctx.Session.GetString("azure_refresh_token");
         if (refreshToken is null) return null;
         var http = httpFactory.CreateClient();
-        var result = await ExchangeRefreshTokenForResource(http, refreshToken,
-            "https://graph.microsoft.com/User.Read https://graph.microsoft.com/User.Read.All https://graph.microsoft.com/Organization.Read.All https://graph.microsoft.com/Group.Read.All https://graph.microsoft.com/Reports.Read.All offline_access");
+        var result = await ExchangeRefreshTokenForResource(http, refreshToken, refreshScope);
         if (result is null) return null;
-        ctx.Session.SetString("graph_token", result.Value.Token);
-        ctx.Session.SetString("graph_token_expiry", result.Value.Expiry.ToString("o"));
+        ctx.Session.SetString(tokenKey, result.Value.Token);
+        ctx.Session.SetString(expiryKey, result.Value.Expiry.ToString("o"));
         return result.Value.Token;
     }
     return token;
 }
 
-// Helper: get valid Log Analytics token (also works for App Insights query API)
-async Task<string?> GetLogAnalyticsTokenAsync(HttpContext ctx, IHttpClientFactory httpFactory)
-{
-    var token = ctx.Session.GetString("loganalytics_token");
-    if (token is null) return null;
+Task<string?> GetAzureTokenAsync(HttpContext ctx, IHttpClientFactory httpFactory) =>
+    GetSessionTokenAsync(ctx, httpFactory, "azure_token", "azure_token_expiry",
+        "openid profile email https://management.azure.com/user_impersonation offline_access");
 
-    var expiryStr = ctx.Session.GetString("loganalytics_token_expiry");
-    if (expiryStr is not null && DateTimeOffset.TryParse(expiryStr, out var expiry) && expiry <= DateTimeOffset.UtcNow)
-    {
-        var refreshToken = ctx.Session.GetString("azure_refresh_token");
-        if (refreshToken is null) return null;
-        var http = httpFactory.CreateClient();
-        var result = await ExchangeRefreshTokenForResource(http, refreshToken, "https://api.loganalytics.io/Data.Read offline_access");
-        if (result is null) return null;
-        ctx.Session.SetString("loganalytics_token", result.Value.Token);
-        ctx.Session.SetString("loganalytics_token_expiry", result.Value.Expiry.ToString("o"));
-        return result.Value.Token;
-    }
-    return token;
-}
+Task<string?> GetGraphTokenAsync(HttpContext ctx, IHttpClientFactory httpFactory) =>
+    GetSessionTokenAsync(ctx, httpFactory, "graph_token", "graph_token_expiry",
+        "https://graph.microsoft.com/User.Read https://graph.microsoft.com/User.Read.All https://graph.microsoft.com/Organization.Read.All https://graph.microsoft.com/Group.Read.All https://graph.microsoft.com/Reports.Read.All offline_access");
 
-// Helper: get valid Azure token (auto-refresh if expired)
-async Task<string?> GetAzureTokenAsync(HttpContext ctx, IHttpClientFactory httpFactory)
-{
-    var token = ctx.Session.GetString("azure_token");
-    if (token is null) return null;
-
-    var expiryStr = ctx.Session.GetString("azure_token_expiry");
-    if (expiryStr is not null && DateTimeOffset.TryParse(expiryStr, out var expiry) && expiry <= DateTimeOffset.UtcNow)
-    {
-        token = await RefreshAzureTokenAsync(ctx, httpFactory);
-    }
-    return token;
-}
+Task<string?> GetLogAnalyticsTokenAsync(HttpContext ctx, IHttpClientFactory httpFactory) =>
+    GetSessionTokenAsync(ctx, httpFactory, "loganalytics_token", "loganalytics_token_expiry",
+        "https://api.loganalytics.io/Data.Read offline_access");
 
 // Azure connection status + subscription discovery
 app.MapGet("/auth/azure/status", async (HttpContext ctx, IHttpClientFactory httpFactory) =>
