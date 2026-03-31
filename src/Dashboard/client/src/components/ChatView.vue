@@ -221,6 +221,22 @@
               </svg>
             </button>
           </div>
+          <!-- Active permission badges -->
+          <div class="azure-perms">
+            <span class="azure-perm-badge azure-perm-badge--on">Azure ARM</span>
+            <span v-for="g in permissionGroups" :key="g.key"
+              class="azure-perm-badge"
+              :class="azurePermissionGroups.includes(g.key) ? 'azure-perm-badge--on' : 'azure-perm-badge--off'"
+              :title="azurePermissionGroups.includes(g.key) ? g.name + ' — active' : g.name + ' — not connected'"
+            >{{ g.shortName || g.name }}</span>
+          </div>
+          <button class="azure-change-perms-btn" @click="changePermissions" title="Disconnect and reconnect with different permissions">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 20h9"/>
+              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+            </svg>
+            Change permissions
+          </button>
         </div>
       </div>
     </aside>
@@ -797,6 +813,7 @@ const permissionGroups = reactive([
   {
     key: "directory",
     name: "M365 Licenses & Directory",
+    shortName: "Directory",
     desc: "License inventory, user profiles, groups, and app registrations — for chargeback mapping and license waste detection",
     scopes: "User.Read.All, Organization.Read.All, Group.Read.All, Application.Read.All",
     selected: true,
@@ -804,6 +821,7 @@ const permissionGroups = reactive([
   {
     key: "reports",
     name: "M365 Usage Reports",
+    shortName: "Reports",
     desc: "Exchange, Teams, OneDrive, SharePoint, and Copilot usage reports — identifies unused licenses and Copilot ROI",
     scopes: "Reports.Read.All",
     selected: true,
@@ -811,6 +829,7 @@ const permissionGroups = reactive([
   {
     key: "intune",
     name: "Intune Device Management",
+    shortName: "Intune",
     desc: "Managed devices and compliance summaries — for device license reconciliation",
     scopes: "DeviceManagement.Read.All (devices + configuration)",
     selected: false,
@@ -818,6 +837,7 @@ const permissionGroups = reactive([
   {
     key: "loganalytics",
     name: "Log Analytics & App Insights",
+    shortName: "Log Analytics",
     desc: "Run KQL queries for VM metrics, container insights, ingestion costs, and activity audit trails",
     scopes: "Data.Read (Log Analytics API)",
     selected: true,
@@ -870,8 +890,23 @@ async function disconnectAzure() {
     azureSubscriptions.value = [];
     azureManagementGroups.value = [];
     azureApis.value = [];
+    azurePermissionGroups.value = [];
     await clearMessages();
   } catch {}
+}
+
+async function changePermissions() {
+  // Disconnect first, then show the permission picker
+  try {
+    await fetch("/auth/azure/disconnect", { method: "POST" });
+    azureConnected.value = false;
+    azureUserEmail.value = "";
+    azureSubscriptions.value = [];
+    azureManagementGroups.value = [];
+    azureApis.value = [];
+    azurePermissionGroups.value = [];
+  } catch {}
+  showPermissionPicker.value = true;
 }
 
 // When Azure connects, expand Cost Analysis and collapse the public categories
@@ -3923,6 +3958,54 @@ async function send() {
 .perm-connect:hover {
   background: #106ebe;
 }
+
+/* Permission badges in connected state */
+.azure-perms {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+.azure-perm-badge {
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 10px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.azure-perm-badge--on {
+  background: rgba(0, 120, 212, 0.1);
+  color: #0078d4;
+}
+.azure-perm-badge--off {
+  background: var(--surface-hover, #f6f8fa);
+  color: var(--text-muted, #8b949e);
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+.azure-change-perms-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+  padding: 5px 10px;
+  margin-top: 6px;
+  border-radius: 6px;
+  border: 1px solid var(--border, #d1d9e0);
+  background: transparent;
+  color: var(--text-muted, #656d76);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  justify-content: center;
+}
+.azure-change-perms-btn:hover {
+  border-color: #0078d4;
+  color: #0078d4;
+  background: rgba(0, 120, 212, 0.04);
+}
+
 .azure-connect-btn {
   display: flex;
   align-items: center;
