@@ -119,6 +119,7 @@ src/Dashboard/
 │   ├── HealthTools.cs      # Azure Status RSS
 │   ├── FaqTools.cs         # SEO FAQ pages
 │   ├── FollowUpTools.cs    # Follow-up suggestions
+│   ├── HttpHelper.cs       # Shared HTTP helper (retry, formatting)
 │   └── TokenContext.cs     # Per-user token management
 ├── client/                 # Vue 3 + Vite SPA
 │   └── src/components/
