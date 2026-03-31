@@ -29,6 +29,7 @@ public class AzureQueryTools
     {
         yield return AIFunctionFactory.Create(QueryAzure, "QueryAzure", @"Calls any Azure ARM REST API using the signed-in user's token and returns raw JSON.
 Base: https://management.azure.com — provide path starting with /.
+DATA SCOPING: For Cost Management POST .../query, ALWAYS use grouping (ServiceName, ResourceGroup, MeterCategory) and date granularity (Daily/Monthly). Never request raw ungrouped cost data. For Resource Graph POST .../resources, use KQL 'project' and 'top 20' — never select all columns. For list APIs (VMs, storage, etc.), results are already scoped by subscription.
 COST MGMT (Microsoft.CostManagement): POST /{scope}/.../query — cost analysis; /.../forecast; /.../generateCostDetailsReport — line-item cost data (replaces Consumption usageDetails); /.../generateReservationDetailsReport — reservation utilization line-item (replaces Consumption reservationDetails); GET /.../alerts; /.../dimensions; /.../benefitUtilizationSummaries; /.../benefitRecommendations.
 BUDGETS (Microsoft.Consumption): GET /{scope}/.../budgets — list budgets and spend-vs-budget status; PUT to create/update budgets with thresholds and alert rules.
 COST EXPORTS (Microsoft.CostManagement): GET /{scope}/.../exports — list scheduled cost data exports to storage; PUT to create/update.
@@ -69,7 +70,7 @@ TAGS (Microsoft.Resources): GET /subscriptions/{id}/tagNames.
 MIGRATE (Microsoft.Migrate): GET .../migrateProjects; .../assessments; .../assessedMachines.
 SUPPORT (Microsoft.Support): GET .../supportTickets; .../services.
 Scope = /subscriptions/{subId} or /subscriptions/{subId}/resourceGroups/{rg}.
-For retail pricing use the FetchPricing tool with https://prices.azure.com (no auth required) instead of the deprecated Microsoft.Commerce/RateCard API.
+For retail pricing use the built-in fetch tool with https://prices.azure.com (no auth required). ALWAYS filter by armRegionName + serviceName + armSkuName and use $top=20 for comparisons.
 Note: Only GET and POST methods are supported.");
     }
 

@@ -24,9 +24,9 @@ public class LogAnalyticsQueryTools
     public IEnumerable<AIFunction> Create()
     {
         yield return AIFunctionFactory.Create(QueryLogAnalytics, "QueryLogAnalytics", @"Runs a KQL query against a Log Analytics workspace or Application Insights component.
-Use for VM/container metrics, network logs, diagnostics, and ingestion cost analysis.
+DATA SCOPING: ALWAYS use summarize, top, take, or where to limit results. Use bin(TimeGenerated, 1d) for time aggregation — never raw per-minute rows. Project only needed columns — never select *. Start with an aggregated overview, then drill down.
 LOG ANALYTICS: Specify workspaceId (GUID). APP INSIGHTS: Specify appId (GUID) and set target='appinsights'.
-FinOps-relevant tables: Perf — VM CPU/memory/disk; InsightsMetrics — VM/container insights; ContainerInventory/KubePodInventory — AKS resource requests vs usage; AzureMetrics — PaaS platform metrics; AzureDiagnostics — App Gateway/SQL/Firewall throughput; AzureActivity — who created/deleted/modified resources (cost attribution); Usage/_BilledSize — Log Analytics ingestion volume (meta-cost: cost of observability).");
+FinOps tables: Perf — VM CPU/memory/disk; InsightsMetrics — VM/container insights; ContainerInventory/KubePodInventory — AKS resource requests vs usage; AzureMetrics — PaaS metrics; AzureDiagnostics — App Gateway/SQL/Firewall throughput; AzureActivity — resource lifecycle (cost attribution); Usage/_BilledSize — ingestion volume (meta-cost: cost of observability).");
     }
 
     private async Task<string> QueryLogAnalytics(
