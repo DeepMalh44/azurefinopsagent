@@ -54,17 +54,17 @@ The agent follows an **agentic architecture** — the LLM autonomously orchestra
 
 ### Agent Tools
 
-| Tool                    | Purpose                                                                                                                                                               |
-| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `QueryAzure`            | Any Azure ARM REST API (GET/POST) — Cost Management, Billing, Advisor, Resource Graph, Monitor, Reservations, Savings Plans, VMs, AKS, Storage, SQL, and 30+ services |
-| `QueryGraph`            | Microsoft Graph — license inventory, M365 usage reports, directory objects, org structure for chargebacks                                                             |
-| `QueryLogAnalytics`     | KQL queries against Log Analytics workspaces and App Insights                                                                                                         |
-| `RenderChart`           | ECharts visualizations inline (bar, line, pie, scatter, funnel, world maps, heatmaps, treemaps, radar, gauge)                                                         |
-| `GeneratePresentation`  | FinOps PowerPoint decks via python-pptx + matplotlib                                                                                                                  |
-| `GetAzureServiceHealth` | Azure Status RSS feed (no auth)                                                                                                                                       |
-| `PublishFAQ`            | Dynamic SEO FAQ pages with IndexNow                                                                                                                                   |
-| `SuggestFollowUp`       | Clickable follow-up action buttons                                                                                                                                    |
-| _Built-in (SDK)_        | bash, Python 3, file ops, web fetch, grep, glob, memory                                                                                                               |
+| Tool                    | Purpose                                                                                                                                                                                                                             |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `QueryAzure`            | Azure ARM REST APIs (GET + read-only POST) — Cost Management, Billing, Advisor, Resource Graph, Monitor, Reservations, Savings Plans, VMs, AKS, Storage, SQL, and 30+ services. **Read-only** — write methods blocked at code level |
+| `QueryGraph`            | Microsoft Graph (GET only) — license inventory, M365 usage reports, directory objects, org structure for chargebacks                                                                                                                |
+| `QueryLogAnalytics`     | KQL queries against Log Analytics workspaces and App Insights                                                                                                                                                                       |
+| `RenderChart`           | ECharts visualizations inline (bar, line, pie, scatter, funnel, world maps, heatmaps, treemaps, radar, gauge)                                                                                                                       |
+| `GeneratePresentation`  | FinOps PowerPoint decks via python-pptx + matplotlib                                                                                                                                                                                |
+| `GetAzureServiceHealth` | Azure Status RSS feed (no auth)                                                                                                                                                                                                     |
+| `PublishFAQ`            | Dynamic SEO FAQ pages with IndexNow                                                                                                                                                                                                 |
+| `SuggestFollowUp`       | Clickable follow-up action buttons                                                                                                                                                                                                  |
+| _Built-in (SDK)_        | bash, Python 3, file ops, web fetch, grep, glob, memory                                                                                                                                                                             |
 
 ### Auth Model
 
@@ -77,17 +77,30 @@ No login required for chat. Users connect Azure data via incremental OAuth conse
 
 Each tier shows a dedicated Microsoft Entra ID consent screen — minimal permissions upfront.
 
+### Security Model
+
+This agent is **strictly read-only** — it cannot create, modify, or delete any Azure resources:
+
+- **HTTP method whitelist**: Only GET and POST allowed. PUT, PATCH, DELETE rejected (HTTP 400).
+- **POST path allowlist**: Only read-only endpoints permitted (`/query`, `/forecast`, `/resources`, `/generateCostDetailsReport`, etc.). Mutating actions blocked (HTTP 403).
+- **OAuth scopes**: All Graph and Log Analytics scopes are read-only by definition. ARM's `user_impersonation` is further restricted by the code-level allowlist.
+- **Recommended RBAC**: Assign `Reader` or `Cost Management Reader` roles for defense-in-depth.
+
 ## Getting Started
 
 **Prerequisites:** [.NET 10 SDK](https://dotnet.microsoft.com/download), [Node.js LTS](https://nodejs.org/), Microsoft Entra ID app registration
 
-```bash
-# Build frontend & start backend
-cd src/Dashboard/client && npm install && npm run build && cd ..
-ASPNETCORE_ENVIRONMENT=Development dotnet run --urls "http://localhost:5000"
-```
+```powershell
+# 1. Create the Entra ID app registration (one-time setup)
+cd src/Dashboard
+.\setup-entra-app.ps1 -ProductionUrl "https://your-app.azurewebsites.net"
+# Copy the output values into appsettings.Local.json
 
-> PowerShell: `$env:ASPNETCORE_ENVIRONMENT="Development"` before `dotnet run`
+# 2. Build frontend & start backend
+cd client && npm install && npm run build && cd ..
+$env:ASPNETCORE_ENVIRONMENT="Development"
+dotnet run --urls "http://localhost:5000"
+```
 
 ### Deploy
 
@@ -126,6 +139,7 @@ src/Dashboard/
 │       ├── ChatView.vue    # Chat UI, tool sidebar, ECharts
 │       └── Dashboard.vue   # Layout shell
 ├── Dockerfile              # Multi-stage (Node → .NET → runtime + Python)
+├── setup-entra-app.ps1     # Entra ID app registration setup (one-time)
 └── deploy.ps1              # Zip deployment script
 ```
 

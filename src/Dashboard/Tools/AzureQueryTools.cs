@@ -13,25 +13,50 @@ public class AzureQueryTools
 {
     private readonly UserTokens _tokens;
 
+    // Allowlist of read-only POST path suffixes — blocks mutating ARM actions
+    // (deallocate, start, restart, powerOff, delete, write, etc.) at the code level.
+    // Only query/report/calculation POST endpoints are permitted.
+    private static readonly string[] SafePostSuffixes =
+    {
+        "/query",                              // Cost Management cost/forecast queries
+        "/forecast",                           // Cost Management forecast
+        "/generatecostdetailsreport",          // Cost Details report (replaces usageDetails)
+        "/generatereservationdetailsreport",   // Reservation utilization line-item report
+        "/resources",                          // Resource Graph KQL queries
+        "/calculateprice",                     // Reservation/Savings Plan price simulation
+        "/calculateexchange",                  // Reservation exchange simulation
+        "/validatepurchase",                   // Savings Plan purchase validation
+        "/carbonemissionreports",              // Carbon emission reports
+        "/getentities",                        // Management Group entity listing
+        "/summarize",                          // Policy Insights summarization
+    };
+
+    private static bool IsReadOnlyPost(string path)
+    {
+        var pathOnly = path.Split('?')[0].TrimEnd('/').ToLowerInvariant();
+        return SafePostSuffixes.Any(suffix => pathOnly.EndsWith(suffix));
+    }
+
     public AzureQueryTools(UserTokens tokens) => _tokens = tokens;
 
     public IEnumerable<AIFunction> Create()
     {
-        yield return AIFunctionFactory.Create(QueryAzure, "QueryAzure", @"Calls any Azure ARM REST API using the signed-in user's token and returns raw JSON.
+        yield return AIFunctionFactory.Create(QueryAzure, "QueryAzure", @"READ-ONLY: Queries Azure ARM REST APIs using the signed-in user's token and returns raw JSON. This tool CANNOT create, update, or delete any Azure resources — all write operations are blocked at the code level.
 Base: https://management.azure.com — provide path starting with /.
+Allowed methods: GET (any path) and POST (restricted to read-only query/report endpoints only — e.g. /query, /forecast, /resources, /generateCostDetailsReport, /calculatePrice, /carbonEmissionReports). POST to mutating endpoints (deallocate, start, restart, delete, etc.) will be rejected.
 DATA SCOPING: For Cost Management POST .../query, ALWAYS use grouping (ServiceName, ResourceGroup, MeterCategory) and date granularity (Daily/Monthly). Never request raw ungrouped cost data. For Resource Graph POST .../resources, use KQL 'project' and 'top 20' — never select all columns. For list APIs (VMs, storage, etc.), results are already scoped by subscription.
 COST MGMT (Microsoft.CostManagement): POST /{scope}/.../query — cost analysis; /.../forecast; /.../generateCostDetailsReport — line-item cost data (replaces Consumption usageDetails); /.../generateReservationDetailsReport — reservation utilization line-item; GET /.../alerts; /.../dimensions; /.../benefitUtilizationSummaries; /.../benefitRecommendations; /.../costAllocationRules — split shared costs across scopes.
-BUDGETS (Microsoft.Consumption): GET /{scope}/.../budgets — list budgets and spend-vs-budget status; PUT to create/update budgets with thresholds and alert rules.
-COST EXPORTS (Microsoft.CostManagement): GET /{scope}/.../exports — list scheduled cost data exports to storage; PUT to create/update.
+BUDGETS (Microsoft.Consumption): GET /{scope}/.../budgets — list budgets and spend-vs-budget status.
+COST EXPORTS (Microsoft.CostManagement): GET /{scope}/.../exports — list scheduled cost data exports to storage.
 SCHEDULED ACTIONS (Microsoft.CostManagement): GET /{scope}/.../scheduledActions — scheduled cost alert emails and reports.
 COST VIEWS (Microsoft.CostManagement): GET /{scope}/.../views — pre-saved cost analysis views.
 BILLING (Microsoft.Billing): GET .../billingAccounts; .../billingProfiles; .../invoiceSections; .../invoices; .../transactions; .../billingSubscriptions; .../departments; .../enrollmentAccounts; .../customers.
 CONSUMPTION (Microsoft.Consumption): GET /{scope}/.../pricesheets; .../reservationSummaries; .../reservationRecommendations; .../reservationTransactions; .../lots; .../credits; .../balances; .../charges; .../marketplaces — third-party Marketplace charges. NOTE: usageDetails is deprecated — prefer generateCostDetailsReport (Cost Details API 2025-03-01) or Exports. reservationDetails is deprecated — prefer generateReservationDetailsReport.
-RESERVATIONS (Microsoft.Capacity): GET .../reservationOrders; .../reservations; .../catalog; POST .../calculatePrice; .../calculateExchange — calculate exchange/return amounts; .../return — refund a reservation.
+RESERVATIONS (Microsoft.Capacity): GET .../reservationOrders; .../reservations; .../catalog; POST .../calculatePrice; .../calculateExchange — simulate exchange/return costs (read-only calculations).
 SAVINGS PLANS (Microsoft.BillingBenefits): GET .../savingsPlanOrders; .../savingsPlans; POST .../calculatePrice; .../validatePurchase.
-ADVISOR (Microsoft.Advisor): GET /subscriptions/{id}/.../recommendations?$filter=Category eq 'Cost'; PUT .../configurations — tune right-sizing CPU thresholds.
+ADVISOR (Microsoft.Advisor): GET /subscriptions/{id}/.../recommendations?$filter=Category eq 'Cost'.
 RESOURCE GRAPH (Microsoft.ResourceGraph): POST .../resources — KQL across subs (body: {query,subscriptions}).
-MONITOR (Microsoft.Insights): GET /{resourceId}/.../metrics; .../metricDefinitions; .../metricBaselines; .../diagnosticSettings; .../autoscaleSettings — autoscale rules for cost optimization.
+MONITOR (Microsoft.Insights): GET /{resourceId}/.../metrics; .../metricDefinitions; .../metricBaselines; .../diagnosticSettings; .../autoscaleSettings.
 ACTIVITY LOG (Microsoft.Insights): GET /{scope}/.../eventtypes/management/values?$filter=eventTimestamp ge '...' — who created/deleted/modified resources (cost attribution audit trail).
 COMPUTE: GET /subscriptions/{id}/.../virtualMachines — list VMs; .../virtualMachineScaleSets — VMSS instances for right-sizing; .../skus — VM sizes per region; .../disks — managed disks (find unattached/orphaned disks).
 AKS (Microsoft.ContainerService): GET /subscriptions/{id}/.../managedClusters — AKS clusters and node pool sizing for cost optimization.
@@ -62,7 +87,7 @@ MIGRATE (Microsoft.Migrate): GET .../migrateProjects; .../assessments; .../asses
 SUPPORT (Microsoft.Support): GET .../supportTickets; .../services.
 Scope = /subscriptions/{subId} or /subscriptions/{subId}/resourceGroups/{rg}.
 For retail pricing use the built-in fetch tool with https://prices.azure.com (no auth required). ALWAYS filter by armRegionName + serviceName + armSkuName and use $top=20 for comparisons.
-Note: Only GET and POST methods are supported.");
+SECURITY: Only GET and read-only POST endpoints are allowed. PUT, PATCH, DELETE, and mutating POST actions are blocked at the HTTP client level.");
     }
 
     private async Task<string> QueryAzure(
@@ -100,6 +125,14 @@ Note: Only GET and POST methods are supported.");
             activity?.SetTag("azure.result", "invalid_method");
             activity?.SetStatus(ActivityStatusCode.Error, "Invalid method");
             return $"HTTP 400 BadRequest\nInvalid method: '{method}'. Only GET and POST are supported.";
+        }
+
+        // Enforce read-only: POST requests must target known query/report endpoints
+        if (httpMethod == HttpMethod.Post && !IsReadOnlyPost(path))
+        {
+            activity?.SetTag("azure.result", "blocked_mutating_post");
+            activity?.SetStatus(ActivityStatusCode.Error, "Mutating POST blocked");
+            return $"HTTP 403 Forbidden\nThis agent is read-only. POST is only allowed to query/report endpoints (e.g. /query, /forecast, /resources, /generateCostDetailsReport). The requested path '{path}' is not in the allowlist. Use GET to read data instead.";
         }
 
         return await HttpHelper.SendWithRetryAsync(

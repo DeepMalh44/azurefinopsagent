@@ -24,6 +24,11 @@
           </svg>
         </button>
         <span class="portal-title">Azure FinOps Agent</span>
+        <span
+          class="portal-readonly-badge"
+          title="This agent can only read data — it cannot create, modify, or delete any Azure resources"
+          >Read-only</span
+        >
       </div>
     </header>
 
@@ -175,6 +180,9 @@
               </svg>
               {{ authLoading === "azure" ? "Connecting..." : "Connect Azure" }}
             </button>
+            <span class="azure-connect-hint"
+              >Read-only — cannot modify resources</span
+            >
           </div>
           <div v-else class="azure-status">
             <div class="azure-status-info">
@@ -278,7 +286,8 @@
               <p class="es-sub">
                 Analyze costs, forecast spend, optimize resources, and export
                 executive-ready PowerPoint decks — all from a single
-                conversation.
+                conversation. <strong>Read-only access</strong> — this agent
+                cannot create, modify, or delete any Azure resources.
               </p>
 
               <div v-if="!azureConnected" class="es-connect-bar">
@@ -749,13 +758,13 @@
 <script setup>
 import * as echarts from "echarts";
 import {
-  computed,
-  nextTick,
-  onBeforeUnmount,
-  onMounted,
-  reactive,
-  ref,
-  watch,
+    computed,
+    nextTick,
+    onBeforeUnmount,
+    onMounted,
+    reactive,
+    ref,
+    watch,
 } from "vue";
 
 const props = defineProps({
@@ -2552,6 +2561,18 @@ async function send() {
   font-weight: 600;
   color: #fff;
 }
+.portal-readonly-badge {
+  font-size: 10px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+  padding: 1px 6px;
+  margin-left: 8px;
+  letter-spacing: 0.3px;
+  cursor: default;
+}
 .portal-header-right {
   display: flex;
   align-items: center;
@@ -2850,6 +2871,13 @@ async function send() {
   border-color: #0078d4;
   color: #0078d4;
   background: #f3f2f1;
+}
+.azure-connect-hint {
+  display: block;
+  font-size: 11px;
+  color: #8a8886;
+  text-align: center;
+  margin-top: 4px;
 }
 .azure-status {
   padding: 2px 0;

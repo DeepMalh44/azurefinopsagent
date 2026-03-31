@@ -28,13 +28,18 @@ This project has adopted the [Microsoft Open Source Code of Conduct](https://ope
 - **Frontend**: Vue 3 + Vite SPA in `src/Dashboard/client/`
 
 ```bash
+# One-time: Create Entra ID app registration
+cd src/Dashboard
+.\setup-entra-app.ps1
+# Copy the output ClientId/ClientSecret into appsettings.Local.json
+
 # Build the Vue frontend to wwwroot/
-cd src/Dashboard/client
+cd client
 npm install
 npm run build
 
 # Start the .NET backend (must set Development environment)
-cd ../
+cd ..
 $env:ASPNETCORE_ENVIRONMENT="Development"
 dotnet run --urls "http://localhost:5000"
 
@@ -56,6 +61,7 @@ src/Dashboard/
 ├── Program.cs              # Auth, SSE chat, models, version endpoints
 ├── Tools/                  # AI agent tools (QueryAzure, QueryGraph, RenderChart, etc.)
 ├── client/src/components/  # Vue 3 components (ChatView, Dashboard)
+├── setup-entra-app.ps1     # Entra ID app registration setup (one-time)
 ├── deploy.ps1              # Azure App Service deployment
 └── startup.sh              # App Service startup — installs Python/tools
 ```
@@ -63,7 +69,7 @@ src/Dashboard/
 ### Code Conventions
 
 - **Backend**: Clean C# following Microsoft coding conventions, .NET 10 APIs, Vue 3 Composition API with `<script setup>`
-- **Tools**: Return raw API JSON (let the LLM interpret it), use `string` parameters, keep tools simple
+- **Tools**: Return raw API JSON (let the LLM interpret it), use `string` parameters, keep tools simple. **All tools are read-only** — write operations are blocked at the HTTP client level.
 - **Frontend**: Modern JavaScript, ECharts for visualization, SSE for streaming
 
 See the [README](README.md) for full architecture details.
