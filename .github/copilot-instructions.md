@@ -1,5 +1,19 @@
 # Azure FinOps Agent - Copilot Instructions
 
+## Pre-Test Checklist
+
+Before asking the user to test OAuth consent flows locally or in production, **always revoke existing consent grants first** so the Microsoft consent screen appears fresh:
+
+```powershell
+# Revoke all consent grants for the app registration
+$spId = az ad sp show --id "8997774b-06b8-41ab-9870-4acde3dc779e" --query "id" -o tsv 2>$null
+$grants = az rest --method GET --url "https://graph.microsoft.com/v1.0/servicePrincipals/$spId/oauth2PermissionGrants" -o json 2>$null | ConvertFrom-Json
+foreach ($g in $grants.value) { Write-Host "Deleting grant $($g.id)"; az rest --method DELETE --url "https://graph.microsoft.com/v1.0/oauth2PermissionGrants/$($g.id)" 2>&1 }
+Write-Host "All consent grants revoked — user will see fresh consent screens"
+```
+
+This ensures the incremental consent flow works as expected and the user sees the real Microsoft Entra ID consent UI for each tier.
+
 always check if you are logged into:
 Basic information
 Name
@@ -138,17 +152,26 @@ No login is required to use the chat. Users are auto-assigned an anonymous sessi
 A single **multi-tenant** Microsoft Entra ID app registration (`Azure FinOps Agent`) is shared between local development and production — both use the same ClientId/ClientSecret. The OAuth flow exchanges tokens for three separate resources:
 
 - **Azure ARM token** (`https://management.azure.com/user_impersonation`) — for Cost Management, Billing, Advisor, Resource Graph, Monitor, etc.
-- **Microsoft Graph token** (explicit granular scopes) — for license inventory, M365 usage reports, Intune device management, directory objects, org structure. Scopes: `User.Read`, `User.Read.All`, `Organization.Read.All`, `Group.Read.All`, `Application.Read.All`, `Reports.Read.All`, `DeviceManagementManagedDevices.Read.All`, `DeviceManagementConfiguration.Read.All`
+- **Microsoft Graph token** (explicit granular scopes via incremental consent) — for license inventory, M365 usage reports, directory objects, org structure for chargeback
 - **Log Analytics token** (`https://api.loganalytics.io/Data.Read`) — for KQL queries against Log Analytics and App Insights
 
-**Security**: All Graph and Log Analytics token exchanges use explicit scopes (not `.default`) to prevent silent permission creep. The broad `Directory.Read.All` scope was removed in favor of granular `User.Read.All` + `Group.Read.All` + `Application.Read.All`.
+**Security**: Incremental consent — the app requests minimal permissions upfront (ARM only) and adds Graph/Log Analytics scopes only when the user explicitly opts in via separate consent flows. Each addon tier shows a dedicated Microsoft Entra ID consent screen. All token exchanges use explicit scopes (not `.default`) to prevent silent permission creep.
+
+**Consent Tiers** (each triggers a separate Microsoft Entra ID consent screen):
+
+| Tier                     | Scopes                                      | What admin sees                              |
+| ------------------------ | ------------------------------------------- | -------------------------------------------- |
+| **Base** (Connect Azure) | `user_impersonation`                        | "Access Azure Service Management as you"     |
+| **License Optimization** | `Organization.Read.All`, `Reports.Read.All` | "Read organization info, Read usage reports" |
+| **Cost Allocation**      | `User.Read.All`, `Group.Read.All`           | "Read all users' profiles, Read all groups"  |
+| **Log Analytics**        | `Data.Read`                                 | "Read Log Analytics data"                    |
 
 The flow:
 
-1. User clicks "Connect Azure" in the sidebar → `/auth/microsoft` redirects to Microsoft login
-2. After consent, `/auth/microsoft/callback` exchanges the auth code for an ARM access token + refresh token
-3. The refresh token is immediately exchanged for Graph and Log Analytics tokens (separate resource scopes)
-4. All tokens are stored in the session with expiry tracking and auto-refresh
+1. User clicks "Connect Azure" → `/auth/microsoft?tier=base` → Microsoft login → ARM token
+2. After connecting, sidebar shows opt-in buttons: "+ License Optimization", "+ Cost Allocation", "+ Log Analytics"
+3. Each button redirects to `/auth/microsoft?tier=<tier>` → Microsoft consent screen (only for that tier's scopes)
+4. Callback exchanges the auth code for tier-specific tokens and stores in session
 5. Per-request, tokens are refreshed and set on the user's `UserTokens` instance before tool execution
 
 Config in `appsettings.json`:

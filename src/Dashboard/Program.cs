@@ -267,10 +267,13 @@ app.MapPost("/auth/logout", async (HttpContext ctx) =>
 // AZURE / MICROSOFT ENTRA ID OAUTH (Multi-Tenant)
 // ──────────────────────────────────────────────
 
-// Redirect to Microsoft Entra ID login
-// Accepts optional ?scopes= query parameter with comma-separated permission group keys:
-//   directory, reports, intune, loganalytics
-// If omitted, only base scopes (Azure ARM + User.Read) are requested.
+// Redirect to Microsoft Entra ID login.
+// Supports incremental consent via ?tier= parameter — each tier adds only the
+// scopes it needs, so the admin sees a minimal, justifiable consent screen:
+//   base (default) — Azure ARM only (Cost Management, Billing, Advisor, etc.)
+//   licenses       — M365 license inventory + usage reports (find unused seats)
+//   chargeback     — user profiles + groups (department-based cost allocation)
+//   loganalytics   — Log Analytics/App Insights KQL (VM metrics, ingestion costs)
 app.MapGet("/auth/microsoft", (HttpContext ctx) =>
 {
     if (string.IsNullOrEmpty(msClientId))
@@ -279,59 +282,50 @@ app.MapGet("/auth/microsoft", (HttpContext ctx) =>
     var state = Guid.NewGuid().ToString("N");
     ctx.Session.SetString("ms_oauth_state", state);
 
+    var tier = ctx.Request.Query["tier"].ToString().ToLowerInvariant();
+    if (string.IsNullOrEmpty(tier)) tier = "base";
+    ctx.Session.SetString("auth_tier", tier);
+
     var redirectUri = $"{NormalizeCallbackHost(ctx)}/auth/microsoft/callback";
 
-    // Base scopes (always required)
-    var scopes = new List<string>
+    // Build scopes based on tier — each tier requests ONLY what it needs
+    var scopes = new List<string> { "openid", "profile", "email", "offline_access" };
+
+    switch (tier)
     {
-        "openid", "profile", "email", "offline_access",
-        "https://management.azure.com/user_impersonation",
-        "https://graph.microsoft.com/User.Read",
-    };
+        case "licenses":
+            // M365 License Optimization — "how many seats are paid vs used?"
+            // Organization.Read.All → subscribedSkus (license inventory)
+            // Reports.Read.All → usage reports (mailbox, Teams, Copilot — find unused seats)
+            scopes.Add("https://graph.microsoft.com/User.Read");
+            scopes.Add("https://graph.microsoft.com/Organization.Read.All");
+            scopes.Add("https://graph.microsoft.com/Reports.Read.All");
+            break;
 
-    // Parse optional permission groups from ?scopes= query parameter
-    var requestedGroups = (ctx.Request.Query["scopes"].ToString() ?? "")
-        .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-        .Select(s => s.ToLowerInvariant())
-        .ToHashSet();
+        case "chargeback":
+            // Cost Allocation / Chargeback — "which department spent what?"
+            // User.Read.All → user profiles with department/companyName
+            // Group.Read.All → groups for team-based cost mapping
+            scopes.Add("https://graph.microsoft.com/User.Read");
+            scopes.Add("https://graph.microsoft.com/User.Read.All");
+            scopes.Add("https://graph.microsoft.com/Group.Read.All");
+            break;
 
-    // Store selected groups in session for status endpoint
-    ctx.Session.SetString("permission_groups", string.Join(",", requestedGroups));
+        case "loganalytics":
+            // Log Analytics & App Insights — "VM metrics, ingestion cost analysis"
+            scopes.Add("https://api.loganalytics.io/Data.Read");
+            break;
 
-    // M365 Licenses & Directory
-    if (requestedGroups.Contains("directory"))
-    {
-        scopes.Add("https://graph.microsoft.com/User.Read.All");
-        scopes.Add("https://graph.microsoft.com/Organization.Read.All");
-        scopes.Add("https://graph.microsoft.com/Group.Read.All");
-        scopes.Add("https://graph.microsoft.com/Application.Read.All");
-    }
-
-    // M365 Usage Reports (Exchange, Teams, OneDrive, Copilot)
-    if (requestedGroups.Contains("reports"))
-    {
-        scopes.Add("https://graph.microsoft.com/Reports.Read.All");
-    }
-
-    // Intune Device Management
-    if (requestedGroups.Contains("intune"))
-    {
-        scopes.Add("https://graph.microsoft.com/DeviceManagementManagedDevices.Read.All");
-        scopes.Add("https://graph.microsoft.com/DeviceManagementConfiguration.Read.All");
-    }
-
-    // Log Analytics & App Insights KQL
-    if (requestedGroups.Contains("loganalytics"))
-    {
-        scopes.Add("https://api.loganalytics.io/Data.Read");
+        default:
+            // Base: Azure ARM — "cost analysis, billing, advisor, resource graph"
+            scopes.Add("https://management.azure.com/user_impersonation");
+            break;
     }
 
     var scope = string.Join(" ", scopes);
-
-    // Use prompt=consent when user is re-authenticating to change permissions — forces the consent screen
-    // to appear even if previously consented. Default prompt=select_account for first-time connect.
-    var forceConsent = ctx.Request.Query["reconsent"].ToString() == "1";
-    var promptType = forceConsent ? "consent" : "select_account";
+    // Base tier: select_account (just pick account)
+    // Add-on tiers: consent (always show what new permissions are being granted)
+    var promptType = tier == "base" ? "select_account" : "consent";
 
     var url = $"https://login.microsoftonline.com/{Uri.EscapeDataString(msTenantId)}/oauth2/v2.0/authorize" +
               $"?client_id={Uri.EscapeDataString(msClientId)}" +
@@ -342,7 +336,7 @@ app.MapGet("/auth/microsoft", (HttpContext ctx) =>
               $"&response_mode=query" +
               $"&prompt={promptType}";
 
-    logger.LogInformation("Microsoft OAuth redirect initiated from {Host}", ctx.Request.Host);
+    logger.LogInformation("Microsoft OAuth redirect: tier={Tier} from {Host}", tier, ctx.Request.Host);
     return Results.Redirect(url);
 });
 
@@ -375,6 +369,17 @@ app.MapGet("/auth/microsoft/callback", async (HttpContext ctx, IHttpClientFactor
 
         using var tokenReq = new HttpRequestMessage(HttpMethod.Post,
             $"https://login.microsoftonline.com/{Uri.EscapeDataString(msTenantId)}/oauth2/v2.0/token");
+
+        // Token exchange scope must match the tier that was requested
+        var authTier = ctx.Session.GetString("auth_tier") ?? "base";
+        var tokenExchangeScope = authTier switch
+        {
+            "licenses" => "openid profile email https://graph.microsoft.com/User.Read https://graph.microsoft.com/Organization.Read.All https://graph.microsoft.com/Reports.Read.All offline_access",
+            "chargeback" => "openid profile email https://graph.microsoft.com/User.Read https://graph.microsoft.com/User.Read.All https://graph.microsoft.com/Group.Read.All offline_access",
+            "loganalytics" => "openid profile email https://api.loganalytics.io/Data.Read offline_access",
+            _ => "openid profile email https://management.azure.com/user_impersonation offline_access"
+        };
+
         tokenReq.Content = new FormUrlEncodedContent(new Dictionary<string, string>
         {
             ["client_id"] = msClientId,
@@ -382,7 +387,7 @@ app.MapGet("/auth/microsoft/callback", async (HttpContext ctx, IHttpClientFactor
             ["code"] = code,
             ["redirect_uri"] = redirectUri,
             ["grant_type"] = "authorization_code",
-            ["scope"] = "openid profile email https://management.azure.com/user_impersonation offline_access"
+            ["scope"] = tokenExchangeScope
         });
 
         var tokenRes = await http.SendAsync(tokenReq);
@@ -402,12 +407,34 @@ app.MapGet("/auth/microsoft/callback", async (HttpContext ctx, IHttpClientFactor
             return Results.Redirect("/?azure_error=no_access_token");
         }
 
-        var azureToken = atProp.GetString()!;
+        var accessToken = atProp.GetString()!;
         var refreshToken = tokenJson.TryGetProperty("refresh_token", out var rtProp) ? rtProp.GetString() : null;
         var expiresIn = tokenJson.TryGetProperty("expires_in", out var expProp) ? expProp.GetInt32() : 3600;
 
-        ctx.Session.SetString("azure_token", azureToken);
-        ctx.Session.SetString("azure_token_expiry", DateTimeOffset.UtcNow.AddSeconds(expiresIn - 60).ToString("o"));
+        // Store token based on the tier — the code exchange already returns the right resource token
+        if (authTier == "licenses" || authTier == "chargeback")
+        {
+            // Graph token — store directly from code exchange
+            ctx.Session.SetString("graph_token", accessToken);
+            ctx.Session.SetString("graph_token_expiry", DateTimeOffset.UtcNow.AddSeconds(expiresIn - 60).ToString("o"));
+            var existingTier = ctx.Session.GetString("graph_tier") ?? "";
+            if (!existingTier.Contains(authTier))
+                ctx.Session.SetString("graph_tier", string.IsNullOrEmpty(existingTier) ? authTier : $"{existingTier},{authTier}");
+        }
+        else if (authTier == "loganalytics")
+        {
+            // Log Analytics token — store directly
+            ctx.Session.SetString("loganalytics_token", accessToken);
+            ctx.Session.SetString("loganalytics_token_expiry", DateTimeOffset.UtcNow.AddSeconds(expiresIn - 60).ToString("o"));
+        }
+        else
+        {
+            // Base tier — ARM token
+            ctx.Session.SetString("azure_token", accessToken);
+            ctx.Session.SetString("azure_token_expiry", DateTimeOffset.UtcNow.AddSeconds(expiresIn - 60).ToString("o"));
+        }
+
+        // Always store refresh token (useful for token refresh later)
         if (refreshToken is not null)
             ctx.Session.SetString("azure_refresh_token", refreshToken);
 
@@ -443,66 +470,7 @@ app.MapGet("/auth/microsoft/callback", async (HttpContext ctx, IHttpClientFactor
             }
         }
 
-        logger.LogInformation("Microsoft OAuth login successful");
-
-        // Exchange refresh token for Graph + Log Analytics tokens (only if user selected those permission groups)
-        var selectedGroups = (ctx.Session.GetString("permission_groups") ?? "")
-            .Split(',', StringSplitOptions.RemoveEmptyEntries)
-            .Select(s => s.Trim().ToLowerInvariant())
-            .ToHashSet();
-
-        var needsGraph = selectedGroups.Contains("directory") || selectedGroups.Contains("reports") || selectedGroups.Contains("intune");
-        var needsLogAnalytics = selectedGroups.Contains("loganalytics");
-
-        if (refreshToken is not null)
-        {
-            // Graph token — only exchange if user opted into directory/reports/intune
-            if (needsGraph)
-            {
-                try
-                {
-                    // Build explicit Graph scopes based on selected groups
-                    var graphScopes = new List<string> { "https://graph.microsoft.com/User.Read", "offline_access" };
-                    if (selectedGroups.Contains("directory"))
-                    {
-                        graphScopes.Add("https://graph.microsoft.com/User.Read.All");
-                        graphScopes.Add("https://graph.microsoft.com/Organization.Read.All");
-                        graphScopes.Add("https://graph.microsoft.com/Group.Read.All");
-                        graphScopes.Add("https://graph.microsoft.com/Application.Read.All");
-                    }
-                    if (selectedGroups.Contains("reports"))
-                        graphScopes.Add("https://graph.microsoft.com/Reports.Read.All");
-                    if (selectedGroups.Contains("intune"))
-                    {
-                        graphScopes.Add("https://graph.microsoft.com/DeviceManagementManagedDevices.Read.All");
-                        graphScopes.Add("https://graph.microsoft.com/DeviceManagementConfiguration.Read.All");
-                    }
-
-                    var graphToken = await ExchangeRefreshTokenForResource(http, refreshToken, string.Join(" ", graphScopes));
-                    if (graphToken is not null)
-                    {
-                        ctx.Session.SetString("graph_token", graphToken.Value.Token);
-                        ctx.Session.SetString("graph_token_expiry", graphToken.Value.Expiry.ToString("o"));
-                    }
-                }
-                catch (Exception ex) { logger.LogWarning(ex, "Failed to get Graph token"); }
-            }
-
-            // Log Analytics token — only exchange if user opted in
-            if (needsLogAnalytics)
-            {
-                try
-                {
-                    var laToken = await ExchangeRefreshTokenForResource(http, refreshToken, "https://api.loganalytics.io/Data.Read offline_access");
-                    if (laToken is not null)
-                    {
-                        ctx.Session.SetString("loganalytics_token", laToken.Value.Token);
-                        ctx.Session.SetString("loganalytics_token_expiry", laToken.Value.Expiry.ToString("o"));
-                    }
-                }
-                catch (Exception ex) { logger.LogWarning(ex, "Failed to get Log Analytics token"); }
-            }
-        }
+        logger.LogInformation("Microsoft OAuth login successful, tier={Tier}", authTier);
 
         return Results.Redirect("/");
     }
@@ -595,7 +563,7 @@ async Task<string?> GetGraphTokenAsync(HttpContext ctx, IHttpClientFactory httpF
         if (refreshToken is null) return null;
         var http = httpFactory.CreateClient();
         var result = await ExchangeRefreshTokenForResource(http, refreshToken,
-            "https://graph.microsoft.com/User.Read https://graph.microsoft.com/User.Read.All https://graph.microsoft.com/Organization.Read.All https://graph.microsoft.com/Group.Read.All https://graph.microsoft.com/Application.Read.All https://graph.microsoft.com/Reports.Read.All https://graph.microsoft.com/DeviceManagementManagedDevices.Read.All https://graph.microsoft.com/DeviceManagementConfiguration.Read.All offline_access");
+            "https://graph.microsoft.com/User.Read https://graph.microsoft.com/User.Read.All https://graph.microsoft.com/Organization.Read.All https://graph.microsoft.com/Group.Read.All https://graph.microsoft.com/Reports.Read.All offline_access");
         if (result is null) return null;
         ctx.Session.SetString("graph_token", result.Value.Token);
         ctx.Session.SetString("graph_token_expiry", result.Value.Expiry.ToString("o"));
@@ -718,13 +686,6 @@ app.MapGet("/auth/azure/status", async (HttpContext ctx, IHttpClientFactory http
         "Subscriptions"
     };
 
-    // Permission groups the user opted into
-    var permGroups = (ctx.Session.GetString("permission_groups") ?? "")
-        .Split(',', StringSplitOptions.RemoveEmptyEntries)
-        .ToList();
-    var hasGraphToken = ctx.Session.GetString("graph_token") is not null;
-    var hasLaToken = ctx.Session.GetString("loganalytics_token") is not null;
-
     return Results.Json(new
     {
         connected = true,
@@ -732,9 +693,9 @@ app.MapGet("/auth/azure/status", async (HttpContext ctx, IHttpClientFactory http
         subscriptions,
         managementGroups,
         apis = connectedApis,
-        permissionGroups = permGroups,
-        hasGraphToken,
-        hasLogAnalyticsToken = hasLaToken
+        graphEnabled = ctx.Session.GetString("graph_token") is not null,
+        graphTier = ctx.Session.GetString("graph_tier") ?? "",
+        logAnalyticsEnabled = ctx.Session.GetString("loganalytics_token") is not null
     });
 });
 
@@ -766,9 +727,94 @@ app.MapPost("/auth/azure/disconnect", (HttpContext ctx) =>
     ctx.Session.Remove("azure_user");
     ctx.Session.Remove("graph_token");
     ctx.Session.Remove("graph_token_expiry");
+    ctx.Session.Remove("graph_tier");
     ctx.Session.Remove("loganalytics_token");
     ctx.Session.Remove("loganalytics_token_expiry");
     return Results.Ok(new { ok = true });
+});
+
+// Revoke all Entra ID permissions — deletes the user's consent grants for this app
+app.MapPost("/auth/azure/revoke", async (HttpContext ctx, IHttpClientFactory httpFactory) =>
+{
+    // First disconnect the session
+    var userJson = ctx.Session.GetString("user");
+    if (userJson is not null)
+    {
+        var u = JsonSerializer.Deserialize<JsonElement>(userJson);
+        var uid = u.GetProperty("id").GetInt64();
+        if (userTokens.TryGetValue(uid, out var tokens))
+        {
+            tokens.AzureToken = null;
+            tokens.GraphToken = null;
+            tokens.LogAnalyticsToken = null;
+        }
+    }
+
+    // Use the user's Graph token (or refresh token) to revoke consent grants via Graph API
+    var graphToken = ctx.Session.GetString("graph_token");
+    var azureToken = ctx.Session.GetString("azure_token");
+    var tokenToUse = graphToken ?? azureToken;
+
+    if (tokenToUse is not null && !string.IsNullOrEmpty(msClientId))
+    {
+        try
+        {
+            var http = httpFactory.CreateClient();
+
+            // Find the service principal for our app in the user's tenant
+            using var spReq = new HttpRequestMessage(HttpMethod.Get,
+                $"https://graph.microsoft.com/v1.0/servicePrincipals?$filter=appId eq '{msClientId}'&$select=id");
+            spReq.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokenToUse);
+            var spRes = await http.SendAsync(spReq);
+            if (spRes.IsSuccessStatusCode)
+            {
+                var spBody = await spRes.Content.ReadAsStringAsync();
+                var spJson = JsonSerializer.Deserialize<JsonElement>(spBody);
+                if (spJson.TryGetProperty("value", out var sps) && sps.GetArrayLength() > 0)
+                {
+                    var spId = sps[0].GetProperty("id").GetString()!;
+
+                    // Get all consent grants for this service principal
+                    using var grantsReq = new HttpRequestMessage(HttpMethod.Get,
+                        $"https://graph.microsoft.com/v1.0/servicePrincipals/{spId}/oauth2PermissionGrants");
+                    grantsReq.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokenToUse);
+                    var grantsRes = await http.SendAsync(grantsReq);
+                    if (grantsRes.IsSuccessStatusCode)
+                    {
+                        var grantsBody = await grantsRes.Content.ReadAsStringAsync();
+                        var grantsJson = JsonSerializer.Deserialize<JsonElement>(grantsBody);
+                        if (grantsJson.TryGetProperty("value", out var grants))
+                        {
+                            foreach (var grant in grants.EnumerateArray())
+                            {
+                                var grantId = grant.GetProperty("id").GetString()!;
+                                using var delReq = new HttpRequestMessage(HttpMethod.Delete,
+                                    $"https://graph.microsoft.com/v1.0/oauth2PermissionGrants/{grantId}");
+                                delReq.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokenToUse);
+                                await http.SendAsync(delReq);
+                            }
+                        }
+                    }
+                }
+            }
+            logger.LogInformation("Revoked Entra ID consent grants for app {AppId}", msClientId);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to revoke consent grants via Graph API");
+        }
+    }
+
+    ctx.Session.Remove("azure_token");
+    ctx.Session.Remove("azure_refresh_token");
+    ctx.Session.Remove("azure_token_expiry");
+    ctx.Session.Remove("azure_user");
+    ctx.Session.Remove("graph_token");
+    ctx.Session.Remove("graph_token_expiry");
+    ctx.Session.Remove("graph_tier");
+    ctx.Session.Remove("loganalytics_token");
+    ctx.Session.Remove("loganalytics_token_expiry");
+    return Results.Ok(new { ok = true, revoked = true });
 });
 
 // ──────────────────────────────────────────────

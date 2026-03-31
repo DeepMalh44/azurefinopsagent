@@ -8,70 +8,10 @@
         <p class="auth-overlay-sub">
           {{
             azureConnected
-              ? "Loading subscriptions..."
+              ? "Adding permissions..."
               : "Authenticating with Microsoft Entra ID..."
           }}
         </p>
-      </div>
-    </div>
-
-    <!-- Permission picker modal -->
-    <div v-if="showPermissionPicker" class="perm-overlay" @click.self="showPermissionPicker = false; isChangingPermissions = false">
-      <div class="perm-card">
-        <div class="perm-header">
-          <svg width="20" height="20" viewBox="0 0 21 21" fill="none">
-            <rect width="10" height="10" fill="#f25022" />
-            <rect x="11" width="10" height="10" fill="#7fba00" />
-            <rect y="11" width="10" height="10" fill="#00a4ef" />
-            <rect x="11" y="11" width="10" height="10" fill="#ffb900" />
-          </svg>
-          <h2>{{ isChangingPermissions ? 'Change Permissions' : 'Connect Azure' }}</h2>
-          <button class="perm-close" @click="showPermissionPicker = false; isChangingPermissions = false">&times;</button>
-        </div>
-        <p class="perm-intro" v-if="!isChangingPermissions">Choose which data sources the agent can access. Azure Cost &amp; Resources is always included. You can add more permissions later by reconnecting.</p>
-        <p class="perm-intro" v-else>Select the permissions you want and click Reconnect. You'll see the Microsoft consent screen to approve any new permissions. <strong>To remove previously granted permissions</strong>, click "Revoke all" below — this opens Microsoft My Account where you can fully revoke access, then reconnect with only what you need.</p>
-
-        <!-- Always-on base -->
-        <div class="perm-group perm-group--base">
-          <label class="perm-label">
-            <input type="checkbox" checked disabled />
-            <div class="perm-info">
-              <span class="perm-name">Azure Cost &amp; Resources</span>
-              <span class="perm-desc">Cost Management, Billing, Advisor, Resource Graph, Monitor, VMs, Storage, AKS, and all ARM APIs — uses your Azure RBAC permissions</span>
-            </div>
-          </label>
-        </div>
-
-        <!-- Optional groups -->
-        <div class="perm-group" v-for="g in permissionGroups" :key="g.key">
-          <label class="perm-label">
-            <input type="checkbox" v-model="g.selected" />
-            <div class="perm-info">
-              <span class="perm-name">{{ g.name }}</span>
-              <span class="perm-desc">{{ g.desc }}</span>
-              <span class="perm-scopes">Permissions: {{ g.scopes }}</span>
-            </div>
-          </label>
-        </div>
-
-        <div class="perm-actions">
-          <a v-if="isChangingPermissions" class="perm-revoke-link" href="https://myaccount.microsoft.com/permissions" target="_blank" rel="noopener">
-            Revoke all at Microsoft
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-          </a>
-          <div class="perm-actions-right">
-            <button class="perm-cancel" @click="showPermissionPicker = false; isChangingPermissions = false">Cancel</button>
-            <button class="perm-connect" @click="connectWithPermissions">
-              <svg width="14" height="14" viewBox="0 0 21 21" fill="none">
-                <rect width="10" height="10" fill="#fff" fill-opacity="0.9" />
-                <rect x="11" width="10" height="10" fill="#fff" fill-opacity="0.7" />
-                <rect y="11" width="10" height="10" fill="#fff" fill-opacity="0.7" />
-                <rect x="11" y="11" width="10" height="10" fill="#fff" fill-opacity="0.5" />
-              </svg>
-              {{ isChangingPermissions ? 'Reconnect' : 'Connect' }} with {{ selectedPermissionCount }} permission{{ selectedPermissionCount === 1 ? '' : 's' }}
-            </button>
-          </div>
-        </div>
       </div>
     </div>
 
@@ -182,7 +122,7 @@
           <button
             class="azure-connect-btn"
             :disabled="authLoading === 'azure'"
-            @click="showPermissionPicker = true"
+            @click="startAuth('azure', '/auth/microsoft')"
           >
             <span
               v-if="authLoading === 'azure'"
@@ -211,7 +151,7 @@
             <button
               class="azure-disconnect-btn"
               @click="disconnectAzure"
-              title="Disconnect Azure"
+              title="Disconnect session (keeps Entra ID consent)"
             >
               <svg
                 width="12"
@@ -228,21 +168,62 @@
               </svg>
             </button>
           </div>
-          <!-- Active permission badges -->
-          <div class="azure-perms">
-            <span class="azure-perm-badge azure-perm-badge--on">Azure ARM</span>
-            <span v-for="g in permissionGroups" :key="g.key"
-              class="azure-perm-badge"
-              :class="azurePermissionGroups.includes(g.key) ? 'azure-perm-badge--on' : 'azure-perm-badge--off'"
-              :title="azurePermissionGroups.includes(g.key) ? g.name + ' — active' : g.name + ' — not connected'"
-            >{{ g.shortName || g.name }}</span>
+          <!-- Incremental consent: each button navigates to Microsoft Entra ID consent screen -->
+          <div class="azure-addons">
+            <button
+              v-if="!licensesEnabled"
+              class="azure-addon-btn"
+              @click="startAuth('azure', '/auth/microsoft?tier=licenses')"
+              title="Opens Microsoft consent screen for: Read organization info, Read usage reports"
+            >
+              <span class="azure-addon-icon">+</span>
+              License Optimization
+            </button>
+            <span
+              v-else
+              class="azure-addon-active"
+              title="M365 license inventory + usage reports — consented in Entra ID"
+              >✓ Licenses</span
+            >
+
+            <button
+              v-if="!chargebackEnabled"
+              class="azure-addon-btn"
+              @click="startAuth('azure', '/auth/microsoft?tier=chargeback')"
+              title="Opens Microsoft consent screen for: Read all users' profiles, Read all groups"
+            >
+              <span class="azure-addon-icon">+</span>
+              Cost Allocation
+            </button>
+            <span
+              v-else
+              class="azure-addon-active"
+              title="User profiles + groups for department chargeback — consented in Entra ID"
+              >✓ Chargeback</span
+            >
+
+            <button
+              v-if="!logAnalyticsEnabled"
+              class="azure-addon-btn"
+              @click="startAuth('azure', '/auth/microsoft?tier=loganalytics')"
+              title="Opens Microsoft consent screen for: Read Log Analytics data"
+            >
+              <span class="azure-addon-icon">+</span>
+              Log Analytics
+            </button>
+            <span
+              v-else
+              class="azure-addon-active"
+              title="Log Analytics & App Insights KQL — consented in Entra ID"
+              >✓ KQL</span
+            >
           </div>
-          <button class="azure-change-perms-btn" @click="changePermissions" title="Disconnect and reconnect with different permissions">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 20h9"/>
-              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
-            </svg>
-            Change permissions
+          <button
+            class="azure-revoke-btn"
+            @click="revokeAllPermissions"
+            title="Disconnect and revoke all Entra ID permissions for this app"
+          >
+            Revoke all permissions
           </button>
         </div>
       </div>
@@ -264,7 +245,7 @@
               <button
                 class="es-step-btn es-step-btn--azure"
                 :disabled="authLoading === 'azure'"
-                @click="showPermissionPicker = true"
+                @click="startAuth('azure', '/auth/microsoft')"
               >
                 <svg width="14" height="14" viewBox="0 0 21 21" fill="none">
                   <rect width="10" height="10" fill="#fff" fill-opacity="0.9" />
@@ -718,13 +699,13 @@
 <script setup>
 import * as echarts from "echarts";
 import {
-  computed,
-  nextTick,
-  onBeforeUnmount,
-  onMounted,
-  reactive,
-  ref,
-  watch,
+    computed,
+    nextTick,
+    onBeforeUnmount,
+    onMounted,
+    reactive,
+    ref,
+    watch,
 } from "vue";
 
 const props = defineProps({
@@ -812,60 +793,10 @@ const azureUserEmail = ref("");
 const azureSubscriptions = ref([]);
 const azureManagementGroups = ref([]);
 const azureApis = ref([]);
-const azurePermissionGroups = ref([]);
-
-// Permission picker
-const showPermissionPicker = ref(false);
-const isChangingPermissions = ref(false);
-const permissionGroups = reactive([
-  {
-    key: "directory",
-    name: "M365 Licenses & Directory",
-    shortName: "Directory",
-    desc: "License inventory, user profiles, groups, and app registrations — for chargeback mapping and license waste detection",
-    scopes: "User.Read.All, Organization.Read.All, Group.Read.All, Application.Read.All",
-    selected: true,
-  },
-  {
-    key: "reports",
-    name: "M365 Usage Reports",
-    shortName: "Reports",
-    desc: "Exchange, Teams, OneDrive, SharePoint, and Copilot usage reports — identifies unused licenses and Copilot ROI",
-    scopes: "Reports.Read.All",
-    selected: true,
-  },
-  {
-    key: "intune",
-    name: "Intune Device Management",
-    shortName: "Intune",
-    desc: "Managed devices and compliance summaries — for device license reconciliation",
-    scopes: "DeviceManagement.Read.All (devices + configuration)",
-    selected: false,
-  },
-  {
-    key: "loganalytics",
-    name: "Log Analytics & App Insights",
-    shortName: "Log Analytics",
-    desc: "Run KQL queries for VM metrics, container insights, ingestion costs, and activity audit trails",
-    scopes: "Data.Read (Log Analytics API)",
-    selected: true,
-  },
-]);
-
-const selectedPermissionCount = computed(() => {
-  return 1 + permissionGroups.filter((g) => g.selected).length; // 1 for base Azure
-});
-
-function connectWithPermissions() {
-  const selected = permissionGroups
-    .filter((g) => g.selected)
-    .map((g) => g.key)
-    .join(",");
-  showPermissionPicker.value = false;
-  const reconsent = isChangingPermissions.value ? "&reconsent=1" : "";
-  isChangingPermissions.value = false;
-  startAuth("azure", `/auth/microsoft?scopes=${encodeURIComponent(selected)}${reconsent}`);
-}
+const graphEnabled = ref(false);
+const licensesEnabled = ref(false);
+const chargebackEnabled = ref(false);
+const logAnalyticsEnabled = ref(false);
 
 async function checkAzureStatus() {
   try {
@@ -878,7 +809,11 @@ async function checkAzureStatus() {
         azureSubscriptions.value = data.subscriptions || [];
         azureManagementGroups.value = data.managementGroups || [];
         azureApis.value = data.apis || [];
-        azurePermissionGroups.value = data.permissionGroups || [];
+        graphEnabled.value = data.graphEnabled || false;
+        const gt = data.graphTier || "";
+        licensesEnabled.value = gt.includes("licenses");
+        chargebackEnabled.value = gt.includes("chargeback");
+        logAnalyticsEnabled.value = data.logAnalyticsEnabled || false;
       }
     }
   } catch {}
@@ -900,24 +835,35 @@ async function disconnectAzure() {
     azureSubscriptions.value = [];
     azureManagementGroups.value = [];
     azureApis.value = [];
-    azurePermissionGroups.value = [];
+    graphEnabled.value = false;
+    licensesEnabled.value = false;
+    chargebackEnabled.value = false;
+    logAnalyticsEnabled.value = false;
     await clearMessages();
   } catch {}
 }
 
-async function changePermissions() {
-  // Disconnect first, then show the permission picker with reconsent flag
+async function revokeAllPermissions() {
+  if (
+    !confirm(
+      "This will disconnect your session AND revoke all Entra ID permissions granted to this app. You'll need to re-consent next time you connect.\n\nContinue?",
+    )
+  )
+    return;
   try {
-    await fetch("/auth/azure/disconnect", { method: "POST" });
+    // Server-side revoke removes consent grants from Entra ID
+    await fetch("/auth/azure/revoke", { method: "POST" });
     azureConnected.value = false;
     azureUserEmail.value = "";
     azureSubscriptions.value = [];
     azureManagementGroups.value = [];
     azureApis.value = [];
-    azurePermissionGroups.value = [];
+    graphEnabled.value = false;
+    licensesEnabled.value = false;
+    chargebackEnabled.value = false;
+    logAnalyticsEnabled.value = false;
+    await clearMessages();
   } catch {}
-  isChangingPermissions.value = true;
-  showPermissionPicker.value = true;
 }
 
 // When Azure connects, expand Cost Analysis and collapse the public categories
@@ -3824,218 +3770,6 @@ async function send() {
   margin: 0;
 }
 
-/* Permission picker modal */
-.perm-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 10000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(4px);
-  animation: auth-overlay-in 0.2s ease;
-}
-.perm-card {
-  background: var(--surface, #fff);
-  border-radius: 16px;
-  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.18);
-  padding: 28px 32px;
-  max-width: 520px;
-  width: 90vw;
-  max-height: 85vh;
-  overflow-y: auto;
-}
-.perm-header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 8px;
-}
-.perm-header h2 {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--text, #1f2328);
-  flex: 1;
-}
-.perm-close {
-  background: none;
-  border: none;
-  font-size: 22px;
-  color: var(--text-muted, #656d76);
-  cursor: pointer;
-  padding: 0 4px;
-  line-height: 1;
-}
-.perm-close:hover {
-  color: var(--text, #1f2328);
-}
-.perm-intro {
-  font-size: 13px;
-  color: var(--text-muted, #656d76);
-  margin: 0 0 18px 0;
-  line-height: 1.5;
-}
-.perm-group {
-  border: 1px solid var(--border, #d1d9e0);
-  border-radius: 10px;
-  padding: 12px 14px;
-  margin-bottom: 10px;
-  transition: border-color 0.15s, background 0.15s;
-}
-.perm-group:hover {
-  border-color: #0078d4;
-}
-.perm-group--base {
-  background: rgba(0, 120, 212, 0.04);
-  border-color: rgba(0, 120, 212, 0.2);
-}
-.perm-label {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  cursor: pointer;
-  user-select: none;
-}
-.perm-label input[type="checkbox"] {
-  margin-top: 3px;
-  width: 16px;
-  height: 16px;
-  accent-color: #0078d4;
-  flex-shrink: 0;
-  cursor: pointer;
-}
-.perm-label input[type="checkbox"]:disabled {
-  cursor: default;
-  opacity: 0.7;
-}
-.perm-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-.perm-name {
-  font-size: 13.5px;
-  font-weight: 600;
-  color: var(--text, #1f2328);
-}
-.perm-desc {
-  font-size: 12px;
-  color: var(--text-muted, #656d76);
-  line-height: 1.45;
-}
-.perm-scopes {
-  font-size: 11px;
-  color: var(--text-muted, #8b949e);
-  font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
-  margin-top: 2px;
-}
-.perm-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 18px;
-}
-.perm-actions-right {
-  display: flex;
-  gap: 10px;
-  margin-left: auto;
-}
-.perm-revoke-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  color: #cf222e;
-  text-decoration: none;
-  font-weight: 500;
-  transition: color 0.15s;
-}
-.perm-revoke-link:hover {
-  color: #a40e26;
-  text-decoration: underline;
-}
-.perm-cancel {
-  padding: 8px 18px;
-  border-radius: 8px;
-  border: 1px solid var(--border, #d1d9e0);
-  background: var(--surface, #fff);
-  color: var(--text, #1f2328);
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-.perm-cancel:hover {
-  background: var(--surface-hover, #f6f8fa);
-}
-.perm-connect {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 20px;
-  border-radius: 8px;
-  border: none;
-  background: #0078d4;
-  color: #fff;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-.perm-connect:hover {
-  background: #106ebe;
-}
-
-/* Permission badges in connected state */
-.azure-perms {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin-top: 6px;
-}
-.azure-perm-badge {
-  font-size: 10px;
-  padding: 2px 7px;
-  border-radius: 10px;
-  font-weight: 500;
-  white-space: nowrap;
-}
-.azure-perm-badge--on {
-  background: rgba(0, 120, 212, 0.1);
-  color: #0078d4;
-}
-.azure-perm-badge--off {
-  background: var(--surface-hover, #f6f8fa);
-  color: var(--text-muted, #8b949e);
-  text-decoration: line-through;
-  opacity: 0.6;
-}
-.azure-change-perms-btn {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  width: 100%;
-  padding: 5px 10px;
-  margin-top: 6px;
-  border-radius: 6px;
-  border: 1px solid var(--border, #d1d9e0);
-  background: transparent;
-  color: var(--text-muted, #656d76);
-  font-size: 11px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.15s;
-  justify-content: center;
-}
-.azure-change-perms-btn:hover {
-  border-color: #0078d4;
-  color: #0078d4;
-  background: rgba(0, 120, 212, 0.04);
-}
-
 .azure-connect-btn {
   display: flex;
   align-items: center;
@@ -4089,6 +3823,64 @@ async function send() {
   align-items: center;
 }
 .azure-disconnect-btn:hover {
+  color: #cf222e;
+}
+/* Incremental consent addon buttons */
+.azure-addons {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+.azure-addon-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px dashed var(--border, #d1d9e0);
+  background: transparent;
+  color: var(--text-muted, #656d76);
+  font-size: 10.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.azure-addon-btn:hover {
+  border-color: #0078d4;
+  border-style: solid;
+  color: #0078d4;
+  background: rgba(0, 120, 212, 0.04);
+}
+.azure-addon-icon {
+  font-weight: 700;
+  font-size: 12px;
+}
+.azure-addon-active {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(0, 120, 212, 0.08);
+  color: #0078d4;
+  font-size: 10.5px;
+  font-weight: 500;
+}
+.azure-revoke-btn {
+  width: 100%;
+  padding: 4px 8px;
+  margin-top: 6px;
+  border-radius: 5px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted, #8b949e);
+  font-size: 10px;
+  cursor: pointer;
+  transition: color 0.15s;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.azure-revoke-btn:hover {
   color: #cf222e;
 }
 .new-chat-btn {
