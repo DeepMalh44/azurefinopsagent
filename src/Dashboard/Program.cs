@@ -277,7 +277,19 @@ app.MapGet("/auth/microsoft", (HttpContext ctx) =>
     ctx.Session.SetString("ms_oauth_state", state);
 
     var redirectUri = $"{NormalizeCallbackHost(ctx)}/auth/microsoft/callback";
-    var scope = "openid profile email offline_access https://management.azure.com/user_impersonation https://graph.microsoft.com/User.Read https://graph.microsoft.com/Organization.Read.All https://graph.microsoft.com/Directory.Read.All https://api.loganalytics.io/Data.Read";
+    // Granular Graph scopes — only what the tools actually use (no broad Directory.Read.All)
+    var scope = string.Join(" ",
+        "openid", "profile", "email", "offline_access",
+        "https://management.azure.com/user_impersonation",
+        "https://graph.microsoft.com/User.Read",              // signed-in user profile
+        "https://graph.microsoft.com/User.Read.All",           // list users for chargeback mapping
+        "https://graph.microsoft.com/Organization.Read.All",   // org info + subscribedSkus (licenses)
+        "https://graph.microsoft.com/Group.Read.All",           // groups for chargeback mapping
+        "https://graph.microsoft.com/Application.Read.All",    // app registrations + service principals
+        "https://graph.microsoft.com/Reports.Read.All",        // M365 usage reports + Copilot usage
+        "https://graph.microsoft.com/DeviceManagementManagedDevices.Read.All",  // Intune managed devices
+        "https://graph.microsoft.com/DeviceManagementConfiguration.Read.All",  // Intune compliance
+        "https://api.loganalytics.io/Data.Read");
     var url = $"https://login.microsoftonline.com/{Uri.EscapeDataString(msTenantId)}/oauth2/v2.0/authorize" +
               $"?client_id={Uri.EscapeDataString(msClientId)}" +
               $"&response_type=code" +
@@ -393,10 +405,11 @@ app.MapGet("/auth/microsoft/callback", async (HttpContext ctx, IHttpClientFactor
         // Exchange refresh token for Graph + Log Analytics tokens
         if (refreshToken is not null)
         {
-            // Graph token
+            // Graph token — explicit scopes matching what tools use
             try
             {
-                var graphToken = await ExchangeRefreshTokenForResource(http, refreshToken, "https://graph.microsoft.com/.default");
+                var graphToken = await ExchangeRefreshTokenForResource(http, refreshToken,
+                    "https://graph.microsoft.com/User.Read https://graph.microsoft.com/User.Read.All https://graph.microsoft.com/Organization.Read.All https://graph.microsoft.com/Group.Read.All https://graph.microsoft.com/Application.Read.All https://graph.microsoft.com/Reports.Read.All https://graph.microsoft.com/DeviceManagementManagedDevices.Read.All https://graph.microsoft.com/DeviceManagementConfiguration.Read.All offline_access");
                 if (graphToken is not null)
                 {
                     ctx.Session.SetString("graph_token", graphToken.Value.Token);
@@ -405,10 +418,10 @@ app.MapGet("/auth/microsoft/callback", async (HttpContext ctx, IHttpClientFactor
             }
             catch (Exception ex) { logger.LogWarning(ex, "Failed to get Graph token"); }
 
-            // Log Analytics token (also works for App Insights query API)
+            // Log Analytics token (also works for App Insights query API) — explicit scope
             try
             {
-                var laToken = await ExchangeRefreshTokenForResource(http, refreshToken, "https://api.loganalytics.io/.default");
+                var laToken = await ExchangeRefreshTokenForResource(http, refreshToken, "https://api.loganalytics.io/Data.Read offline_access");
                 if (laToken is not null)
                 {
                     ctx.Session.SetString("loganalytics_token", laToken.Value.Token);
@@ -508,7 +521,8 @@ async Task<string?> GetGraphTokenAsync(HttpContext ctx, IHttpClientFactory httpF
         var refreshToken = ctx.Session.GetString("azure_refresh_token");
         if (refreshToken is null) return null;
         var http = httpFactory.CreateClient();
-        var result = await ExchangeRefreshTokenForResource(http, refreshToken, "https://graph.microsoft.com/.default");
+        var result = await ExchangeRefreshTokenForResource(http, refreshToken,
+            "https://graph.microsoft.com/User.Read https://graph.microsoft.com/User.Read.All https://graph.microsoft.com/Organization.Read.All https://graph.microsoft.com/Group.Read.All https://graph.microsoft.com/Application.Read.All https://graph.microsoft.com/Reports.Read.All https://graph.microsoft.com/DeviceManagementManagedDevices.Read.All https://graph.microsoft.com/DeviceManagementConfiguration.Read.All offline_access");
         if (result is null) return null;
         ctx.Session.SetString("graph_token", result.Value.Token);
         ctx.Session.SetString("graph_token_expiry", result.Value.Expiry.ToString("o"));
@@ -529,7 +543,7 @@ async Task<string?> GetLogAnalyticsTokenAsync(HttpContext ctx, IHttpClientFactor
         var refreshToken = ctx.Session.GetString("azure_refresh_token");
         if (refreshToken is null) return null;
         var http = httpFactory.CreateClient();
-        var result = await ExchangeRefreshTokenForResource(http, refreshToken, "https://api.loganalytics.io/.default");
+        var result = await ExchangeRefreshTokenForResource(http, refreshToken, "https://api.loganalytics.io/Data.Read offline_access");
         if (result is null) return null;
         ctx.Session.SetString("loganalytics_token", result.Value.Token);
         ctx.Session.SetString("loganalytics_token_expiry", result.Value.Expiry.ToString("o"));
