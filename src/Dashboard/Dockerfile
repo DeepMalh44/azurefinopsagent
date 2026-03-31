@@ -23,6 +23,7 @@ RUN apt-get update -qq && \
     apt-get install -y --no-install-recommends \
     python3 python3-pip \
     jq sqlite3 && \
+    ln -sf /usr/bin/python3 /usr/bin/python && \
     pip3 install --no-cache-dir --break-system-packages \
     requests pandas numpy openpyxl tabulate python-dateutil \
     python-pptx matplotlib lxml && \

@@ -13,6 +13,9 @@ apt-get install -y --no-install-recommends \
     jq sqlite3 \
     2>/dev/null || true
 
+# Ensure 'python' command works (Copilot CLI uses 'python', not 'python3')
+ln -sf /usr/bin/python3 /usr/bin/python 2>/dev/null || true
+
 # ── Python packages (cached in /home for persistence across restarts) ──
 PIP_TARGET="/home/site/pip-packages"
 mkdir -p "$PIP_TARGET"
