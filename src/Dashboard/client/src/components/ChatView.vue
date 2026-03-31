@@ -26,21 +26,33 @@
         <span class="portal-title">Azure FinOps Agent</span>
       </div>
       <div class="portal-header-right">
-        <div v-if="azureConnected && azureUserEmail" class="portal-user-identity" @click="disconnectAzure" title="Disconnect Azure">
+        <div
+          v-if="azureConnected && azureUserEmail"
+          class="portal-user-identity"
+          @click="disconnectAzure"
+          title="Disconnect Azure"
+        >
           <div class="portal-user-text">
             <span class="portal-user-email">{{ azureUserEmail }}</span>
             <span class="portal-user-tenant">AZURE TENANT</span>
           </div>
           <div class="portal-user-avatar">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+              <path
+                d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
+              />
             </svg>
           </div>
         </div>
-        <div v-else-if="!azureConnected" class="portal-user-identity portal-user-identity--anon">
+        <div
+          v-else-if="!azureConnected"
+          class="portal-user-identity portal-user-identity--anon"
+        >
           <div class="portal-user-avatar">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+              <path
+                d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
+              />
             </svg>
           </div>
         </div>
