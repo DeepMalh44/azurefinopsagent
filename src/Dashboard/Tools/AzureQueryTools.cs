@@ -20,25 +20,26 @@ public class AzureQueryTools
         yield return AIFunctionFactory.Create(QueryAzure, "QueryAzure", @"Calls any Azure ARM REST API using the signed-in user's token and returns raw JSON.
 Base: https://management.azure.com — provide path starting with /.
 DATA SCOPING: For Cost Management POST .../query, ALWAYS use grouping (ServiceName, ResourceGroup, MeterCategory) and date granularity (Daily/Monthly). Never request raw ungrouped cost data. For Resource Graph POST .../resources, use KQL 'project' and 'top 20' — never select all columns. For list APIs (VMs, storage, etc.), results are already scoped by subscription.
-COST MGMT (Microsoft.CostManagement): POST /{scope}/.../query — cost analysis; /.../forecast; /.../generateCostDetailsReport — line-item cost data (replaces Consumption usageDetails); /.../generateReservationDetailsReport — reservation utilization line-item (replaces Consumption reservationDetails); GET /.../alerts; /.../dimensions; /.../benefitUtilizationSummaries; /.../benefitRecommendations.
+COST MGMT (Microsoft.CostManagement): POST /{scope}/.../query — cost analysis; /.../forecast; /.../generateCostDetailsReport — line-item cost data (replaces Consumption usageDetails); /.../generateReservationDetailsReport — reservation utilization line-item; GET /.../alerts; /.../dimensions; /.../benefitUtilizationSummaries; /.../benefitRecommendations; /.../costAllocationRules — split shared costs across scopes.
 BUDGETS (Microsoft.Consumption): GET /{scope}/.../budgets — list budgets and spend-vs-budget status; PUT to create/update budgets with thresholds and alert rules.
 COST EXPORTS (Microsoft.CostManagement): GET /{scope}/.../exports — list scheduled cost data exports to storage; PUT to create/update.
 SCHEDULED ACTIONS (Microsoft.CostManagement): GET /{scope}/.../scheduledActions — scheduled cost alert emails and reports.
 COST VIEWS (Microsoft.CostManagement): GET /{scope}/.../views — pre-saved cost analysis views.
 BILLING (Microsoft.Billing): GET .../billingAccounts; .../billingProfiles; .../invoiceSections; .../invoices; .../transactions; .../billingSubscriptions; .../departments; .../enrollmentAccounts; .../customers.
-CONSUMPTION (Microsoft.Consumption): GET /{scope}/.../pricesheets; .../reservationSummaries; .../reservationRecommendations; .../reservationTransactions; .../lots; .../credits; .../balances; .../charges. NOTE: usageDetails and marketplaces are deprecated — prefer generateCostDetailsReport (Cost Details API 2025-03-01) or Exports for line-item cost data. reservationDetails is deprecated — prefer generateReservationDetailsReport (Microsoft.CostManagement).
-RESERVATIONS (Microsoft.Capacity): GET .../reservationOrders; .../reservations; .../catalog; POST .../calculatePrice.
-SAVINGS PLANS (Microsoft.BillingBenefits): GET .../savingsPlanOrders; .../savingsPlans.
-ADVISOR (Microsoft.Advisor): GET /subscriptions/{id}/.../recommendations?$filter=Category eq 'Cost'.
+CONSUMPTION (Microsoft.Consumption): GET /{scope}/.../pricesheets; .../reservationSummaries; .../reservationRecommendations; .../reservationTransactions; .../lots; .../credits; .../balances; .../charges; .../marketplaces — third-party Marketplace charges. NOTE: usageDetails is deprecated — prefer generateCostDetailsReport (Cost Details API 2025-03-01) or Exports. reservationDetails is deprecated — prefer generateReservationDetailsReport.
+RESERVATIONS (Microsoft.Capacity): GET .../reservationOrders; .../reservations; .../catalog; POST .../calculatePrice; .../calculateExchange — calculate exchange/return amounts; .../return — refund a reservation.
+SAVINGS PLANS (Microsoft.BillingBenefits): GET .../savingsPlanOrders; .../savingsPlans; POST .../calculatePrice; .../validatePurchase.
+ADVISOR (Microsoft.Advisor): GET /subscriptions/{id}/.../recommendations?$filter=Category eq 'Cost'; PUT .../configurations — tune right-sizing CPU thresholds.
 RESOURCE GRAPH (Microsoft.ResourceGraph): POST .../resources — KQL across subs (body: {query,subscriptions}).
-MONITOR (Microsoft.Insights): GET /{resourceId}/.../metrics; .../metricDefinitions; .../metricBaselines; .../diagnosticSettings.
+MONITOR (Microsoft.Insights): GET /{resourceId}/.../metrics; .../metricDefinitions; .../metricBaselines; .../diagnosticSettings; .../autoscaleSettings — autoscale rules for cost optimization.
 ACTIVITY LOG (Microsoft.Insights): GET /{scope}/.../eventtypes/management/values?$filter=eventTimestamp ge '...' — who created/deleted/modified resources (cost attribution audit trail).
-COMPUTE: GET /subscriptions/{id}/.../virtualMachines — list VMs; .../virtualMachineScaleSets — VMSS instances for right-sizing; .../skus — VM sizes per region.
+COMPUTE: GET /subscriptions/{id}/.../virtualMachines — list VMs; .../virtualMachineScaleSets — VMSS instances for right-sizing; .../skus — VM sizes per region; .../disks — managed disks (find unattached/orphaned disks).
 AKS (Microsoft.ContainerService): GET /subscriptions/{id}/.../managedClusters — AKS clusters and node pool sizing for cost optimization.
-NETWORK (Microsoft.Network): GET /subscriptions/{id}/.../virtualNetworks; .../publicIPAddresses; .../loadBalancers; .../applicationGateways; .../expressRouteCircuits; .../vpnGateways; .../natGateways — high-cost network resources.
+NETWORK (Microsoft.Network): GET /subscriptions/{id}/.../virtualNetworks; .../publicIPAddresses; .../loadBalancers; .../applicationGateways; .../expressRouteCircuits; .../vpnGateways; .../natGateways; .../azureFirewalls; .../privateEndpoints — high-cost network resources.
 STORAGE (Microsoft.Storage): GET /subscriptions/{id}/.../storageAccounts — storage tier optimization, lifecycle policies, access tier analysis.
 SQL (Microsoft.Sql): GET /subscriptions/{id}/.../servers — SQL servers; .../servers/{name}/databases — DTU/vCore right-sizing.
-APP SERVICE (Microsoft.Web): GET /subscriptions/{id}/.../serverfarms — App Service plans for right-sizing; .../sites — web apps.
+APP SERVICE (Microsoft.Web): GET /subscriptions/{id}/.../serverfarms — App Service plans for right-sizing; .../sites — web apps and function apps.
+LOG ANALYTICS (Microsoft.OperationalInsights): GET /subscriptions/{id}/.../workspaces — Log Analytics workspaces; .../workspaces/{name}/usages — data ingestion volume per table; .../workspaces/{name}/tables — table retention and ingestion plans (Analytics/Basic/Archive).
 AZURE ML (Microsoft.MachineLearningServices): GET /subscriptions/{id}/.../workspaces — ML workspaces; .../workspaces/{name}/computes — compute instances, clusters, GPU VMs for cost optimization and right-sizing; .../workspaces/{name}/onlineEndpoints — managed endpoints; .../workspaces/{name}/batchEndpoints.
 DATABRICKS (Microsoft.Databricks): GET /subscriptions/{id}/.../workspaces — Databricks workspaces, pricing tier (standard/premium), managed RG for cost analysis; compare Databricks compute vs Azure ML compute vs standalone VM clusters.
 SQL MI (Microsoft.Sql): GET /subscriptions/{id}/.../managedInstances — SQL Managed Instances for vCore right-sizing and cost optimization.
