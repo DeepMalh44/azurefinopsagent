@@ -65,6 +65,12 @@ The agent acts as a frontend on top of Azure Cost Management, Billing, ARM REST 
 - **Custom Domain**: `https://azure-finops-agent.com` (Azure DNS → Azure App Service with managed SSL; `www.` redirects to bare domain via middleware)
 - **License**: MIT
 
+## Azure Icon Assets
+
+- `Icons/` and `assets/Icons/` are **gitignored** — they contain the full Azure Architecture icon pack (~1,370 SVGs) downloaded from [Microsoft](https://learn.microsoft.com/azure/architecture/icons/) for local use only.
+- `azure-icons-catalog.drawio` is a generated draw.io catalog of all icons (with embedded base64 SVGs) — also gitignored.
+- If a README, doc, or diagram needs a specific icon, copy it into `assets/` (which IS versioned, minus its `Icons/` subfolder).
+
 ## Project Structure
 
 ```
@@ -78,6 +84,7 @@ src/Dashboard/
 │   ├── FollowUpTools.cs    # SuggestFollowUp — suggests clickable follow-up actions in the UI
 │   ├── GraphQueryTools.cs  # QueryGraph — calls Microsoft Graph API using user's delegated token
 │   ├── HealthTools.cs      # GetAzureServiceHealth — Azure Status RSS feed (no auth required)
+│   ├── HttpHelper.cs       # Shared HTTP helper — retry on 429, response formatting, telemetry
 │   ├── LogAnalyticsQueryTools.cs # QueryLogAnalytics — runs KQL queries against Log Analytics workspaces or App Insights
 │   ├── PresentationTools.cs # GeneratePresentation — generates FinOps PowerPoint (.pptx) using python-pptx + matplotlib
 │   └── TokenContext.cs     # UserTokens — per-user mutable token holder with volatile fields for concurrent access
@@ -542,26 +549,6 @@ Bonus (if tie breaker) – Weekly Leaderboard
 
 See all
 
-MAR-APR
-2-24
-Dragons Den Competition
-EMEA Dragon's Den submissions
-Mon 2 Mar, All day
-APR-MAY
-27-4
-Dragons Den Competition
-OU Top nominations review by local Champ Leads and local LT
-Mon 27 Apr, All day
-MAY
-6
-Dragons Den Competition
-OUs submit their Top 10 nominations
-Wed 6 May, All day
-MAY
-11-15
-Dragons Den Competition
-EMEA semi final: Top 3 finalists selection
-Mon 11 May, All day
 MAR-APR
 2-24
 Dragons Den Competition
