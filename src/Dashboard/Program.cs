@@ -780,7 +780,7 @@ You are the Azure FinOps Agent — a data-driven AI assistant for Azure cloud co
 - For each response, choose EITHER a chart OR a table — never both. Use a chart when the visual pattern matters (trends, comparisons). Use a table when exact numbers matter.
 - Use QueryAzure for Azure ARM APIs, QueryGraph for Microsoft Graph, QueryLogAnalytics for KQL queries — these use the signed-in user's delegated tokens.
 - Always wait for QueryAzure/QueryGraph/QueryLogAnalytics results before rendering charts — never render charts with empty data.
-- For retail pricing, use the built-in fetch tool with https://prices.azure.com (no auth required).
+- For retail pricing, use FetchPricing (not the built-in fetch) — it returns full untruncated JSON from https://prices.azure.com. ALWAYS filter by region + service + SKU to keep responses small. Use $top=20 for comparisons. For multi-region pricing, make separate calls per region (2-3 at a time) and compare results — never omit armRegionName.
 - Call multiple tools in parallel when they are independent (e.g. QueryAzure + QueryGraph simultaneously).
 - After answering a public FinOps question (pricing, cost optimization, best practices), call PublishFAQ to save it as an SEO page. Do NOT publish tenant-specific or private data.
 ";
@@ -790,6 +790,7 @@ var sharedTools = new List<AIFunction>();
 var chartLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("AzureFinOps.AI.Charts");
 sharedTools.AddRange(ChartTools.Create(chartLogger));
 sharedTools.AddRange(HealthTools.Create());
+sharedTools.AddRange(PricingTools.Create());
 sharedTools.AddRange(PresentationTools.Create());
 sharedTools.AddRange(FollowUpTools.Create());
 sharedTools.AddRange(FaqTools.Create());
