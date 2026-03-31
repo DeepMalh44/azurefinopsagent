@@ -325,7 +325,11 @@ app.MapGet("/auth/microsoft", (HttpContext ctx) =>
     var scope = string.Join(" ", scopes);
     // Base tier: select_account (just pick account)
     // Add-on tiers: consent (always show what new permissions are being granted)
-    var promptType = tier == "base" ? "select_account" : "consent";
+    // Base tier: select_account unless force_consent was set (from revoke)
+    // Add-on tiers: always consent to show the new permissions
+    var forceConsent = ctx.Session.GetString("force_consent") == "1";
+    ctx.Session.Remove("force_consent");
+    var promptType = (tier != "base" || forceConsent) ? "consent" : "select_account";
 
     var url = $"https://login.microsoftonline.com/{Uri.EscapeDataString(msTenantId)}/oauth2/v2.0/authorize" +
               $"?client_id={Uri.EscapeDataString(msClientId)}" +
@@ -336,7 +340,7 @@ app.MapGet("/auth/microsoft", (HttpContext ctx) =>
               $"&response_mode=query" +
               $"&prompt={promptType}";
 
-    logger.LogInformation("Microsoft OAuth redirect: tier={Tier} from {Host}", tier, ctx.Request.Host);
+    logger.LogInformation("Microsoft OAuth redirect: tier={Tier} prompt={Prompt} from {Host}", tier, promptType, ctx.Request.Host);
     return Results.Redirect(url);
 });
 
@@ -734,9 +738,13 @@ app.MapPost("/auth/azure/disconnect", (HttpContext ctx) =>
 });
 
 // Revoke all Entra ID permissions — deletes the user's consent grants for this app
-app.MapPost("/auth/azure/revoke", async (HttpContext ctx, IHttpClientFactory httpFactory) =>
+// Revoke: clear session and set a flag to force consent on next connect.
+// Note: Actually revoking Entra ID consent grants requires admin-level Graph permissions
+// that we don't request. Instead, we force prompt=consent on the next connect so the
+// consent screen always appears, and we direct the user to myapps.microsoft.com to
+// fully revoke at the Entra ID level if needed.
+app.MapPost("/auth/azure/revoke", (HttpContext ctx) =>
 {
-    // First disconnect the session
     var userJson = ctx.Session.GetString("user");
     if (userJson is not null)
     {
@@ -748,61 +756,8 @@ app.MapPost("/auth/azure/revoke", async (HttpContext ctx, IHttpClientFactory htt
             tokens.GraphToken = null;
             tokens.LogAnalyticsToken = null;
         }
-    }
-
-    // Use the user's Graph token (or refresh token) to revoke consent grants via Graph API
-    var graphToken = ctx.Session.GetString("graph_token");
-    var azureToken = ctx.Session.GetString("azure_token");
-    var tokenToUse = graphToken ?? azureToken;
-
-    if (tokenToUse is not null && !string.IsNullOrEmpty(msClientId))
-    {
-        try
-        {
-            var http = httpFactory.CreateClient();
-
-            // Find the service principal for our app in the user's tenant
-            using var spReq = new HttpRequestMessage(HttpMethod.Get,
-                $"https://graph.microsoft.com/v1.0/servicePrincipals?$filter=appId eq '{msClientId}'&$select=id");
-            spReq.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokenToUse);
-            var spRes = await http.SendAsync(spReq);
-            if (spRes.IsSuccessStatusCode)
-            {
-                var spBody = await spRes.Content.ReadAsStringAsync();
-                var spJson = JsonSerializer.Deserialize<JsonElement>(spBody);
-                if (spJson.TryGetProperty("value", out var sps) && sps.GetArrayLength() > 0)
-                {
-                    var spId = sps[0].GetProperty("id").GetString()!;
-
-                    // Get all consent grants for this service principal
-                    using var grantsReq = new HttpRequestMessage(HttpMethod.Get,
-                        $"https://graph.microsoft.com/v1.0/servicePrincipals/{spId}/oauth2PermissionGrants");
-                    grantsReq.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokenToUse);
-                    var grantsRes = await http.SendAsync(grantsReq);
-                    if (grantsRes.IsSuccessStatusCode)
-                    {
-                        var grantsBody = await grantsRes.Content.ReadAsStringAsync();
-                        var grantsJson = JsonSerializer.Deserialize<JsonElement>(grantsBody);
-                        if (grantsJson.TryGetProperty("value", out var grants))
-                        {
-                            foreach (var grant in grants.EnumerateArray())
-                            {
-                                var grantId = grant.GetProperty("id").GetString()!;
-                                using var delReq = new HttpRequestMessage(HttpMethod.Delete,
-                                    $"https://graph.microsoft.com/v1.0/oauth2PermissionGrants/{grantId}");
-                                delReq.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokenToUse);
-                                await http.SendAsync(delReq);
-                            }
-                        }
-                    }
-                }
-            }
-            logger.LogInformation("Revoked Entra ID consent grants for app {AppId}", msClientId);
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Failed to revoke consent grants via Graph API");
-        }
+        userSessions.TryRemove(uid, out _);
+        userTools.TryRemove(uid, out _);
     }
 
     ctx.Session.Remove("azure_token");
@@ -814,7 +769,10 @@ app.MapPost("/auth/azure/revoke", async (HttpContext ctx, IHttpClientFactory htt
     ctx.Session.Remove("graph_tier");
     ctx.Session.Remove("loganalytics_token");
     ctx.Session.Remove("loganalytics_token_expiry");
-    return Results.Ok(new { ok = true, revoked = true });
+    // Flag to force consent screen on next connect
+    ctx.Session.SetString("force_consent", "1");
+    logger.LogInformation("Azure revoked — session cleared, next connect will force consent");
+    return Results.Ok(new { ok = true });
 });
 
 // ──────────────────────────────────────────────

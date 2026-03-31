@@ -846,7 +846,7 @@ async function disconnectAzure() {
 async function revokeAllPermissions() {
   if (
     !confirm(
-      "This will disconnect your session AND revoke all Entra ID permissions granted to this app. You'll need to re-consent next time you connect.\n\nContinue?",
+      "This will disconnect your session and clear all tokens. When you reconnect, you'll see the consent screen again.\n\nTo fully revoke app permissions in Entra ID, visit: https://myapps.microsoft.com\n\nContinue?",
     )
   )
     return;
