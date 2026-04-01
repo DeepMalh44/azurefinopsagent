@@ -757,6 +757,7 @@ sharedTools.AddRange(PresentationTools.Create());
 sharedTools.AddRange(FollowUpTools.Create());
 sharedTools.AddRange(FaqTools.Create());
 sharedTools.AddRange(ScoreTools.Create());
+sharedTools.AddRange(ScriptTools.Create());
 
 // Per-user token holders and tool lists — tools capture the UserTokens instance
 // via closure, so they always read the latest tokens regardless of thread.
@@ -1020,6 +1021,40 @@ app.MapPost("/api/chat", (Delegate)(async (HttpContext ctx, IHttpClientFactory h
                         }
                         catch { }
                     }
+                    // Script detection
+                    if (toolDone.Data.Success && resultText is not null && resultText.Contains("__SCRIPT_READY__:"))
+                    {
+                        try
+                        {
+                            foreach (var line in resultText.Split('\n'))
+                            {
+                                var trimmed = line.Trim();
+                                if (trimmed.StartsWith("__SCRIPT_READY__:"))
+                                {
+                                    var parts = trimmed["__SCRIPT_READY__:".Length..].Split(':', 5);
+                                    if (parts.Length >= 4)
+                                    {
+                                        // Retrieve script content for inline preview
+                                        var scriptFileId = parts[0];
+                                        var scriptContent = "";
+                                        if (ScriptTools.GeneratedFiles.TryGetValue(scriptFileId, out var scriptEntry))
+                                            scriptContent = scriptEntry.Content ?? "";
+                                        var scriptPayload = JsonSerializer.Serialize(new { type = "script_ready", fileId = parts[0], fileName = parts[1], lineCount = parts[2], language = parts[3], description = parts.Length > 4 ? parts[4] : "", content = scriptContent });
+                                        if (sseData is not null)
+                                        {
+                                            await ctx.Response.WriteAsync($"data: {sseData}\n\n");
+                                            await ctx.Response.Body.FlushAsync();
+                                        }
+                                        await ctx.Response.WriteAsync($"data: {scriptPayload}\n\n");
+                                        await ctx.Response.Body.FlushAsync();
+                                        sseData = null;
+                                    }
+                                    break;
+                                }
+                            }
+                        }
+                        catch { }
+                    }
                     // Maturity score detection
                     if (toolDone.Data.Success && resultText is not null && resultText.Contains("__MATURITY_SCORE__:"))
                     {
@@ -1210,6 +1245,29 @@ app.MapGet("/api/download/pptx/{fileId}", (string fileId, HttpContext ctx) =>
     PresentationTools.GeneratedFiles.TryRemove(fileId, out _);
 
     return Results.File(bytes, "application/vnd.openxmlformats-officedocument.presentationml.presentation", downloadName);
+});
+
+// ──────────────────────────────────────────────
+// SCRIPT DOWNLOAD
+// ──────────────────────────────────────────────
+app.MapGet("/api/download/script/{fileId}", (string fileId) =>
+{
+    if (!ScriptTools.GeneratedFiles.TryGetValue(fileId, out var entry))
+        return Results.NotFound(new { error = "File not found or expired" });
+
+    if (!File.Exists(entry.Path))
+    {
+        ScriptTools.GeneratedFiles.TryRemove(fileId, out _);
+        return Results.NotFound(new { error = "File no longer available" });
+    }
+
+    var fileName = Path.GetFileName(entry.Path);
+    var downloadName = fileName.Contains('_') ? fileName[(fileName.IndexOf('_') + 1)..] : fileName;
+    var bytes = File.ReadAllBytes(entry.Path);
+
+    var contentType = downloadName.EndsWith(".ps1") ? "application/x-powershell" : "application/x-shellscript";
+
+    return Results.File(bytes, contentType, downloadName);
 });
 
 // ──────────────────────────────────────────────

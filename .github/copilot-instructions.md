@@ -88,6 +88,7 @@ src/Dashboard/
 │   ├── LogAnalyticsQueryTools.cs # QueryLogAnalytics — runs KQL queries against Log Analytics workspaces or App Insights
 │   ├── PresentationTools.cs # GeneratePresentation — generates FinOps PowerPoint (.pptx) using python-pptx + matplotlib
 │   ├── ScoreTools.cs       # ReportMaturityScore — LLM reports FinOps maturity scores (0-5) per Crawl/Walk/Run level
+│   ├── ScriptTools.cs      # GenerateScript — generates downloadable Azure CLI/PowerShell scripts from FinOps recommendations
 │   └── TokenContext.cs     # UserTokens — per-user mutable token holder with volatile fields for concurrent access
 ├── Dockerfile              # Multi-stage Docker build (node:22 + dotnet/sdk:10.0 + dotnet/aspnet:10.0 + Python 3)
 ├── .dockerignore           # Excludes bin/, obj/, node_modules/, wwwroot/ from Docker context
@@ -182,6 +183,7 @@ When creating tools for the agent:
 - **LogAnalyticsQueryTools** (`QueryLogAnalytics`) is **read-only** — runs KQL queries (POST to query API only) against Log Analytics workspaces or App Insights using `TokenContext.LogAnalyticsToken`. Used for VM/container metrics, diagnostics, cost attribution (AzureActivity table), and ingestion cost analysis.
 - **TokenContext** (`TokenContext.cs`) provides per-user mutable token storage via `UserTokens` — one instance per user in a `ConcurrentDictionary<long, UserTokens>`. Token fields use `volatile` for cross-thread visibility. A `SemaphoreSlim RefreshLock` serializes token refresh operations within a user session. `UserTokens` instances are passed to tool constructors via closure, so tools always read the latest tokens via direct reference.
 - **ScoreTools** (`ReportMaturityScore`) enables the LLM to report FinOps maturity scores after evaluating a level. The LLM uses `QueryAzure` to check dimensions (tagging, orphaned resources, Advisor, budgets, reservations, right-sizing, etc.), then calls `ReportMaturityScore` with a level (`crawl`, `walk`, `run`) and a JSON array of scores (0-5 per dimension with one-line reasons). Returns a `__MATURITY_SCORE__:{level}:{scoresJson}` marker. The SSE handler emits a `maturity_score` event, and the frontend updates star ratings in the sidebar category headers.
+- **ScriptTools** (`GenerateScript`) generates downloadable Azure CLI or PowerShell scripts from FinOps recommendations discussed in the conversation. The LLM MUST first analyze the environment, find actionable recommendations, and confirm with the user before calling this tool — if no recommendations exist yet, it tells the user instead of generating empty scripts. Scripts include safety features (dry-run mode, confirmation prompts, --what-if). Returns a `__SCRIPT_READY__:{fileId}:{fileName}:{lineCount}:{language}:{description}` marker. The SSE handler emits a `script_ready` event (including the script content for inline preview), and the frontend shows a code block with syntax-highlighted content, a copy button, and a download button. Files are served via `/api/download/script/{fileId}` and auto-cleaned after 30 minutes.
 
 ## FinOps Maturity Framework (Crawl / Walk / Run)
 

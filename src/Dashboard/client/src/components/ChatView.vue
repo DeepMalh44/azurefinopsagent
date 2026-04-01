@@ -505,6 +505,98 @@
                       slides)
                     </a>
                   </div>
+                  <div v-if="msg.script" class="script-inline-block">
+                    <div class="script-header">
+                      <div class="script-header-left">
+                        <svg
+                          width="14"
+                          height="14"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        >
+                          <polyline points="16 18 22 12 16 6" />
+                          <polyline points="8 6 2 12 8 18" />
+                        </svg>
+                        <span class="script-filename">{{
+                          msg.script.fileName
+                        }}</span>
+                        <span class="script-meta"
+                          >{{ msg.script.lineCount }} lines &middot;
+                          {{
+                            msg.script.language === "powershell"
+                              ? "PowerShell"
+                              : "Bash"
+                          }}</span
+                        >
+                      </div>
+                      <div class="script-header-actions">
+                        <button
+                          class="script-copy-btn"
+                          @click="copyScript(msg.script.content)"
+                          :title="'Copy to clipboard'"
+                        >
+                          <svg
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                          >
+                            <rect
+                              x="9"
+                              y="9"
+                              width="13"
+                              height="13"
+                              rx="2"
+                              ry="2"
+                            />
+                            <path
+                              d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
+                            />
+                          </svg>
+                        </button>
+                        <a
+                          :href="'/api/download/script/' + msg.script.fileId"
+                          class="script-download-btn"
+                          download
+                        >
+                          <svg
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                          >
+                            <path
+                              d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"
+                            />
+                            <polyline points="7 10 12 15 17 10" />
+                            <line x1="12" y1="15" x2="12" y2="3" />
+                          </svg>
+                          Download
+                        </a>
+                      </div>
+                    </div>
+                    <div
+                      class="script-description"
+                      v-if="msg.script.description"
+                    >
+                      {{ msg.script.description }}
+                    </div>
+                    <pre
+                      class="script-code"
+                    ><code>{{ msg.script.content }}</code></pre>
+                  </div>
                 </div>
               </div>
             </div>
@@ -563,6 +655,88 @@
             Download {{ pptxReady.fileName }} ({{ pptxReady.slideCount }}
             slides)
           </a>
+        </div>
+
+        <!-- Script download (streaming) -->
+        <div v-if="scriptReady" class="script-download-bar">
+          <div class="script-inline-block">
+            <div class="script-header">
+              <div class="script-header-left">
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <polyline points="16 18 22 12 16 6" />
+                  <polyline points="8 6 2 12 8 18" />
+                </svg>
+                <span class="script-filename">{{ scriptReady.fileName }}</span>
+                <span class="script-meta"
+                  >{{ scriptReady.lineCount }} lines &middot;
+                  {{
+                    scriptReady.language === "powershell"
+                      ? "PowerShell"
+                      : "Bash"
+                  }}</span
+                >
+              </div>
+              <div class="script-header-actions">
+                <button
+                  class="script-copy-btn"
+                  @click="copyScript(scriptReady.content)"
+                  title="Copy to clipboard"
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                    <path
+                      d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
+                    />
+                  </svg>
+                </button>
+                <a
+                  :href="'/api/download/script/' + scriptReady.fileId"
+                  class="script-download-btn"
+                  download
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  Download
+                </a>
+              </div>
+            </div>
+            <div class="script-description" v-if="scriptReady.description">
+              {{ scriptReady.description }}
+            </div>
+            <pre
+              class="script-code"
+            ><code>{{ scriptReady.content }}</code></pre>
+          </div>
         </div>
 
         <!-- Mobile auth bar (hidden on desktop, shown on mobile) -->
@@ -680,6 +854,30 @@
                 <path d="M9 11h4" />
               </svg>
               <span class="input-pill-label">PowerPoint</span>
+            </button>
+            <button
+              class="input-pill-btn"
+              :class="{
+                'input-pill-btn--disabled': messages.length < 2 || streaming,
+              }"
+              :disabled="messages.length < 2 || streaming"
+              @click="requestScript"
+              title="Generate Script"
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polyline points="16 18 22 12 16 6" />
+                <polyline points="8 6 2 12 8 18" />
+              </svg>
+              <span class="input-pill-label">Script</span>
             </button>
           </div>
         </div>
@@ -826,6 +1024,7 @@ const streamFollowUp = ref(null);
 const streamIntent = ref("");
 const pptxReady = ref(null);
 const pptxDownloads = ref([]);
+const scriptReady = ref(null);
 const messagesEl = ref(null);
 const inputEl = ref(null);
 const chartInstances = [];
@@ -1096,6 +1295,7 @@ async function clearMessages() {
   streamCharts.value = [];
   pptxReady.value = null;
   pptxDownloads.value = [];
+  scriptReady.value = null;
   activeTools.value = [];
   hoveredTool.value = null;
   input.value = "";
@@ -2232,6 +2432,16 @@ function requestPresentation() {
   send();
 }
 
+function requestScript() {
+  input.value =
+    "Based on our conversation, generate an Azure CLI script to implement the FinOps recommendations we discussed. Ask me to confirm the specific actions before generating the script. If there are no actionable recommendations yet, let me know.";
+  send();
+}
+
+function copyScript(content) {
+  navigator.clipboard.writeText(content).catch(() => {});
+}
+
 async function send() {
   if (!props.user || clearing.value) return;
   const prompt = input.value.trim();
@@ -2377,6 +2587,18 @@ async function send() {
             scrollToBottom();
             break;
 
+          case "script_ready":
+            scriptReady.value = {
+              fileId: data.fileId,
+              fileName: data.fileName,
+              lineCount: data.lineCount,
+              language: data.language,
+              description: data.description,
+              content: data.content,
+            };
+            scrollToBottom();
+            break;
+
           case "maturity_score":
             try {
               const level = data.level?.toLowerCase();
@@ -2423,6 +2645,10 @@ async function send() {
       pptxDownloads.value.push({ ...pptxReady.value });
       pptxReady.value = null;
     }
+    if (scriptReady.value) {
+      msgObj.script = { ...scriptReady.value };
+      scriptReady.value = null;
+    }
     messages.value.push(msgObj);
   } catch (err) {
     if (err.name === "AbortError") {
@@ -2452,6 +2678,7 @@ async function send() {
     streamFollowUp.value = null;
     streamIntent.value = "";
     pptxReady.value = null;
+    scriptReady.value = null;
     abortController = null;
     nextTick(() => inputEl.value?.focus());
     if (availableModels.value.length <= 1) {
@@ -4294,6 +4521,118 @@ async function send() {
 }
 .pptx-inline-download {
   margin-top: 8px;
+}
+
+/* ── Script inline block ── */
+.script-download-bar {
+  display: flex;
+  justify-content: center;
+  padding: 0 1rem 8px;
+  max-width: 800px;
+  margin: 0 auto;
+  width: 100%;
+}
+.script-inline-block {
+  margin-top: 12px;
+  border: 1px solid #e1dfdd;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #fafafa;
+  width: 100%;
+}
+.script-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: #f3f2f1;
+  border-bottom: 1px solid #e1dfdd;
+  gap: 8px;
+}
+.script-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.script-filename {
+  font-size: 13px;
+  font-weight: 600;
+  color: #323130;
+  white-space: nowrap;
+}
+.script-meta {
+  font-size: 12px;
+  color: #605e5c;
+  white-space: nowrap;
+}
+.script-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.script-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  background: transparent;
+  border: 1px solid #e1dfdd;
+  color: #605e5c;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+.script-copy-btn:hover {
+  background: #deecf9;
+  color: #0078d4;
+}
+.script-download-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 12px;
+  border-radius: 4px;
+  background: #0078d4;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.15s;
+  border: none;
+  white-space: nowrap;
+}
+.script-download-btn:hover {
+  background: #106ebe;
+}
+.script-description {
+  padding: 6px 12px;
+  font-size: 12px;
+  color: #605e5c;
+  background: #f9f9f9;
+  border-bottom: 1px solid #e1dfdd;
+}
+.script-code {
+  margin: 0;
+  padding: 12px 14px;
+  background: #1e1e1e;
+  color: #d4d4d4;
+  font-size: 12px;
+  font-family: "Cascadia Code", "Fira Code", "Consolas", monospace;
+  line-height: 1.5;
+  overflow-x: auto;
+  max-height: 350px;
+  overflow-y: auto;
+  white-space: pre;
+}
+.script-code code {
+  font-family: inherit;
+  font-size: inherit;
 }
 
 /* ── Follow-up buttons ── */
