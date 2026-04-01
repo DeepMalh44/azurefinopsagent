@@ -756,6 +756,7 @@ sharedTools.AddRange(HealthTools.Create());
 sharedTools.AddRange(PresentationTools.Create());
 sharedTools.AddRange(FollowUpTools.Create());
 sharedTools.AddRange(FaqTools.Create());
+sharedTools.AddRange(ScoreTools.Create());
 
 // Per-user token holders and tool lists — tools capture the UserTokens instance
 // via closure, so they always read the latest tokens regardless of thread.
@@ -1014,6 +1015,34 @@ app.MapPost("/api/chat", (Delegate)(async (HttpContext ctx, IHttpClientFactory h
                                         sseData = null;
                                     }
                                     break;
+                                }
+                            }
+                        }
+                        catch { }
+                    }
+                    // Maturity score detection
+                    if (toolDone.Data.Success && resultText is not null && resultText.Contains("__MATURITY_SCORE__:"))
+                    {
+                        try
+                        {
+                            var trimmed = resultText.Trim();
+                            if (trimmed.StartsWith("__MATURITY_SCORE__:"))
+                            {
+                                var rest = trimmed["__MATURITY_SCORE__:".Length..];
+                                var colonIdx = rest.IndexOf(':');
+                                if (colonIdx > 0)
+                                {
+                                    var level = rest[..colonIdx];
+                                    var scoresJson = rest[(colonIdx + 1)..];
+                                    var scorePayload = JsonSerializer.Serialize(new { type = "maturity_score", level, scores = scoresJson });
+                                    if (sseData is not null)
+                                    {
+                                        await ctx.Response.WriteAsync($"data: {sseData}\n\n");
+                                        await ctx.Response.Body.FlushAsync();
+                                    }
+                                    await ctx.Response.WriteAsync($"data: {scorePayload}\n\n");
+                                    await ctx.Response.Body.FlushAsync();
+                                    sseData = null;
                                 }
                             }
                         }

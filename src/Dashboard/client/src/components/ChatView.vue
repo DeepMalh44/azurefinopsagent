@@ -52,7 +52,7 @@
       <!-- Left sidebar -->
       <aside class="sidebar" :class="{ 'sidebar--collapsed': !sidebarOpen }">
         <div class="sidebar-scroll">
-          <!-- FinOps Prompt Categories -->
+          <!-- FinOps Maturity Categories (Crawl / Walk / Run + Pricing) -->
           <div
             v-for="cat in visibleCategories"
             :key="cat.key"
@@ -65,23 +65,59 @@
               class="sidebar-category-label sidebar-category-label--toggle"
               @click="toggleSection(cat.key)"
             >
-              <span>{{ cat.label }}</span>
-              <svg
-                class="collapse-chevron"
-                :class="{
-                  'collapse-chevron--collapsed': collapsedSections[cat.key],
-                }"
-                viewBox="0 0 16 16"
-                fill="none"
+              <div class="sidebar-category-left">
+                <span>{{ cat.label }}</span>
+                <span v-if="cat.subtitle" class="sidebar-category-subtitle">{{
+                  cat.subtitle
+                }}</span>
+              </div>
+              <div class="sidebar-category-right">
+                <span
+                  v-if="cat.requiresAzure && maturityScores[cat.key]"
+                  class="sidebar-stars"
+                  :style="{ color: starColor(maturityOverall(cat.key)) }"
+                  >{{ starsText(maturityOverall(cat.key)) }}</span
+                >
+                <svg
+                  class="collapse-chevron"
+                  :class="{
+                    'collapse-chevron--collapsed': collapsedSections[cat.key],
+                  }"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                >
+                  <path
+                    d="M4 6l4 4 4-4"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </div>
+            </div>
+            <!-- Score results (from LLM) -->
+            <div
+              v-if="
+                cat.requiresAzure &&
+                maturityScores[cat.key] &&
+                !collapsedSections[cat.key]
+              "
+              class="assessment-summary"
+            >
+              <div
+                v-for="sc in maturityScores[cat.key]"
+                :key="sc.id"
+                class="assessment-row"
               >
-                <path
-                  d="M4 6l4 4 4-4"
-                  stroke="currentColor"
-                  stroke-width="1.5"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-              </svg>
+                <span
+                  class="assessment-stars"
+                  :style="{ color: starColor(sc.score) }"
+                  >{{ starsText(sc.score) }}</span
+                >
+                <span class="assessment-label">{{ sc.label }}</span>
+                <span class="assessment-detail-text">{{ sc.detail }}</span>
+              </div>
             </div>
             <div
               class="collapse-body"
@@ -103,7 +139,13 @@
                 >
                   {{ cat.icon }}
                 </span>
-                <span>{{ q.label }}</span>
+                <span
+                  :class="{
+                    'sidebar-question-label--score':
+                      q.label.startsWith('Score '),
+                  }"
+                  >{{ q.label }}</span
+                >
               </button>
             </div>
           </div>
@@ -532,11 +574,12 @@
             class="input-wrapper"
             :class="{ 'input-wrapper--disabled': false }"
           >
-            <input
+            <textarea
               ref="inputEl"
               v-model="input"
-              type="text"
-              @keydown.enter.prevent="send"
+              rows="1"
+              @keydown.enter.exact.prevent="send"
+              @input="autoGrowInput"
               :placeholder="
                 user
                   ? 'Ask about Azure pricing, cost comparisons, or FinOps insights...'
@@ -544,7 +587,7 @@
               "
               class="input-field"
               :disabled="!user"
-            />
+            ></textarea>
             <button
               v-if="streaming"
               class="action-btn action-btn--stop"
@@ -758,13 +801,13 @@
 <script setup>
 import * as echarts from "echarts";
 import {
-    computed,
-    nextTick,
-    onBeforeUnmount,
-    onMounted,
-    reactive,
-    ref,
-    watch,
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  reactive,
+  ref,
+  watch,
 } from "vue";
 
 const props = defineProps({
@@ -787,6 +830,14 @@ const messagesEl = ref(null);
 const inputEl = ref(null);
 const chartInstances = [];
 let intentAnimTimer = null;
+
+function autoGrowInput() {
+  const el = inputEl.value;
+  if (!el) return;
+  el.style.height = "auto";
+  el.style.height = Math.min(el.scrollHeight, 150) + "px";
+  el.style.overflowY = el.scrollHeight > 150 ? "auto" : "hidden";
+}
 
 // Smooth text reveal — drains pending chars fast enough to never lag behind the LLM
 let pendingText = "";
@@ -823,17 +874,10 @@ function flushText() {
 const hoveredTool = ref(null);
 const collapsedSections = reactive({
   subs: true,
-  finops_cost: true,
-  finops_optimize: true,
-  finops_reservations: true,
-  finops_storage: true,
-  finops_licensing: true,
-  finops_governance: true,
-  finops_pricing: false,
-  finops_infra: true,
-  finops_ai_data: true,
-  finops_advanced: true,
-  finops_pricing_public: false,
+  crawl: true,
+  walk: true,
+  run: true,
+  pricing: true,
 });
 function toggleSection(key) {
   collapsedSections[key] = !collapsedSections[key];
@@ -900,6 +944,9 @@ async function disconnectAzure() {
     licensesEnabled.value = false;
     chargebackEnabled.value = false;
     logAnalyticsEnabled.value = false;
+    maturityScores.crawl = null;
+    maturityScores.walk = null;
+    maturityScores.run = null;
     await clearMessages();
   } catch {}
 }
@@ -927,12 +974,10 @@ async function revokeAllPermissions() {
   } catch {}
 }
 
-// When Azure connects, expand Cost Analysis and collapse the public categories
+// When Azure connects, expand Crawl and collapse pricing
 watch(azureConnected, async (connected, wasConnected) => {
   if (!connected) return;
-  collapsedSections.finops_cost = false;
-  collapsedSections.finops_pricing = true;
-  collapsedSections.finops_pricing_public = true;
+  collapsedSections.pricing = true;
   // Auto-clear chat when Azure connects — removes stale "Connect Azure first" messages
   // and resets the Copilot session so the LLM knows the user is now connected
   if (!wasConnected) await clearMessages();
@@ -940,10 +985,14 @@ watch(azureConnected, async (connected, wasConnected) => {
 
 // Reset Copilot session when addon tiers are enabled so LLM picks up new tokens
 watch(graphEnabled, async (enabled, was) => {
-  if (enabled && !was) await clearMessages();
+  if (enabled && !was) {
+    await clearMessages();
+  }
 });
 watch(logAnalyticsEnabled, async (enabled, was) => {
-  if (enabled && !was) await clearMessages();
+  if (enabled && !was) {
+    await clearMessages();
+  }
 });
 
 function dismissPopover() {
@@ -1077,72 +1126,134 @@ function formatDuration(ms) {
 }
 
 // ── Prompt categories ──
-// Show all categories when Azure is connected; only public ones otherwise
+// Three maturity levels (Crawl/Walk/Run) when Azure connected, plus public pricing
 const visibleCategories = computed(() =>
-  azureConnected.value
-    ? finopsCategories
-    : finopsCategories.filter((c) => !c.requiresAzure),
+  azureConnected.value ? maturityCategories : [pricingCategory],
 );
 
-const finopsCategories = [
-  // ── 1. Advanced FinOps — lead with maturity, anomalies, unit economics (impressive) ──
+// ── Maturity scores (set by LLM via ReportMaturityScore tool → SSE) ──
+const maturityScores = reactive({
+  crawl: null, // null = not scored, array of {id, label, score, detail} when scored
+  walk: null,
+  run: null,
+});
+
+function maturityOverall(level) {
+  const scores = maturityScores[level];
+  if (!scores || scores.length === 0) return -1;
+  return Math.round(
+    scores.reduce((sum, s) => sum + s.score, 0) / scores.length,
+  );
+}
+
+function starsText(score) {
+  if (score < 0) return "☆☆☆☆☆";
+  const full = Math.min(score, 5);
+  return "★".repeat(full) + "☆".repeat(5 - full);
+}
+
+function starColor(score) {
+  if (score >= 4) return "#107c10";
+  if (score >= 3) return "#ff8c00";
+  if (score >= 1) return "#d83b01";
+  return "#a19f9d";
+}
+
+const pricingCategory = {
+  key: "pricing",
+  label: "Pricing & Estimates",
+  icon: "$",
+  colorClass: "cat-pricing",
+  requiresAzure: false,
+  prompts: [
+    {
+      label: "Compare VM pricing by region",
+      prompt:
+        "Compare the monthly cost of a D4s_v5 VM across the 10 cheapest Azure regions. Show a bar chart.",
+    },
+    {
+      label: "Spot vs on-demand savings",
+      prompt:
+        "Compare spot vs on-demand pricing for D4s_v5, D8s_v5, and NC24ads_A100_v4 in East US. Show the discount % for each.",
+    },
+    {
+      label: "Reserved vs pay-as-you-go",
+      prompt:
+        "Compare pay-as-you-go vs 1-year vs 3-year reserved pricing for a D4s_v5 VM in East US.",
+    },
+    {
+      label: "Storage tier comparison",
+      prompt:
+        "Compare Azure Blob Storage costs for 10 TB across Hot, Cool, Cold, and Archive tiers in East US.",
+    },
+    {
+      label: "Database pricing comparison",
+      prompt:
+        "Compare monthly cost of Azure SQL 8-vCore vs Cosmos DB 10K RU/s vs PostgreSQL Flexible 8-vCore with 500 GB storage.",
+    },
+    {
+      label: "3-tier app cost estimate",
+      prompt:
+        "Estimate monthly cost for a 3-tier app in East US: 2x D4s_v5 VMs, Azure SQL 4-vCore 500 GB, 1 TB Premium SSD, Standard LB.",
+    },
+    {
+      label: "AKS vs Container Apps vs Functions",
+      prompt:
+        "Compare cost of running 20 microservices on AKS vs Azure Container Apps vs Azure Functions consumption plan.",
+    },
+    {
+      label: "GPU training cluster cost",
+      prompt:
+        "Compare monthly cost of 4x A100 (ND96asr_v4) vs 4x H100 (NC80adis_H100_v5) on-demand in East US.",
+    },
+    {
+      label: "Global VM pricing map",
+      prompt:
+        "Show a world map of Azure regions color-coded by D4s_v5 VM pricing.",
+    },
+    {
+      label: "Azure service health",
+      prompt: "Are there any active Azure service health incidents right now?",
+    },
+    {
+      label: "Kubernetes node pool sizing",
+      prompt:
+        "Compare monthly cost of an AKS cluster with 3x D4s_v5 vs 3x D8s_v5 vs 3x D16s_v5 nodes in East US.",
+    },
+    {
+      label: "Estimate new deployment",
+      prompt:
+        "I want to estimate the monthly cost of a new deployment. Help me price out the infrastructure — I'll describe the resources I need (VMs, storage, databases, networking) and you calculate the estimated monthly cost using Azure retail pricing.",
+    },
+    {
+      label: "Azure OpenAI token pricing",
+      prompt:
+        "Compare Azure OpenAI pricing for GPT-4o vs GPT-4o-mini vs GPT-4.1 per 1M input and output tokens.",
+    },
+    {
+      label: "Azure Firewall cost tiers",
+      prompt:
+        "Compare Azure Firewall Basic vs Standard vs Premium monthly cost including 5 TB data processed.",
+    },
+  ],
+};
+
+const maturityCategories = [
+  // ── CRAWL — "Where am I?" Visibility & baseline ──
   {
-    key: "finops_advanced",
-    label: "Advanced FinOps",
-    icon: "F",
-    colorClass: "cat-advanced",
+    key: "crawl",
+    label: "Crawl",
+    subtitle: "Visibility & Baseline",
+    icon: "1",
+    colorClass: "cat-crawl",
     requiresAzure: true,
     prompts: [
       {
-        label: "FinOps maturity assessment",
+        label: "Score Crawl maturity",
         prompt:
-          "Conduct a structured FinOps maturity assessment. Check each dimension: (1) Do I have budgets set per subscription? (2) What % of resources are tagged? (3) Am I using reservations/savings plans? (4) Advisor recommendation adoption rate? (5) Do I have cost exports configured? (6) Are my management groups structured for cost governance? Score each as Crawl/Walk/Run and recommend next steps.",
+          "Score my Crawl-level FinOps maturity (0-5 per dimension). Check these using Azure APIs: (1) Tagging — what % of resources have cost-center, environment, or department tags? (2) Orphaned Resources — how many unattached disks exist? (3) Advisor — how many open cost recommendations? (4) Budget Alerts — what % of subscriptions have budgets configured? For each, give a score 0-5 and a one-line reason, then call ReportMaturityScore with level 'crawl' and the scores array.",
       },
-      {
-        label: "Cost anomaly detection",
-        prompt:
-          "Check my Azure Cost Management anomaly alerts. Show all active cost alerts and anomalies detected in the past 30 days. For each, show the affected scope, expected vs actual cost, deviation percentage, and the root cause if identified.",
-      },
-      {
-        label: "Unit economics",
-        prompt:
-          "Help me calculate unit economics for my top workloads. For each of my top 5 resource groups by cost, calculate the cost-per-day and trend over the past 30 days. If I share transaction or user counts, we can derive cost-per-unit KPIs.",
-      },
-      {
-        label: "Cost allocation model",
-        prompt:
-          "Analyze my cost allocation strategy. Show costs broken down by subscription, resource group, and tags (cost-center, environment, owner). What percentage of my spend can be attributed vs unattributed? Recommend improvements to my allocation model.",
-      },
-      {
-        label: "Cross-sub benchmarking",
-        prompt:
-          "Benchmark cost efficiency across all my subscriptions. For each subscription, calculate: total cost, resource count, cost-per-resource, cost-per-vCPU, and month-over-month change. Rank by cost efficiency and identify outliers.",
-      },
-      {
-        label: "Showback report",
-        prompt:
-          "Generate a showback report for the current month — show each department/team their Azure costs by tag (cost-center or owner) without billing attribution. Include a summary table and a pie chart of cost distribution across teams.",
-      },
-      {
-        label: "FOCUS cost mapping",
-        prompt:
-          "Show my current month's costs mapped to FOCUS (FinOps Open Cost & Usage Specification) concepts: BilledCost (actual invoice amount), EffectiveCost (amortized with commitments spread), and ChargeCategory (usage, purchase, tax, credit). Show a comparison table.",
-      },
-      {
-        label: "Estimate new deployment",
-        prompt:
-          "I want to estimate the monthly cost of a new deployment. Help me price out the infrastructure — I'll describe the resources I need (VMs, storage, databases, networking) and you calculate the estimated monthly cost using Azure retail pricing.",
-      },
-    ],
-  },
-  // ── 2. Cost Analysis — "Where is my money going?" ──
-  {
-    key: "finops_cost",
-    label: "Cost Analysis",
-    icon: "$",
-    colorClass: "cat-cost",
-    requiresAzure: true,
-    prompts: [
+      // Cost visibility
       {
         label: "Cost this month",
         prompt:
@@ -1154,29 +1265,9 @@ const finopsCategories = [
           "Show my daily Azure spend for the last 30 days as a line chart.",
       },
       {
-        label: "Cost forecast",
-        prompt:
-          "Based on my current spending trend, forecast my Azure bill for the rest of this month. Show the projected cost vs budget as a line chart.",
-      },
-      {
-        label: "Top 10 costly resources",
-        prompt:
-          "What are my top 10 most expensive Azure resources this month? Show a chart.",
-      },
-      {
-        label: "Month-over-month change",
-        prompt:
-          "Compare this month's Azure spend to last month by service. Highlight the biggest increases and show a chart.",
-      },
-      {
         label: "Cost by subscription",
         prompt:
           "Compare Azure costs across all my subscriptions for the current month. Show a bar chart ranking subscriptions by spend, and a table with subscription name, cost, and month-over-month change.",
-      },
-      {
-        label: "Budget vs actual",
-        prompt:
-          "Show my Azure budgets vs actual spend for the current billing period. Which budgets are at risk of being exceeded? Show a gauge chart per budget.",
       },
       {
         label: "Cost by resource group",
@@ -1194,35 +1285,22 @@ const finopsCategories = [
           "Break down my Azure spend by region/location for the current month. Show a bar chart and identify which regions are the most expensive. Are there opportunities to move workloads to cheaper regions?",
       },
       {
-        label: "Amortized cost view",
+        label: "Top 10 costly resources",
         prompt:
-          "Show my amortized Azure costs for the current month — spreading reservation and savings plan purchases across their term. Compare amortized vs actual cost by service in a table.",
-      },
-    ],
-  },
-  // ── 3. Optimization — "How can I save money?" ──
-  {
-    key: "finops_optimize",
-    label: "Optimization",
-    icon: "O",
-    colorClass: "cat-optimize",
-    requiresAzure: true,
-    prompts: [
-      {
-        label: "Advisor recommendations",
-        prompt:
-          "What cost optimization recommendations does Azure Advisor have for me? Group them by impact (high, medium, low) and show the estimated annual savings for each.",
+          "What are my top 10 most expensive Azure resources this month? Show a chart.",
       },
       {
-        label: "Idle resources cleanup",
+        label: "Month-over-month change",
         prompt:
-          "Find all idle or underutilized VMs, disks, public IPs, App Service plans, and load balancers across my subscriptions. For each, show the resource name, type, resource group, monthly cost, and tags in a table sorted by cost. What's my total potential savings?",
+          "Compare this month's Azure spend to last month by service. Highlight the biggest increases and show a chart.",
       },
+      // Tagging
       {
-        label: "VM right-sizing",
+        label: "Tag compliance audit",
         prompt:
-          "Analyze my running VMs and identify which ones are oversized based on Advisor recommendations. For each, show current SKU, recommended SKU, current monthly cost, projected monthly cost, and monthly savings. Sort by highest savings first.",
+          "Audit tag compliance across all my subscriptions. What percentage of resources have cost-center, environment, and owner tags? List the resource groups with the worst tag coverage so I can follow up with the responsible teams.",
       },
+      // Orphaned resources
       {
         label: "Orphaned resources",
         prompt:
@@ -1233,41 +1311,51 @@ const finopsCategories = [
         prompt:
           "How many unattached disks do I have and what would be my savings if I remove them? List them in a table ranked by highest savings potential at the top. Include the disk name, size, SKU, monthly cost, resource group, and all tags so I can plan outreach to the responsible teams.",
       },
+      // Advisor
       {
-        label: "Dev/test savings",
+        label: "Advisor recommendations",
         prompt:
-          "Identify resources in dev/test environments (by tag or naming convention) that could be shut down, scaled down, or deallocated to save costs. Show a table with the resource, current SKU, recommended action, and estimated monthly savings.",
+          "What cost optimization recommendations does Azure Advisor have for me? Group them by impact (high, medium, low) and show the estimated annual savings for each.",
+      },
+      // Budgets
+      {
+        label: "Budget vs actual",
+        prompt:
+          "Show my Azure budgets vs actual spend for the current billing period. Which budgets are at risk of being exceeded? Show a gauge chart per budget.",
+      },
+      // Inventory
+      {
+        label: "Resource inventory",
+        prompt:
+          "Query Resource Graph for a count of all resources by type across my subscriptions. Show a pie chart of the top 15 resource types and a table with the full breakdown.",
       },
       {
-        label: "Optimize top resource group",
+        label: "My subscriptions",
         prompt:
-          "I need to cost optimize my most expensive resource group. First show me my top 5 resource groups by cost this month, then give me the top Advisor recommendations and idle resources for the most expensive one.",
+          "List all my Azure subscriptions with their states and subscription IDs.",
       },
       {
-        label: "App Service consolidation",
+        label: "Billing accounts",
         prompt:
-          "List all my App Service plans with their pricing tier, instance count, and the number of apps hosted on each. Identify plans with low utilization or only one app that could be consolidated. Show potential savings from merging underutilized plans.",
-      },
-      {
-        label: "AKS cost optimization",
-        prompt:
-          "Analyze my AKS clusters. Show each cluster's node pool configuration, VM sizes, node count, and monthly cost. Identify over-provisioned node pools where CPU/memory requests are significantly below capacity. Recommend right-sizing actions with estimated savings.",
-      },
-      {
-        label: "Network cost review",
-        prompt:
-          "Review my network-related costs: ExpressRoute circuits, VPN gateways, NAT gateways, public IPs, and Application Gateways. List each resource with its SKU, monthly cost, and utilization. Flag any that appear oversized or idle.",
+          "Show my billing account structure — accounts, profiles, invoice sections.",
       },
     ],
   },
-  // ── 4. Reservations & Commitments ──
+  // ── WALK — "What should I optimize?" Savings & enforcement ──
   {
-    key: "finops_reservations",
-    label: "Reservations & Commitments",
-    icon: "R",
-    colorClass: "cat-reservations",
+    key: "walk",
+    label: "Walk",
+    subtitle: "Optimization & Governance",
+    icon: "2",
+    colorClass: "cat-walk",
     requiresAzure: true,
     prompts: [
+      {
+        label: "Score Walk maturity",
+        prompt:
+          "Score my Walk-level FinOps maturity (0-5 per dimension). Check these using Azure APIs: (1) Reservations & Savings Plans — do I have active reservations or savings plans? How many? (2) Right-sizing — how many Advisor right-sizing/resize recommendations are open? (3) Non-Prod Snoozing — what % of VMs have auto-shutdown schedules? (4) Tag Policy Enforcement — are there Azure Policy assignments for tagging? For each, give a score 0-5 and a one-line reason, then call ReportMaturityScore with level 'walk' and the scores array.",
+      },
+      // Reservations & savings plans
       {
         label: "Reservation utilization",
         prompt:
@@ -1294,75 +1382,150 @@ const finopsCategories = [
           "List all my reservations that expire in the next 90 days. For each, show the reservation name, resource type, expiry date, current utilization, and the monthly cost impact if not renewed.",
       },
       {
-        label: "Reserved vs pay-as-you-go",
-        prompt:
-          "Compare the cost of running 10x D4s_v5 VMs in East US on pay-as-you-go vs 1-year reserved vs 3-year reserved. Show a bar chart with total annual cost and the percentage savings for each option.",
-      },
-      {
         label: "RI exchange opportunities",
         prompt:
           "Analyze my current reservations for exchange opportunities. Which reservations are underutilized and could be exchanged for a better-fitting SKU or region? Show the current reservation, utilization %, and recommended exchange target.",
       },
+      // Right-sizing
+      {
+        label: "VM right-sizing",
+        prompt:
+          "Analyze my running VMs and identify which ones are oversized based on Advisor recommendations. For each, show current SKU, recommended SKU, current monthly cost, projected monthly cost, and monthly savings. Sort by highest savings first.",
+      },
+      {
+        label: "Idle resources cleanup",
+        prompt:
+          "Find all idle or underutilized VMs, disks, public IPs, App Service plans, and load balancers across my subscriptions. For each, show the resource name, type, resource group, monthly cost, and tags in a table sorted by cost. What's my total potential savings?",
+      },
+      {
+        label: "Dev/test savings",
+        prompt:
+          "Identify resources in dev/test environments (by tag or naming convention) that could be shut down, scaled down, or deallocated to save costs. Show a table with the resource, current SKU, recommended action, and estimated monthly savings.",
+      },
+      // Policy & tagging enforcement
+      {
+        label: "Policy compliance",
+        prompt:
+          "Show my Azure Policy compliance state. Which policies have the most non-compliant resources? List the top 10 non-compliant policies with the count of affected resources and their resource types.",
+      },
+      // Hybrid benefit
+      {
+        label: "Azure Hybrid Benefit check",
+        prompt:
+          "Which of my Windows VMs and SQL databases are NOT using Azure Hybrid Benefit? List them with their current monthly cost and the savings I'd get by enabling AHUB. Show total potential savings.",
+      },
+      // Storage optimization
+      {
+        label: "Storage optimization",
+        prompt:
+          "Find storage accounts with no recent access and recommend tiering or cleanup for cost savings. Show the storage account, current tier, last access date, size, monthly cost, and recommended tier in a table.",
+      },
+      {
+        label: "Blob lifecycle analysis",
+        prompt:
+          "Analyze my blob storage accounts. Which ones are missing lifecycle management policies? For large storage accounts, estimate the savings if I moved data older than 30 days to Cool, 90 days to Cold, and 180 days to Archive tier.",
+      },
+      {
+        label: "Log Analytics ingestion cost",
+        prompt:
+          "Analyze my Log Analytics workspace ingestion costs. Show data volume by table (e.g. AzureDiagnostics, Perf, ContainerLog) over the past 30 days. Which tables are the biggest cost drivers? Recommend tables to move to Basic Logs or archive tier.",
+      },
+      // Workload-specific
+      {
+        label: "App Service consolidation",
+        prompt:
+          "List all my App Service plans with their pricing tier, instance count, and the number of apps hosted on each. Identify plans with low utilization or only one app that could be consolidated. Show potential savings from merging underutilized plans.",
+      },
+      {
+        label: "AKS cost optimization",
+        prompt:
+          "Analyze my AKS clusters. Show each cluster's node pool configuration, VM sizes, node count, and monthly cost. Identify over-provisioned node pools where CPU/memory requests are significantly below capacity. Recommend right-sizing actions with estimated savings.",
+      },
+      {
+        label: "Network cost review",
+        prompt:
+          "Review my network-related costs: ExpressRoute circuits, VPN gateways, NAT gateways, public IPs, and Application Gateways. List each resource with its SKU, monthly cost, and utilization. Flag any that appear oversized or idle.",
+      },
+      {
+        label: "Disk SKU optimization",
+        prompt:
+          "List all my managed disks with their SKU (Premium, Standard SSD, Standard HDD). Identify Premium SSD disks attached to VMs with low IOPS usage that could be downgraded to Standard SSD. Show the current vs recommended cost per disk.",
+      },
+      {
+        label: "Optimize top resource group",
+        prompt:
+          "I need to cost optimize my most expensive resource group. First show me my top 5 resource groups by cost this month, then give me the top Advisor recommendations and idle resources for the most expensive one.",
+      },
     ],
   },
-  // ── 5. Governance & Reporting ──
+  // ── RUN — "How do I scale this?" Culture & accountability ──
   {
-    key: "finops_governance",
-    label: "Governance & Reporting",
-    icon: "G",
-    colorClass: "cat-governance",
+    key: "run",
+    label: "Run",
+    subtitle: "Scale & Accountability",
+    icon: "3",
+    colorClass: "cat-run",
     requiresAzure: true,
     prompts: [
+      {
+        label: "Score Run maturity",
+        prompt:
+          "Score my Run-level FinOps maturity (0-5 per dimension). Check these using Azure APIs: (1) Cost Exports — do any subscriptions have Cost Management exports configured? (2) Management Group Structure — how many management groups exist beyond the root? (3) Chargeback Readiness — what % of spend can be attributed via cost-center or owner tags? For each, give a score 0-5 and a one-line reason, then call ReportMaturityScore with level 'run' and the scores array.",
+      },
+      // Executive reporting
       {
         label: "Executive cost summary",
         prompt:
           "Create an executive summary of my Azure spend: total cost this month, month-over-month trend, top 5 services by cost, biggest cost increases, active Advisor savings opportunities, and reservation utilization. Include charts.",
       },
       {
+        label: "Cost forecast",
+        prompt:
+          "Based on my current spending trend, forecast my Azure bill for the rest of this month. Show the projected cost vs budget as a line chart.",
+      },
+      {
+        label: "Amortized cost view",
+        prompt:
+          "Show my amortized Azure costs for the current month — spreading reservation and savings plan purchases across their term. Compare amortized vs actual cost by service in a table.",
+      },
+      // Chargeback / showback
+      {
         label: "Chargeback report",
         prompt:
           "Generate a chargeback report for the current month. Break down costs by the owner tag or cost-center tag. Show a bar chart and table with each team's total spend, top services, and month-over-month change.",
       },
       {
-        label: "Resource inventory",
+        label: "Showback report",
         prompt:
-          "Query Resource Graph for a count of all resources by type across my subscriptions. Show a pie chart of the top 15 resource types and a table with the full breakdown.",
+          "Generate a showback report for the current month — show each department/team their Azure costs by tag (cost-center or owner) without billing attribution. Include a summary table and a pie chart of cost distribution across teams.",
       },
       {
-        label: "My subscriptions",
+        label: "Cost allocation model",
         prompt:
-          "List all my Azure subscriptions with their states and subscription IDs.",
+          "Analyze my cost allocation strategy. Show costs broken down by subscription, resource group, and tags (cost-center, environment, owner). What percentage of my spend can be attributed vs unattributed? Recommend improvements to my allocation model.",
+      },
+      // Unit economics & benchmarking
+      {
+        label: "Unit economics",
+        prompt:
+          "Help me calculate unit economics for my top workloads. For each of my top 5 resource groups by cost, calculate the cost-per-day and trend over the past 30 days. If I share transaction or user counts, we can derive cost-per-unit KPIs.",
       },
       {
-        label: "Policy compliance",
+        label: "Cross-sub benchmarking",
         prompt:
-          "Show my Azure Policy compliance state. Which policies have the most non-compliant resources? List the top 10 non-compliant policies with the count of affected resources and their resource types.",
+          "Benchmark cost efficiency across all my subscriptions. For each subscription, calculate: total cost, resource count, cost-per-resource, cost-per-vCPU, and month-over-month change. Rank by cost efficiency and identify outliers.",
       },
       {
-        label: "Carbon emissions",
+        label: "FOCUS cost mapping",
         prompt:
-          "Show my Azure carbon emissions data. Break down emissions by service and region. Which workloads have the highest carbon footprint, and what would be the impact of moving them to a greener region?",
+          "Show my current month's costs mapped to FOCUS (FinOps Open Cost & Usage Specification) concepts: BilledCost (actual invoice amount), EffectiveCost (amortized with commitments spread), and ChargeCategory (usage, purchase, tax, credit). Show a comparison table.",
       },
       {
-        label: "Billing accounts",
+        label: "Cost anomaly detection",
         prompt:
-          "Show my billing account structure — accounts, profiles, invoice sections.",
+          "Check my Azure Cost Management anomaly alerts. Show all active cost alerts and anomalies detected in the past 30 days. For each, show the affected scope, expected vs actual cost, deviation percentage, and the root cause if identified.",
       },
-    ],
-  },
-  // ── 6. Licensing & Hybrid Benefit ──
-  {
-    key: "finops_licensing",
-    label: "Licensing & Hybrid",
-    icon: "L",
-    colorClass: "cat-licensing",
-    requiresAzure: true,
-    prompts: [
-      {
-        label: "Azure Hybrid Benefit check",
-        prompt:
-          "Which of my Windows VMs and SQL databases are NOT using Azure Hybrid Benefit? List them with their current monthly cost and the savings I'd get by enabling AHUB. Show total potential savings.",
-      },
+      // License optimization (Graph)
       {
         label: "License optimization",
         prompt:
@@ -1378,56 +1541,7 @@ const finopsCategories = [
         prompt:
           "Audit my Windows Server VMs. How many are using Azure Hybrid Benefit vs pay-as-you-go licensing? Show the per-VM cost difference and total savings opportunity from enabling AHUB on all eligible VMs.",
       },
-    ],
-  },
-  // ── 7. Storage & Data ──
-  {
-    key: "finops_storage",
-    label: "Storage & Data",
-    icon: "S",
-    colorClass: "cat-storage",
-    requiresAzure: true,
-    prompts: [
-      {
-        label: "Storage optimization",
-        prompt:
-          "Find storage accounts with no recent access and recommend tiering or cleanup for cost savings. Show the storage account, current tier, last access date, size, monthly cost, and recommended tier in a table.",
-      },
-      {
-        label: "Blob lifecycle analysis",
-        prompt:
-          "Analyze my blob storage accounts. Which ones are missing lifecycle management policies? For large storage accounts, estimate the savings if I moved data older than 30 days to Cool, 90 days to Cold, and 180 days to Archive tier.",
-      },
-      {
-        label: "Disk SKU optimization",
-        prompt:
-          "List all my managed disks with their SKU (Premium, Standard SSD, Standard HDD). Identify Premium SSD disks attached to VMs with low IOPS usage that could be downgraded to Standard SSD. Show the current vs recommended cost per disk.",
-      },
-      {
-        label: "Log Analytics ingestion cost",
-        prompt:
-          "Analyze my Log Analytics workspace ingestion costs. Show data volume by table (e.g. AzureDiagnostics, Perf, ContainerLog) over the past 30 days. Which tables are the biggest cost drivers? Recommend tables to move to Basic Logs or archive tier.",
-      },
-      {
-        label: "Storage tier pricing",
-        prompt:
-          "Compare the cost of storing 10 TB in Azure Blob Storage across Hot, Cool, Cold, and Archive tiers in East US. Include per-GB storage cost and per-10K read/write transaction costs in a table.",
-      },
-      {
-        label: "GPv1 to GPv2 migration",
-        prompt:
-          "I need to upgrade storage from GPv1 to GPv2. List all my storage accounts, identify which are still GPv1, and do a cost analysis comparing current GPv1 costs vs projected GPv2 costs. Show the cost difference per account in a table so I can plan the migration.",
-      },
-    ],
-  },
-  // ── 8. AI, GPU & Data Platforms ──
-  {
-    key: "finops_ai_data",
-    label: "AI, GPU & Data",
-    icon: "A",
-    colorClass: "cat-ai",
-    requiresAzure: true,
-    prompts: [
+      // AI & data platform
       {
         label: "GPU compute inventory",
         prompt:
@@ -1439,54 +1553,20 @@ const finopsCategories = [
           "List all my Azure ML workspaces and their compute resources (instances, clusters, endpoints). Show each compute's type, VM size, state (running/stopped), monthly cost, and idle time. Identify ML computes burning money while idle.",
       },
       {
-        label: "Databricks workspace review",
-        prompt:
-          "List all my Azure Databricks workspaces with their pricing tier (standard/premium), SKU, managed resource group, and monthly cost. Identify workspaces on Premium tier that could use Standard instead.",
-      },
-      {
         label: "Cosmos DB RU optimization",
         prompt:
           "List all my Cosmos DB accounts with their provisioned throughput (RU/s), autoscale settings, consistency level, and monthly cost. Identify databases that are over-provisioned (low RU utilization) or could benefit from switching to autoscale or serverless.",
-      },
-      {
-        label: "SQL Managed Instance sizing",
-        prompt:
-          "List all my SQL Managed Instances with their tier, vCores, storage, and monthly cost. Identify instances that are over-provisioned based on Advisor recommendations. Show the potential savings from right-sizing.",
       },
       {
         label: "Synapse & Data Factory costs",
         prompt:
           "List all my Synapse workspaces (dedicated SQL pools, Spark pools) and Data Factory instances. Show each resource's configuration and monthly cost. Identify idle dedicated SQL pools that should be paused and over-provisioned Spark pools.",
       },
+      // Governance
       {
-        label: "Container Apps review",
+        label: "Management groups",
         prompt:
-          "List all my Container Apps and their environments. Show each app's min/max replicas, CPU/memory allocation, and monthly cost. Identify apps with over-provisioned resources or that could benefit from scale-to-zero.",
-      },
-      {
-        label: "Redis Cache optimization",
-        prompt:
-          "List all my Azure Redis Cache instances with their tier (Basic/Standard/Premium), cache size, and monthly cost. Identify caches that could be downgraded to a lower tier or smaller size based on usage patterns.",
-      },
-      {
-        label: "Databricks vs ML cost",
-        prompt:
-          "Compare my Azure Databricks and Azure ML compute costs. List all Databricks workspaces with their pricing tier and managed resource group costs, and all ML workspaces with their compute costs. Which platform is costing more and where are the optimization opportunities?",
-      },
-    ],
-  },
-  // ── 9. Infrastructure & Security ──
-  {
-    key: "finops_infra",
-    label: "Infrastructure & Security",
-    icon: "I",
-    colorClass: "cat-infra",
-    requiresAzure: true,
-    prompts: [
-      {
-        label: "Tag compliance audit",
-        prompt:
-          "Audit tag compliance across all my subscriptions. What percentage of resources have cost-center, environment, and owner tags? List the resource groups with the worst tag coverage so I can follow up with the responsible teams.",
+          "Show my management group hierarchy with subscriptions under each.",
       },
       {
         label: "Security posture",
@@ -1494,142 +1574,19 @@ const finopsCategories = [
           "Show my Microsoft Defender for Cloud secure score across all subscriptions. List the top 10 unhealthy security recommendations with their severity and affected resource count.",
       },
       {
-        label: "Resource health",
+        label: "Carbon emissions",
         prompt:
-          "Check the health status of all my Azure resources. List any resources currently in a degraded or unavailable state with their resource type, resource group, and impact details.",
+          "Show my Azure carbon emissions data. Break down emissions by service and region. Which workloads have the highest carbon footprint, and what would be the impact of moving them to a greener region?",
       },
       {
-        label: "Quota utilization",
+        label: "FinOps maturity assessment",
         prompt:
-          "Check my Azure subscription quota usage for compute (vCPUs), storage, and networking. Which quotas am I closest to hitting? Show a table with quota name, limit, current usage, and usage percentage sorted by highest utilization.",
-      },
-      {
-        label: "RBAC review",
-        prompt:
-          "List all Owner and Contributor role assignments across my subscriptions. Identify any direct user assignments (not via groups) and any assignments to external/guest accounts — these are security risks.",
-      },
-      {
-        label: "Resource locks audit",
-        prompt:
-          "List all resource locks (CanNotDelete and ReadOnly) across my subscriptions. Are my critical production resources properly protected? Identify high-value resources that are missing locks.",
-      },
-      {
-        label: "Management groups",
-        prompt:
-          "Show my management group hierarchy with subscriptions under each.",
+          "Conduct a structured FinOps maturity assessment. Check each dimension: (1) Do I have budgets set per subscription? (2) What % of resources are tagged? (3) Am I using reservations/savings plans? (4) Advisor recommendation adoption rate? (5) Do I have cost exports configured? (6) Are my management groups structured for cost governance? Score each as Crawl/Walk/Run and recommend next steps.",
       },
     ],
   },
-  // ── 10. Pricing & Estimator (public — no login) ──
-  {
-    key: "finops_pricing",
-    label: "Pricing & Estimates",
-    icon: "$",
-    colorClass: "cat-pricing",
-    requiresAzure: false,
-    prompts: [
-      {
-        label: "Compare VM pricing by region",
-        prompt:
-          "Compare the monthly cost of a D4s_v5 VM across the 10 cheapest Azure regions. Show a bar chart.",
-      },
-      {
-        label: "Spot vs on-demand savings",
-        prompt:
-          "Compare spot vs on-demand pricing for D4s_v5, D8s_v5, and NC24ads_A100_v4 in East US. Show the discount % for each.",
-      },
-      {
-        label: "Reserved vs pay-as-you-go",
-        prompt:
-          "Compare pay-as-you-go vs 1-year vs 3-year reserved pricing for a D4s_v5 VM in East US.",
-      },
-      {
-        label: "Storage tier comparison",
-        prompt:
-          "Compare Azure Blob Storage costs for 10 TB across Hot, Cool, Cold, and Archive tiers in East US.",
-      },
-      {
-        label: "Database pricing comparison",
-        prompt:
-          "Compare monthly cost of Azure SQL 8-vCore vs Cosmos DB 10K RU/s vs PostgreSQL Flexible 8-vCore with 500 GB storage.",
-      },
-      {
-        label: "3-tier app cost estimate",
-        prompt:
-          "Estimate monthly cost for a 3-tier app in East US: 2x D4s_v5 VMs, Azure SQL 4-vCore 500 GB, 1 TB Premium SSD, Standard LB.",
-      },
-      {
-        label: "AKS vs Container Apps vs Functions",
-        prompt:
-          "Compare cost of running 20 microservices on AKS vs Azure Container Apps vs Azure Functions consumption plan.",
-      },
-      {
-        label: "GPU training cluster cost",
-        prompt:
-          "Compare monthly cost of 4x A100 (ND96asr_v4) vs 4x H100 (NC80adis_H100_v5) on-demand in East US.",
-      },
-      {
-        label: "Global VM pricing map",
-        prompt:
-          "Show a world map of Azure regions color-coded by D4s_v5 VM pricing.",
-      },
-      {
-        label: "Azure service health",
-        prompt:
-          "Are there any active Azure service health incidents right now?",
-      },
-      {
-        label: "Kubernetes node pool sizing",
-        prompt:
-          "Compare monthly cost of an AKS cluster with 3x D4s_v5 vs 3x D8s_v5 vs 3x D16s_v5 nodes in East US.",
-      },
-      {
-        label: "Managed disk pricing",
-        prompt:
-          "Compare pricing for 1 TB managed disks: Premium SSD v2 vs Premium SSD vs Standard SSD vs Standard HDD in East US.",
-      },
-      {
-        label: "ExpressRoute vs VPN cost",
-        prompt:
-          "Compare monthly cost of ExpressRoute Standard 1 Gbps vs 2x VPN Gateway VpnGw2AZ for hybrid connectivity.",
-      },
-      {
-        label: "Serverless database cost",
-        prompt:
-          "Compare Azure SQL Serverless vs Cosmos DB Serverless vs PostgreSQL Flexible for a workload with 1M requests/day and 100 GB storage.",
-      },
-      {
-        label: "Azure OpenAI token pricing",
-        prompt:
-          "Compare Azure OpenAI pricing for GPT-4o vs GPT-4o-mini vs GPT-4.1 per 1M input and output tokens.",
-      },
-      {
-        label: "Windows vs Linux VM cost",
-        prompt:
-          "Compare the cost of D4s_v5 with Windows vs Linux in East US. What's the savings with Azure Hybrid Benefit?",
-      },
-      {
-        label: "App Service plan comparison",
-        prompt:
-          "Compare Azure App Service pricing: Free vs Basic B1 vs Standard S1 vs Premium P1v3 in East US.",
-      },
-      {
-        label: "CDN + Front Door pricing",
-        prompt:
-          "Compare monthly cost of Azure CDN Standard vs Azure Front Door Standard vs Front Door Premium for 10 TB transfer.",
-      },
-      {
-        label: "Backup and DR pricing",
-        prompt:
-          "Estimate monthly cost to back up 10 VMs with Azure Backup and protect them with Azure Site Recovery to a paired region.",
-      },
-      {
-        label: "Azure Firewall cost tiers",
-        prompt:
-          "Compare Azure Firewall Basic vs Standard vs Premium monthly cost including 5 TB data processed.",
-      },
-    ],
-  },
+  // ── Public pricing (no login required) ──
+  pricingCategory,
 ];
 
 function sendQuestion(q) {
@@ -2282,6 +2239,9 @@ async function send() {
 
   messages.value.push({ role: "user", content: prompt });
   input.value = "";
+  nextTick(() => {
+    if (inputEl.value) inputEl.value.style.height = "auto";
+  });
   streaming.value = true;
   streamBuffer.value = "";
   activeTools.value = [];
@@ -2415,6 +2375,24 @@ async function send() {
               slideCount: data.slideCount,
             };
             scrollToBottom();
+            break;
+
+          case "maturity_score":
+            try {
+              const level = data.level?.toLowerCase();
+              if (
+                level &&
+                (level === "crawl" || level === "walk" || level === "run")
+              ) {
+                const scores =
+                  typeof data.scores === "string"
+                    ? JSON.parse(data.scores)
+                    : data.scores;
+                if (Array.isArray(scores)) {
+                  maturityScores[level] = scores;
+                }
+              }
+            } catch {}
             break;
 
           case "error":
@@ -2732,6 +2710,10 @@ async function send() {
   opacity: 0.4;
   cursor: default;
 }
+.sidebar-question-label--score {
+  font-weight: 600;
+  font-size: 13px;
+}
 .sidebar-question--locked {
   opacity: 0.4;
 }
@@ -2793,6 +2775,78 @@ async function send() {
 .sidebar-question-icon--cat-estimator {
   background: #d8f5f7;
   color: #008272;
+}
+.sidebar-question-icon--cat-crawl {
+  background: #deecf9;
+  color: #0078d4;
+}
+.sidebar-question-icon--cat-walk {
+  background: #fff4ce;
+  color: #986f0b;
+}
+.sidebar-question-icon--cat-run {
+  background: #dff6dd;
+  color: #107c10;
+}
+
+/* ── Category header layout ── */
+.sidebar-category-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.sidebar-category-left {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.sidebar-category-subtitle {
+  font-size: 10px;
+  font-weight: 400;
+  color: #a19f9d;
+  letter-spacing: 0.2px;
+}
+.sidebar-category-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.sidebar-stars {
+  font-size: 11px;
+  letter-spacing: 1px;
+}
+
+/* ── Assessment summary rows ── */
+.assessment-summary {
+  padding: 4px 12px 6px;
+  border-bottom: 1px solid #edebe9;
+  background: #faf9f8;
+}
+.assessment-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 3px 4px;
+  font-size: 11px;
+  flex-wrap: wrap;
+}
+.assessment-stars {
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+}
+.assessment-label {
+  flex: 1;
+  color: #323130;
+  font-weight: 500;
+}
+.assessment-detail-text {
+  width: 100%;
+  font-size: 10px;
+  color: #a19f9d;
+  padding-left: 0;
+  line-height: 1.3;
+  margin-top: -1px;
 }
 .sidebar-source {
   display: flex;
@@ -3646,7 +3700,7 @@ async function send() {
 }
 .input-wrapper {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: 8px;
   border: 1px solid #e1dfdd;
   border-radius: 4px;
@@ -3679,6 +3733,10 @@ async function send() {
   padding: 0;
   outline: none;
   line-height: 1.5;
+  resize: none;
+  overflow-y: hidden;
+  max-height: 150px;
+  min-height: 21px;
 }
 .input-field::placeholder {
   color: #a19f9d;

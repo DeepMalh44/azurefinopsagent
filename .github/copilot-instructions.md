@@ -87,6 +87,7 @@ src/Dashboard/
 │   ├── HttpHelper.cs       # Shared HTTP helper — retry on 429, response formatting, telemetry
 │   ├── LogAnalyticsQueryTools.cs # QueryLogAnalytics — runs KQL queries against Log Analytics workspaces or App Insights
 │   ├── PresentationTools.cs # GeneratePresentation — generates FinOps PowerPoint (.pptx) using python-pptx + matplotlib
+│   ├── ScoreTools.cs       # ReportMaturityScore — LLM reports FinOps maturity scores (0-5) per Crawl/Walk/Run level
 │   └── TokenContext.cs     # UserTokens — per-user mutable token holder with volatile fields for concurrent access
 ├── Dockerfile              # Multi-stage Docker build (node:22 + dotnet/sdk:10.0 + dotnet/aspnet:10.0 + Python 3)
 ├── .dockerignore           # Excludes bin/, obj/, node_modules/, wwwroot/ from Docker context
@@ -99,7 +100,7 @@ src/Dashboard/
 │       ├── App.vue          # Always renders Dashboard — handles auth state, login/logout
 │       └── components/
 │           ├── Dashboard.vue     # Layout shell
-│           └── ChatView.vue      # Full chat UI: left sidebar (prompts, APIs, subscriptions), center chat, right sidebar (tool calls), ECharts
+│           └── ChatView.vue      # Full chat UI: left sidebar (Crawl/Walk/Run maturity categories with scoring), center chat, right sidebar (tool calls), ECharts
 ├── appsettings.json              # Base config (empty secrets — safe to commit)
 ├── appsettings.Local.json        # Local dev secrets (GITIGNORED)
 ├── appsettings.Production.json   # Production secrets (GITIGNORED)
@@ -180,6 +181,19 @@ When creating tools for the agent:
 - **GraphQueryTools** (`QueryGraph`) is **read-only** — GET only. calls Microsoft Graph API using `TokenContext.GraphToken`. Used for license inventory, M365 usage reports (Exchange, Teams, OneDrive, SharePoint), M365 Copilot seat usage, M365 app-level usage, Intune device management, directory objects, org structure for FinOps chargebacks.
 - **LogAnalyticsQueryTools** (`QueryLogAnalytics`) is **read-only** — runs KQL queries (POST to query API only) against Log Analytics workspaces or App Insights using `TokenContext.LogAnalyticsToken`. Used for VM/container metrics, diagnostics, cost attribution (AzureActivity table), and ingestion cost analysis.
 - **TokenContext** (`TokenContext.cs`) provides per-user mutable token storage via `UserTokens` — one instance per user in a `ConcurrentDictionary<long, UserTokens>`. Token fields use `volatile` for cross-thread visibility. A `SemaphoreSlim RefreshLock` serializes token refresh operations within a user session. `UserTokens` instances are passed to tool constructors via closure, so tools always read the latest tokens via direct reference.
+- **ScoreTools** (`ReportMaturityScore`) enables the LLM to report FinOps maturity scores after evaluating a level. The LLM uses `QueryAzure` to check dimensions (tagging, orphaned resources, Advisor, budgets, reservations, right-sizing, etc.), then calls `ReportMaturityScore` with a level (`crawl`, `walk`, `run`) and a JSON array of scores (0-5 per dimension with one-line reasons). Returns a `__MATURITY_SCORE__:{level}:{scoresJson}` marker. The SSE handler emits a `maturity_score` event, and the frontend updates star ratings in the sidebar category headers.
+
+## FinOps Maturity Framework (Crawl / Walk / Run)
+
+The sidebar organizes prompts into three maturity levels aligned with the FinOps Foundation framework:
+
+- **Crawl** (Visibility & Baseline) — Cost visibility, tagging audit, orphaned resource cleanup, Advisor recommendations, budget alerts, resource inventory. Horizontal — broad coverage.
+- **Walk** (Optimization & Governance) — Reservations & savings plans, right-sizing, dev/test savings, policy compliance, AHUB, storage optimization, workload-specific optimizations. Horizontal — executing optimizations broadly.
+- **Run** (Scale & Accountability) — Executive reporting, chargeback/showback, unit economics, cost allocation, anomaly detection, license optimization, AI/GPU cost analysis, carbon emissions, management group governance. Vertical — per-department ownership.
+
+Each level has a **"Score" prompt** as the first item. When clicked, the LLM uses `QueryAzure` to check each dimension, scores them 0-5, and calls `ReportMaturityScore`. The sidebar shows star ratings (★★★☆☆) per level. Users can re-score anytime by clicking "Score" again.
+
+A **Pricing & Estimates** category (no Azure login required) provides public pricing comparisons and cost estimations.
 
 ## Authentication
 
