@@ -1076,7 +1076,7 @@ const collapsedSections = reactive({
   crawl: true,
   walk: true,
   run: true,
-  pricing: true,
+  pricing: false,
 });
 function toggleSection(key) {
   collapsedSections[key] = !collapsedSections[key];
@@ -1177,6 +1177,7 @@ async function revokeAllPermissions() {
 watch(azureConnected, async (connected, wasConnected) => {
   if (!connected) return;
   collapsedSections.pricing = true;
+  collapsedSections.crawl = false;
   // Auto-clear chat when Azure connects — removes stale "Connect Azure first" messages
   // and resets the Copilot session so the LLM knows the user is now connected
   if (!wasConnected) await clearMessages();
