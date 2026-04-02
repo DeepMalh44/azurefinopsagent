@@ -3,7 +3,9 @@ using System.ComponentModel;
 using System.Text;
 using Microsoft.Extensions.AI;
 
-namespace AzureFinOps.Dashboard.Tools;
+using AzureFinOps.Dashboard.Infrastructure;
+
+namespace AzureFinOps.Dashboard.AI.Tools;
 
 /// <summary>
 /// Generates downloadable Azure CLI / PowerShell scripts from FinOps recommendations.
@@ -15,19 +17,8 @@ public static class ScriptTools
     // Store generated files for download: fileId → (path, created, content)
     internal static readonly ConcurrentDictionary<string, (string Path, DateTime Created, string Content)> GeneratedFiles = new();
 
-    // Cleanup files older than 30 minutes
-    internal static void CleanupOldFiles()
-    {
-        var cutoff = DateTime.UtcNow.AddMinutes(-30);
-        foreach (var kvp in GeneratedFiles)
-        {
-            if (kvp.Value.Created < cutoff)
-            {
-                GeneratedFiles.TryRemove(kvp.Key, out _);
-                try { File.Delete(kvp.Value.Path); } catch { }
-            }
-        }
-    }
+    internal static void CleanupOldFiles() =>
+        TempFileHelper.CleanupOldFiles(GeneratedFiles, v => v.Created, v => v.Path);
 
     public static IEnumerable<AIFunction> Create()
     {
@@ -83,10 +74,6 @@ Example header:
         return Task.FromResult($"__SCRIPT_READY__:{fileId}:{safeName}{ext}:{lineCount}:{lang}:{desc}");
     }
 
-    private static string SanitizeFilename(string name)
-    {
-        var invalid = Path.GetInvalidFileNameChars();
-        var sanitized = new string(name.Where(c => !invalid.Contains(c)).ToArray());
-        return string.IsNullOrWhiteSpace(sanitized) ? "finops-remediation" : sanitized;
-    }
+    private static string SanitizeFilename(string name) =>
+        TempFileHelper.SanitizeFilename(name, "finops-remediation");
 }

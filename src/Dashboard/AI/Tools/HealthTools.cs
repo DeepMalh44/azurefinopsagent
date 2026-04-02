@@ -3,7 +3,7 @@ using System.Text.Json;
 using System.Xml.Linq;
 using Microsoft.Extensions.AI;
 
-namespace AzureFinOps.Dashboard.Tools;
+namespace AzureFinOps.Dashboard.AI.Tools;
 
 public static class HealthTools
 {

@@ -3,7 +3,7 @@ using System.Text.Json;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 
-namespace AzureFinOps.Dashboard.Tools;
+namespace AzureFinOps.Dashboard.AI.Tools;
 
 public static class ChartTools
 {

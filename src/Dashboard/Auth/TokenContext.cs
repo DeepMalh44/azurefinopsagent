@@ -1,4 +1,4 @@
-namespace AzureFinOps.Dashboard.Tools;
+namespace AzureFinOps.Dashboard.Auth;
 
 /// <summary>
 /// Per-user mutable token holder. One instance per user, stored in a ConcurrentDictionary

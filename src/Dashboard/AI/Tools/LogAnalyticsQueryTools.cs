@@ -3,7 +3,10 @@ using System.Diagnostics;
 using System.Text.Json;
 using Microsoft.Extensions.AI;
 
-namespace AzureFinOps.Dashboard.Tools;
+using AzureFinOps.Dashboard.Auth;
+using AzureFinOps.Dashboard.Infrastructure;
+
+namespace AzureFinOps.Dashboard.AI.Tools;
 
 /// <summary>
 /// Queries Log Analytics workspaces and Application Insights via their direct query APIs.

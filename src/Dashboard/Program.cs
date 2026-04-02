@@ -9,7 +9,9 @@ using GitHub.Copilot.SDK;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.AI;
-using AzureFinOps.Dashboard.Tools;
+using AzureFinOps.Dashboard.Auth;
+using AzureFinOps.Dashboard.AI.Tools;
+using AzureFinOps.Dashboard.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -202,6 +204,15 @@ var userSessions = new ConcurrentDictionary<long, CopilotSession>();
 var userTokens = new ConcurrentDictionary<long, UserTokens>();
 var userTools = new ConcurrentDictionary<long, List<AIFunction>>();
 
+// OAuth tier → resource-specific scopes (single source of truth for both redirect and token exchange)
+string[] GetScopesForTier(string tier) => tier switch
+{
+    "licenses" => ["https://graph.microsoft.com/User.Read", "https://graph.microsoft.com/Organization.Read.All", "https://graph.microsoft.com/Reports.Read.All"],
+    "chargeback" => ["https://graph.microsoft.com/User.Read", "https://graph.microsoft.com/User.Read.All", "https://graph.microsoft.com/Group.Read.All"],
+    "loganalytics" => ["https://api.loganalytics.io/Data.Read"],
+    _ => ["https://management.azure.com/user_impersonation"]
+};
+
 // Normalize host for OAuth callbacks — strip "www." so callbacks always match
 // the registered redirect URIs (e.g. azure-finops-agent.com, not www.azure-finops-agent.com)
 string NormalizeCallbackHost(HttpContext ctx)
@@ -289,41 +300,8 @@ app.MapGet("/auth/microsoft", (HttpContext ctx) =>
 
     var redirectUri = $"{NormalizeCallbackHost(ctx)}/auth/microsoft/callback";
 
-    // Build scopes based on tier — each tier requests ONLY what it needs
-    var scopes = new List<string> { "openid", "profile", "email", "offline_access" };
-
-    switch (tier)
-    {
-        case "licenses":
-            // M365 License Optimization — "how many seats are paid vs used?"
-            // Organization.Read.All → subscribedSkus (license inventory)
-            // Reports.Read.All → usage reports (mailbox, Teams, Copilot — find unused seats)
-            scopes.Add("https://graph.microsoft.com/User.Read");
-            scopes.Add("https://graph.microsoft.com/Organization.Read.All");
-            scopes.Add("https://graph.microsoft.com/Reports.Read.All");
-            break;
-
-        case "chargeback":
-            // Cost Allocation / Chargeback — "which department spent what?"
-            // User.Read.All → user profiles with department/companyName
-            // Group.Read.All → groups for team-based cost mapping
-            scopes.Add("https://graph.microsoft.com/User.Read");
-            scopes.Add("https://graph.microsoft.com/User.Read.All");
-            scopes.Add("https://graph.microsoft.com/Group.Read.All");
-            break;
-
-        case "loganalytics":
-            // Log Analytics & App Insights — "VM metrics, ingestion cost analysis"
-            scopes.Add("https://api.loganalytics.io/Data.Read");
-            break;
-
-        default:
-            // Base: Azure ARM — "cost analysis, billing, advisor, resource graph"
-            scopes.Add("https://management.azure.com/user_impersonation");
-            break;
-    }
-
-    var scope = string.Join(" ", scopes);
+    // Build scopes: base OIDC + tier-specific resource scopes
+    var scope = string.Join(" ", ["openid", "profile", "email", "offline_access", .. GetScopesForTier(tier)]);
     // Base tier: select_account (just pick account)
     // Add-on tiers: consent (always show what new permissions are being granted)
     // Base tier: select_account unless force_consent was set (from revoke)
@@ -377,13 +355,7 @@ app.MapGet("/auth/microsoft/callback", async (HttpContext ctx, IHttpClientFactor
 
         // Token exchange scope must match the tier that was requested
         var authTier = ctx.Session.GetString("auth_tier") ?? "base";
-        var tokenExchangeScope = authTier switch
-        {
-            "licenses" => "openid profile email https://graph.microsoft.com/User.Read https://graph.microsoft.com/Organization.Read.All https://graph.microsoft.com/Reports.Read.All offline_access",
-            "chargeback" => "openid profile email https://graph.microsoft.com/User.Read https://graph.microsoft.com/User.Read.All https://graph.microsoft.com/Group.Read.All offline_access",
-            "loganalytics" => "openid profile email https://api.loganalytics.io/Data.Read offline_access",
-            _ => "openid profile email https://management.azure.com/user_impersonation offline_access"
-        };
+        var tokenExchangeScope = string.Join(" ", ["openid", "profile", "email", "offline_access", .. GetScopesForTier(authTier)]);
 
         tokenReq.Content = new FormUrlEncodedContent(new Dictionary<string, string>
         {

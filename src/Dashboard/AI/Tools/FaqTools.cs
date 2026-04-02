@@ -4,7 +4,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.AI;
 
-namespace AzureFinOps.Dashboard.Tools;
+namespace AzureFinOps.Dashboard.AI.Tools;
 
 /// <summary>
 /// Publishes useful public Q&As as SEO-indexable FAQ pages.

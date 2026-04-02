@@ -2,7 +2,10 @@ using System.ComponentModel;
 using System.Diagnostics;
 using Microsoft.Extensions.AI;
 
-namespace AzureFinOps.Dashboard.Tools;
+using AzureFinOps.Dashboard.Auth;
+using AzureFinOps.Dashboard.Infrastructure;
+
+namespace AzureFinOps.Dashboard.AI.Tools;
 
 /// <summary>
 /// Single tool for querying any Azure ARM API using the user's delegated access token.

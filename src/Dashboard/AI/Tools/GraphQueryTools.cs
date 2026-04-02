@@ -2,7 +2,10 @@ using System.ComponentModel;
 using System.Diagnostics;
 using Microsoft.Extensions.AI;
 
-namespace AzureFinOps.Dashboard.Tools;
+using AzureFinOps.Dashboard.Auth;
+using AzureFinOps.Dashboard.Infrastructure;
+
+namespace AzureFinOps.Dashboard.AI.Tools;
 
 /// <summary>
 /// Queries Microsoft Graph API using the user's delegated Graph token.

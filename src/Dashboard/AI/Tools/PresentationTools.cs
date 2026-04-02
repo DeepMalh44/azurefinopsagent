@@ -4,7 +4,9 @@ using System.Diagnostics;
 using System.Text.Json;
 using Microsoft.Extensions.AI;
 
-namespace AzureFinOps.Dashboard.Tools;
+using AzureFinOps.Dashboard.Infrastructure;
+
+namespace AzureFinOps.Dashboard.AI.Tools;
 
 /// <summary>
 /// Generates FinOps PowerPoint presentations using python-pptx.
@@ -19,19 +21,8 @@ public static class PresentationTools
     // Store generated files for download: fileId → absolute path
     internal static readonly ConcurrentDictionary<string, (string Path, DateTime Created)> GeneratedFiles = new();
 
-    // Cleanup files older than 30 minutes
-    internal static void CleanupOldFiles()
-    {
-        var cutoff = DateTime.UtcNow.AddMinutes(-30);
-        foreach (var kvp in GeneratedFiles)
-        {
-            if (kvp.Value.Created < cutoff)
-            {
-                GeneratedFiles.TryRemove(kvp.Key, out _);
-                try { File.Delete(kvp.Value.Path); } catch { }
-            }
-        }
-    }
+    internal static void CleanupOldFiles() =>
+        TempFileHelper.CleanupOldFiles(GeneratedFiles, v => v.Created, v => v.Path);
 
     public static IEnumerable<AIFunction> Create()
     {
@@ -412,12 +403,8 @@ print(f'SLIDES:{{len(slides_data)}}')
         return $"__PPTX_READY__:{fileId}:{safeName}.pptx:{slideCount}";
     }
 
-    private static string SanitizeFilename(string name)
-    {
-        var invalid = Path.GetInvalidFileNameChars();
-        var sanitized = new string(name.Where(c => !invalid.Contains(c)).ToArray());
-        return string.IsNullOrWhiteSpace(sanitized) ? "FinOps-Report" : sanitized;
-    }
+    private static string SanitizeFilename(string name) =>
+        TempFileHelper.SanitizeFilename(name, "FinOps-Report");
 
     private static string Truncate(string text, int maxLen) =>
         text.Length <= maxLen ? text : text[..maxLen] + "... (truncated)";

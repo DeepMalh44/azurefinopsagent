@@ -2,7 +2,7 @@ using System.Diagnostics;
 using System.Net.Http.Headers;
 using System.Text;
 
-namespace AzureFinOps.Dashboard.Tools;
+namespace AzureFinOps.Dashboard.Infrastructure;
 
 /// <summary>
 /// Shared HTTP helper for all API tools — handles retry on 429, response formatting, and telemetry.

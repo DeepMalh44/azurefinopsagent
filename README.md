@@ -1,147 +1,123 @@
 # Azure FinOps Agent
 
-An AI-powered conversational agent for Azure FinOps and InfraOps. Surface savings, forecast spend, query live tenant data, and generate executive-ready PowerPoint decks — from data to decision in minutes, not weeks.
+AI-powered conversational agent that turns Azure cost data into action. Connect your tenant, ask questions in natural language, and get live insights, interactive charts, executive-ready PowerPoint decks, and ready-to-run remediation scripts — what used to take months of FinOps work now takes days.
 
-**[Try it live →](https://azure-finops-agent.com)**
+**[Live demo →](https://azure-finops-agent.com)**
 
-![Azure FinOps Agent](assets/screenshot.jpg)
+![Azure FinOps Agent](assets/screenshot.png)
+
+## What It Does
+
+- **Ask anything about your Azure spend** — cost breakdowns, trends, forecasts, anomalies, idle resources, right-sizing opportunities
+- **Interactive visualizations** — bar, line, pie, scatter, funnel, world maps, heatmaps, treemaps, radar, and gauge charts rendered inline
+- **Generate PowerPoint decks** — executive-ready FinOps presentations with embedded charts, exported as `.pptx`
+- **Generate remediation scripts** — downloadable Azure CLI or PowerShell scripts with dry-run mode, confirmation prompts, and `--what-if` safety flags
+- **FinOps maturity assessment (Crawl / Walk / Run)** — structured scoring framework aligned with the FinOps Foundation, evaluating tagging, orphaned resources, reservations, budgets, right-sizing, cost allocation, and more — each dimension scored 0–5 with actionable recommendations to level up
+- **License optimization** — surface unused M365 seats, Copilot adoption gaps, and license waste across Exchange, Teams, OneDrive, and SharePoint
+- **Chargeback & showback** — map costs to departments, teams, and business units using Microsoft Graph directory data
+- **Log Analytics deep dives** — KQL queries against workspaces and App Insights for VM metrics, container diagnostics, and ingestion cost analysis
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                          Azure App Service                              │
-│                                                                         │
-│  ┌───────────────┐   SSE/POST   ┌────────────────────────────────────┐  │
-│  │  Vue 3 SPA    │◄────────────►│  .NET 10 Minimal API               │  │
-│  │  ECharts      │              │  GitHub Copilot SDK (BYOK)         │  │
-│  │  streaming UI │              │  Azure OpenAI                      │  │
-│  └───────────────┘              └──────────┬─────────────────────────┘  │
-│                                            │ orchestrates               │
-│                                  ┌─────────┴─────────┐                  │
-│                                  │    Agent Tools     │                  │
-│                                  └─────────┬─────────┘                  │
-└────────────────────────────────────────────┼────────────────────────────┘
-                                             │
-                 ┌───────────────────────────┼───────────────────────────┐
-                 │                           │                           │
-        ┌────────▼────────┐       ┌──────────▼──────────┐    ┌──────────▼──────────┐
-        │  Azure ARM APIs │       │  Microsoft Graph    │    │  Log Analytics      │
-        │  Cost Mgmt      │       │  Licenses, M365     │    │  KQL queries        │
-        │  Billing        │       │  Directory, Org     │    │  App Insights       │
-        │  Advisor        │       │  Usage reports      │    │  VM/container data  │
-        │  Resource Graph │       └─────────────────────┘    └─────────────────────┘
-        │  Monitor, VMs   │
-        │  Reservations   │       ┌─────────────────────┐    ┌─────────────────────┐
-        │  Savings Plans  │       │  Azure Retail       │    │  Azure Status       │
-        │  + 30 more...   │       │  Prices API         │    │  RSS Feed           │
-        └─────────────────┘       │  (no auth)          │    │  (no auth)          │
-                                  └─────────────────────┘    └─────────────────────┘
+┌────────────────────────────────────────────────────────────────────────────┐
+│                     Azure App Service (Docker, Linux P0v3)                 │
+│                                                                            │
+│  ┌────────────────────┐    SSE/POST    ┌────────────────────────────────┐  │
+│  │   Vue 3 + Vite     │◄─────────────►│   .NET 10 Minimal API          │  │
+│  │   ECharts          │               │   GitHub Copilot SDK (BYOK)    │  │
+│  │   App Insights JS  │               │   Azure OpenAI via Entra ID    │  │
+│  └────────────────────┘               └───────────────┬────────────────┘  │
+│                                                       │ orchestrates       │
+│                                             ┌─────────┴──────────┐        │
+│                                             │    11 Agent Tools   │        │
+│                                             └─────────┬──────────┘        │
+│                                                       │                    │
+│  ┌─ Auth ──────────────────────────────────────────────┤                   │
+│  │  Entra ID OAuth (multi-tenant, incremental consent) │                   │
+│  │  4 tiers: ARM · Graph (2×) · Log Analytics          │                   │
+│  └─────────────────────────────────────────────────────┘                   │
+│                                                                            │
+│  ┌─ Observability ─────────────────────────────────────┐                   │
+│  │  OpenTelemetry · Azure Monitor · Application Insights│                  │
+│  └──────────────────────────────────────────────────────┘                  │
+└───────────────────────────────────┬────────────────────────────────────────┘
+                                    │
+          ┌─────────────────────────┼─────────────────────────┐
+          │                         │                         │
+ ┌────────▼─────────┐    ┌─────────▼──────────┐    ┌─────────▼──────────┐
+ │  Azure ARM APIs  │    │  Microsoft Graph   │    │  Log Analytics     │
+ │  ────────────────│    │  ─────────────────  │    │  ─────────────────  │
+ │  Cost Management │    │  License inventory │    │  KQL queries       │
+ │  Billing         │    │  M365 usage reports│    │  App Insights      │
+ │  Advisor         │    │  Directory / Org   │    │  VM & container    │
+ │  Resource Graph  │    │  Copilot seat usage│    │    metrics         │
+ │  Monitor / VMs   │    │  Intune devices    │    │  Ingestion cost    │
+ │  Reservations    │    └────────────────────┘    │    analysis        │
+ │  Savings Plans   │                              └────────────────────┘
+ │  AKS / Storage   │    ┌────────────────────┐    ┌────────────────────┐
+ │  SQL / Cosmos DB  │    │  Azure Retail      │    │  Azure Status      │
+ │  App Service     │    │  Prices API        │    │  RSS Feed          │
+ │  + 20 more...    │    │  (no auth)         │    │  (no auth)         │
+ └──────────────────┘    └────────────────────┘    └────────────────────┘
 ```
 
-The agent follows an **agentic architecture** — the LLM autonomously orchestrates tool calls across Azure APIs, Graph, and Log Analytics to answer user questions. Responses stream via SSE with inline ECharts visualizations, tool call status in a sidebar, and downloadable PowerPoint decks.
+### Tools
 
-### Tech Stack
+| Tool                    | What it does                                                                                                                 |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `QueryAzure`            | ARM REST (GET + read-only POST) — Cost Mgmt, Billing, Advisor, Resource Graph, Monitor, VMs, AKS, Storage, SQL, 30+ services |
+| `QueryGraph`            | Graph GET — license inventory, M365 usage, directory, org chargebacks                                                        |
+| `QueryLogAnalytics`     | KQL against Log Analytics / App Insights                                                                                     |
+| `RenderChart`           | Inline ECharts (bar, line, pie, scatter, funnel, maps, heatmaps, treemaps, radar, gauge)                                     |
+| `GeneratePresentation`  | FinOps PowerPoint decks (python-pptx + matplotlib)                                                                           |
+| `GenerateScript`        | Downloadable Azure CLI / PowerShell remediation scripts                                                                      |
+| `ReportMaturityScore`   | FinOps maturity scoring (Crawl / Walk / Run, 0–5 per dimension)                                                              |
+| `GetAzureServiceHealth` | Azure Status RSS (no auth)                                                                                                   |
+| `PublishFAQ`            | Dynamic SEO pages + IndexNow                                                                                                 |
+| `SuggestFollowUp`       | Clickable follow-up actions                                                                                                  |
+| _Built-in (SDK)_        | bash, Python 3, file ops, web fetch, grep, glob, memory                                                                      |
 
-| Layer             | Technology                                                   |
-| ----------------- | ------------------------------------------------------------ |
-| **Frontend**      | Vue 3 + Vite, ECharts                                        |
-| **Backend**       | .NET 10 minimal API                                          |
-| **AI**            | GitHub Copilot SDK, Azure OpenAI (BYOK via Entra ID)         |
-| **Auth**          | Microsoft Entra ID OAuth (multi-tenant, incremental consent) |
-| **Observability** | OpenTelemetry + Azure Monitor / Application Insights         |
-| **Deployment**    | Docker → ACR → Azure App Service (Linux P0v3)                |
+### Auth & Security
 
-### Agent Tools
+No login required for chat. Azure data via incremental OAuth consent:
 
-| Tool                    | Purpose                                                                                                                                                                                                                             |
-| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `QueryAzure`            | Azure ARM REST APIs (GET + read-only POST) — Cost Management, Billing, Advisor, Resource Graph, Monitor, Reservations, Savings Plans, VMs, AKS, Storage, SQL, and 30+ services. **Read-only** — write methods blocked at code level |
-| `QueryGraph`            | Microsoft Graph (GET only) — license inventory, M365 usage reports, directory objects, org structure for chargebacks                                                                                                                |
-| `QueryLogAnalytics`     | KQL queries against Log Analytics workspaces and App Insights                                                                                                                                                                       |
-| `RenderChart`           | ECharts visualizations inline (bar, line, pie, scatter, funnel, world maps, heatmaps, treemaps, radar, gauge)                                                                                                                       |
-| `GeneratePresentation`  | FinOps PowerPoint decks via python-pptx + matplotlib                                                                                                                                                                                |
-| `GetAzureServiceHealth` | Azure Status RSS feed (no auth)                                                                                                                                                                                                     |
-| `PublishFAQ`            | Dynamic SEO FAQ pages with IndexNow                                                                                                                                                                                                 |
-| `SuggestFollowUp`       | Clickable follow-up action buttons                                                                                                                                                                                                  |
-| _Built-in (SDK)_        | bash, Python 3, file ops, web fetch, grep, glob, memory                                                                                                                                                                             |
+| Tier                   | Scopes                                      |
+| ---------------------- | ------------------------------------------- |
+| Connect Azure          | `user_impersonation` (ARM)                  |
+| + License Optimization | `Organization.Read.All`, `Reports.Read.All` |
+| + Cost Allocation      | `User.Read.All`, `Group.Read.All`           |
+| + Log Analytics        | `Data.Read`                                 |
 
-### Auth Model
-
-No login required for chat. Users connect Azure data via incremental OAuth consent:
-
-1. **Connect Azure** → ARM token (`user_impersonation`)
-2. **+ License Optimization** → Graph token (`Organization.Read.All`, `Reports.Read.All`)
-3. **+ Cost Allocation** → Graph token (`User.Read.All`, `Group.Read.All`)
-4. **+ Log Analytics** → Log Analytics token (`Data.Read`)
-
-Each tier shows a dedicated Microsoft Entra ID consent screen — minimal permissions upfront.
-
-### Security Model
-
-This agent is **strictly read-only** — it cannot create, modify, or delete any Azure resources:
-
-- **HTTP method whitelist**: Only GET and POST allowed. PUT, PATCH, DELETE rejected (HTTP 400).
-- **POST path allowlist**: Only read-only endpoints permitted (`/query`, `/forecast`, `/resources`, `/generateCostDetailsReport`, etc.). Mutating actions blocked (HTTP 403).
-- **OAuth scopes**: All Graph and Log Analytics scopes are read-only by definition. ARM's `user_impersonation` is further restricted by the code-level allowlist.
-- **Recommended RBAC**: Assign `Reader` or `Cost Management Reader` roles for defense-in-depth.
-
-## Getting Started
-
-**Prerequisites:** [.NET 10 SDK](https://dotnet.microsoft.com/download), [Node.js LTS](https://nodejs.org/), Microsoft Entra ID app registration
-
-```powershell
-# 1. Create the Entra ID app registration (one-time setup)
-cd src/Dashboard
-.\setup-entra-app.ps1 -ProductionUrl "https://your-app.azurewebsites.net"
-# Copy the output values into appsettings.Local.json
-
-# 2. Build frontend & start backend
-cd client && npm install && npm run build && cd ..
-$env:ASPNETCORE_ENVIRONMENT="Development"
-dotnet run --urls "http://localhost:5000"
-```
-
-### Deploy
-
-**Docker (recommended):**
-
-```powershell
-cd src/Dashboard
-az acr build --registry <your-acr> --image finops-agent:latest --platform linux/amd64 .
-az webapp restart --name <your-app> --resource-group <your-rg>
-```
-
-**Zip deploy:**
-
-```powershell
-.\deploy.ps1 -ResourceGroup "rg-finops-agent" -AppName "finops-agent"
-```
+**Strictly read-only** — PUT/PATCH/DELETE blocked at code level. POST restricted to allowlisted read-only endpoints. Recommended RBAC: `Reader` or `Cost Management Reader`.
 
 ## Project Structure
 
 ```
 src/Dashboard/
-├── Program.cs              # Auth, SSE chat endpoint, middleware
-├── Tools/                  # Agent tool implementations
-│   ├── AzureQueryTools.cs  # ARM REST APIs (delegated token)
-│   ├── GraphQueryTools.cs  # Microsoft Graph (delegated token)
-│   ├── LogAnalyticsQueryTools.cs  # KQL (delegated token)
-│   ├── ChartTools.cs       # ECharts rendering
-│   ├── PresentationTools.cs  # PowerPoint generation
-│   ├── HealthTools.cs      # Azure Status RSS
-│   ├── FaqTools.cs         # SEO FAQ pages
-│   ├── FollowUpTools.cs    # Follow-up suggestions
-│   ├── ScoreTools.cs       # FinOps maturity scoring (Crawl/Walk/Run)
-│   ├── HttpHelper.cs       # Shared HTTP helper (retry, formatting)
-│   └── TokenContext.cs     # Per-user token management
-├── client/                 # Vue 3 + Vite SPA
+├── Program.cs                  # App startup, auth, SSE chat endpoint
+├── Auth/
+│   └── TokenContext.cs         # Per-user token management
+├── AI/Tools/
+│   ├── AzureQueryTools.cs      # ARM REST APIs
+│   ├── GraphQueryTools.cs      # Microsoft Graph
+│   ├── LogAnalyticsQueryTools.cs
+│   ├── ChartTools.cs           # ECharts rendering
+│   ├── PresentationTools.cs    # PowerPoint generation
+│   ├── ScoreTools.cs           # FinOps maturity scoring
+│   ├── ScriptTools.cs          # Remediation scripts
+│   ├── HealthTools.cs          # Azure Status RSS
+│   ├── FaqTools.cs             # SEO FAQ pages
+│   └── FollowUpTools.cs        # Follow-up suggestions
+├── Infrastructure/
+│   ├── HttpHelper.cs           # HTTP retry + formatting
+│   └── TempFileHelper.cs       # Temp file cleanup
+├── client/                     # Vue 3 + Vite SPA
 │   └── src/components/
-│       ├── ChatView.vue    # Chat UI, tool sidebar, ECharts
-│       └── Dashboard.vue   # Layout shell
-├── Dockerfile              # Multi-stage (Node → .NET → runtime + Python)
-├── setup-entra-app.ps1     # Entra ID app registration setup (one-time)
-└── deploy.ps1              # Zip deployment script
+│       ├── ChatView.vue        # Chat UI, tool sidebar, ECharts
+│       └── Dashboard.vue       # Layout shell
+├── Dockerfile                  # Multi-stage (Node → .NET → runtime + Python)
+└── setup-entra-app.ps1         # Entra ID app registration
 ```
 
 ## Contributing
@@ -151,11 +127,3 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). This project uses the [Microsoft Open So
 ## License
 
 [MIT](LICENSE)
-
-## Disclaimers
-
-This Software requires the use of third-party components which are governed by separate proprietary or open-source licenses as identified below, and you must comply with the terms of each applicable license in order to use the Software. You acknowledge and agree that this license does not grant you a license or other right to use any such third-party proprietary or open-source components.
-
-To the extent that the Software includes components or code used in or derived from Microsoft products or services, including without limitation Microsoft Azure Services (collectively, "Microsoft Products and Services"), you must also comply with the Product Terms applicable to such Microsoft Products and Services. You acknowledge and agree that the license governing the Software does not grant you a license or other right to use Microsoft Products and Services. Nothing in the license or this ReadMe file will serve to supersede, amend, terminate or modify any terms in the Product Terms for any Microsoft Products and Services.
-
-You must also comply with all domestic and international export laws and regulations that apply to the Software, which include restrictions on destinations, end users, and end use. For further information on export restrictions, visit https://aka.ms/exporting.
