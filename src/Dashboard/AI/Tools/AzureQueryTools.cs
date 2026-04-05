@@ -24,7 +24,9 @@ public class AzureQueryTools
         "/query",                              // Cost Management cost/forecast queries
         "/forecast",                           // Cost Management forecast
         "/generatecostdetailsreport",          // Cost Details report (replaces usageDetails)
+        "/generatedetailedcostreport",         // Detailed Cost Report (separate from Cost Details)
         "/generatereservationdetailsreport",   // Reservation utilization line-item report
+        "/generatebenefitutilizationsummariesreport", // Benefit utilization summaries report
         "/resources",                          // Resource Graph KQL queries
         "/calculateprice",                     // Reservation/Savings Plan price simulation
         "/calculateexchange",                  // Reservation exchange simulation
@@ -32,6 +34,7 @@ public class AzureQueryTools
         "/carbonemissionreports",              // Carbon emission reports
         "/getentities",                        // Management Group entity listing
         "/summarize",                          // Policy Insights summarization
+        "/pricesheets/download",               // CostManagement price sheet download
     };
 
     private static bool IsReadOnlyPost(string path)
@@ -48,46 +51,159 @@ public class AzureQueryTools
 Base: https://management.azure.com — provide path starting with /.
 Allowed methods: GET (any path) and POST (restricted to read-only query/report endpoints only — e.g. /query, /forecast, /resources, /generateCostDetailsReport, /calculatePrice, /carbonEmissionReports). POST to mutating endpoints (deallocate, start, restart, delete, etc.) will be rejected.
 DATA SCOPING: For Cost Management POST .../query, ALWAYS use grouping (ServiceName, ResourceGroup, MeterCategory) and date granularity (Daily/Monthly). Never request raw ungrouped cost data. For Resource Graph POST .../resources, use KQL 'project' and 'top 20' — never select all columns. For list APIs (VMs, storage, etc.), results are already scoped by subscription.
-COST MGMT (Microsoft.CostManagement): POST /{scope}/.../query — cost analysis; /.../forecast; /.../generateCostDetailsReport — line-item cost data (replaces Consumption usageDetails); /.../generateReservationDetailsReport — reservation utilization line-item; GET /.../alerts; /.../dimensions; /.../benefitUtilizationSummaries; /.../benefitRecommendations; /.../costAllocationRules — split shared costs across scopes.
-BUDGETS (Microsoft.Consumption): GET /{scope}/.../budgets — list budgets and spend-vs-budget status.
-COST EXPORTS (Microsoft.CostManagement): GET /{scope}/.../exports — list scheduled cost data exports to storage.
-SCHEDULED ACTIONS (Microsoft.CostManagement): GET /{scope}/.../scheduledActions — scheduled cost alert emails and reports.
-COST VIEWS (Microsoft.CostManagement): GET /{scope}/.../views — pre-saved cost analysis views.
-BILLING (Microsoft.Billing): GET .../billingAccounts; .../billingProfiles; .../invoiceSections; .../invoices; .../transactions; .../billingSubscriptions; .../departments; .../enrollmentAccounts; .../customers.
-CONSUMPTION (Microsoft.Consumption): GET /{scope}/.../pricesheets; .../reservationSummaries; .../reservationRecommendations; .../reservationTransactions; .../lots; .../credits; .../balances; .../charges; .../marketplaces — third-party Marketplace charges. NOTE: usageDetails is deprecated — prefer generateCostDetailsReport (Cost Details API 2025-03-01) or Exports. reservationDetails is deprecated — prefer generateReservationDetailsReport.
-RESERVATIONS (Microsoft.Capacity): GET .../reservationOrders; .../reservations; .../catalog; POST .../calculatePrice; .../calculateExchange — simulate exchange/return costs (read-only calculations).
-SAVINGS PLANS (Microsoft.BillingBenefits): GET .../savingsPlanOrders; .../savingsPlans; POST .../calculatePrice; .../validatePurchase.
-ADVISOR (Microsoft.Advisor): GET /subscriptions/{id}/.../recommendations?$filter=Category eq 'Cost'.
-RESOURCE GRAPH (Microsoft.ResourceGraph): POST .../resources — KQL across subs (body: {query,subscriptions}).
-MONITOR (Microsoft.Insights): GET /{resourceId}/.../metrics; .../metricDefinitions; .../metricBaselines; .../diagnosticSettings; .../autoscaleSettings.
-ACTIVITY LOG (Microsoft.Insights): GET /{scope}/.../eventtypes/management/values?$filter=eventTimestamp ge '...' — who created/deleted/modified resources (cost attribution audit trail).
-COMPUTE: GET /subscriptions/{id}/.../virtualMachines — list VMs; .../virtualMachineScaleSets — VMSS instances for right-sizing; .../skus — VM sizes per region; .../disks — managed disks (find unattached/orphaned disks).
-AKS (Microsoft.ContainerService): GET /subscriptions/{id}/.../managedClusters — AKS clusters and node pool sizing for cost optimization.
-NETWORK (Microsoft.Network): GET /subscriptions/{id}/.../virtualNetworks; .../publicIPAddresses; .../loadBalancers; .../applicationGateways; .../expressRouteCircuits; .../vpnGateways; .../natGateways; .../azureFirewalls; .../privateEndpoints — high-cost network resources.
-STORAGE (Microsoft.Storage): GET /subscriptions/{id}/.../storageAccounts — storage tier optimization, lifecycle policies, access tier analysis.
-SQL (Microsoft.Sql): GET /subscriptions/{id}/.../servers — SQL servers; .../servers/{name}/databases — DTU/vCore right-sizing.
-APP SERVICE (Microsoft.Web): GET /subscriptions/{id}/.../serverfarms — App Service plans for right-sizing; .../sites — web apps and function apps.
-LOG ANALYTICS (Microsoft.OperationalInsights): GET /subscriptions/{id}/.../workspaces — Log Analytics workspaces; .../workspaces/{name}/usages — data ingestion volume per table; .../workspaces/{name}/tables — table retention and ingestion plans (Analytics/Basic/Archive).
-AZURE ML (Microsoft.MachineLearningServices): GET /subscriptions/{id}/.../workspaces — ML workspaces; .../workspaces/{name}/computes — compute instances, clusters, GPU VMs for cost optimization and right-sizing; .../workspaces/{name}/onlineEndpoints — managed endpoints; .../workspaces/{name}/batchEndpoints.
-DATABRICKS (Microsoft.Databricks): GET /subscriptions/{id}/.../workspaces — Databricks workspaces, pricing tier (standard/premium), managed RG for cost analysis; compare Databricks compute vs Azure ML compute vs standalone VM clusters.
-SQL MI (Microsoft.Sql): GET /subscriptions/{id}/.../managedInstances — SQL Managed Instances for vCore right-sizing and cost optimization.
-COSMOS DB (Microsoft.DocumentDB): GET /subscriptions/{id}/.../databaseAccounts — Cosmos DB accounts; .../databaseAccounts/{name}/sqlDatabases — databases with throughput (RU/s) for cost optimization, autoscale vs manual analysis.
-REDIS (Microsoft.Cache): GET /subscriptions/{id}/.../redis — Redis Cache instances, tier (Basic/Standard/Premium) and capacity right-sizing.
-DATA FACTORY (Microsoft.DataFactory): GET /subscriptions/{id}/.../factories — ADF instances; .../factories/{name}/pipelines — pipeline inventory for cost attribution.
-SYNAPSE (Microsoft.Synapse): GET /subscriptions/{id}/.../workspaces — Synapse workspaces; .../workspaces/{name}/sqlPools — dedicated SQL pools (DWU right-sizing); .../workspaces/{name}/bigDataPools — Spark pools.
-CONTAINER APPS (Microsoft.App): GET /subscriptions/{id}/.../containerApps — Container Apps; .../managedEnvironments — environments for cost analysis.
-RESOURCE HEALTH (Microsoft.ResourceHealth): GET /{resourceId}/.../availabilityStatuses.
-SECURITY (Microsoft.Security): GET /subscriptions/{id}/.../assessments — Defender for Cloud security assessments (identify exposed idle resources); .../secureScores — security posture.
-SUBSCRIPTIONS: GET /subscriptions.
-QUOTA (Microsoft.Quota): GET /{scope}/.../quotas.
-CARBON (Microsoft.Carbon): POST .../carbonEmissionReports (preview).
-POLICY (Microsoft.Authorization): GET /{scope}/.../policyDefinitions; .../policyAssignments; (Microsoft.PolicyInsights) .../policyStates/latest/summarize.
-RBAC (Microsoft.Authorization): GET /{scope}/.../roleAssignments — role assignments for cost governance audit; .../roleDefinitions.
-LOCKS (Microsoft.Authorization): GET /{scope}/.../locks — resource locks to prevent accidental deletion of critical resources.
-MGMT GROUPS (Microsoft.Management): GET .../managementGroups; .../descendants; POST .../getEntities.
-TAGS (Microsoft.Resources): GET /subscriptions/{id}/tagNames.
-MIGRATE (Microsoft.Migrate): GET .../migrateProjects; .../assessments; .../assessedMachines.
-SUPPORT (Microsoft.Support): GET .../supportTickets; .../services.
+
+=== API VERSIONS REFERENCE (use these exact api-version values) ===
+Microsoft.CostManagement: 2025-03-01 (query, forecast, exports, views, alerts, scheduledActions, dimensions, benefitUtilizationSummaries, benefitRecommendations, costAllocationRules, generateCostDetailsReport, generateDetailedCostReport, generateReservationDetailsReport, generateBenefitUtilizationSummariesReport, priceSheet, settings)
+Microsoft.Consumption: 2024-08-01 (budgets, pricesheets, reservationSummaries, reservationRecommendations, lots, credits, balances, charges, marketplaces)
+Microsoft.Billing: 2024-04-01 (billingAccounts, invoices, billingSubscriptions, billingProfiles, invoiceSections, departments, enrollmentAccounts)
+Microsoft.Capacity: 2022-11-01 (reservationOrders, reservations, catalog, calculatePrice, calculateExchange)
+Microsoft.BillingBenefits: 2022-11-01 (savingsPlanOrders, savingsPlans, calculatePrice, validatePurchase)
+Microsoft.Advisor: 2025-01-01 (recommendations)
+Microsoft.ResourceGraph: 2022-10-01 (resources POST query)
+Microsoft.Insights (metrics): 2023-10-01 (metrics, metricDefinitions, metricBaselines)
+Microsoft.Insights (diagnostics): 2021-05-01-preview (diagnosticSettings)
+Microsoft.Insights (autoscale): 2022-10-01 (autoscaleSettings)
+Microsoft.Insights (activity log): 2015-04-01 (eventtypes/management/values)
+Microsoft.Compute (VMs/VMSS): 2025-04-01 (virtualMachines, virtualMachineScaleSets)
+Microsoft.Compute (Disks): 2025-01-02 (disks, snapshots)
+Microsoft.Compute (SKUs): 2021-07-01 (skus — VM sizes per region, use $filter=location eq '{region}')
+Microsoft.Compute (Usage): 2025-04-01 (locations/{region}/usages — quota usage per family)
+Microsoft.ContainerService: 2026-01-01 (managedClusters — AKS)
+Microsoft.Network: 2025-05-01 (virtualNetworks, publicIPAddresses, loadBalancers, applicationGateways, expressRouteCircuits, vpnGateways, natGateways, azureFirewalls, privateEndpoints)
+Microsoft.Storage: 2025-06-01 (storageAccounts)
+Microsoft.Sql: 2025-01-01 (servers, databases, managedInstances — now GA)
+Microsoft.Web: 2024-04-01 (serverfarms, sites)
+Microsoft.OperationalInsights: 2025-07-01 (workspaces, tables, usages)
+Microsoft.MachineLearningServices: 2025-12-01 (workspaces, computes, onlineEndpoints, batchEndpoints)
+Microsoft.Databricks: 2026-01-01 (workspaces)
+Microsoft.DocumentDB: 2025-10-15 (databaseAccounts, sqlDatabases — Cosmos DB)
+Microsoft.Cache: 2024-11-01 (redis)
+Microsoft.DataFactory: 2018-06-01 (factories, pipelines)
+Microsoft.Synapse: 2021-06-01 (workspaces, sqlPools, bigDataPools)
+Microsoft.App: 2026-01-01 (containerApps, managedEnvironments)
+Microsoft.ResourceHealth: 2024-02-01 (availabilityStatuses)
+Microsoft.Security: 2020-01-01 (assessments, secureScores)
+Microsoft.Authorization (RBAC): 2022-04-01 (roleAssignments, roleDefinitions)
+Microsoft.Authorization (Policy): 2023-04-01 (policyDefinitions, policyAssignments)
+Microsoft.Authorization (Locks): 2020-05-01 (locks)
+Microsoft.PolicyInsights: 2024-10-01 (policyStates)
+Microsoft.Management: 2020-05-01 (managementGroups, descendants, getEntities)
+Microsoft.Resources: 2022-12-01 (subscriptions); 2021-04-01 (tagNames, resourceGroups, resources)
+Microsoft.Quota: 2025-09-01 (quotas, usages, quotaRequests — scope: /subscriptions/{subId}/providers/Microsoft.Compute/locations/{region}/providers/Microsoft.Quota/quotas)
+Microsoft.Carbon: 2025-04-01 (carbonEmissionReports)
+Microsoft.Migrate: 2024-01-15 (migrateProjects, assessments, assessedMachines)
+Microsoft.Support: 2024-04-01 (supportTickets, services)
+
+=== COST MANAGEMENT (Microsoft.CostManagement, api-version=2025-03-01) ===
+POST /{scope}/providers/Microsoft.CostManagement/query — cost analysis with grouping/filtering. POST /{scope}/providers/Microsoft.CostManagement/forecast — forecast. POST /{scope}/providers/Microsoft.CostManagement/generateCostDetailsReport — line-item cost data (replaces Consumption usageDetails). POST /{scope}/providers/Microsoft.CostManagement/generateDetailedCostReport — detailed cost report (async; separate from generateCostDetailsReport). POST /{scope}/providers/Microsoft.CostManagement/generateReservationDetailsReport — reservation utilization line-item. POST /{scope}/providers/Microsoft.CostManagement/generateBenefitUtilizationSummariesReport — triggers async benefit utilization summaries report. GET /{scope}/providers/Microsoft.CostManagement/alerts — cost anomaly alerts. GET /{scope}/providers/Microsoft.CostManagement/dimensions — available dimensions for queries. GET /{scope}/providers/Microsoft.CostManagement/benefitUtilizationSummaries — reservation/savings plan utilization. GET /{scope}/providers/Microsoft.CostManagement/benefitRecommendations — purchase recommendations. GET /{scope}/providers/Microsoft.CostManagement/costAllocationRules — split shared costs across scopes. GET /{scope}/providers/Microsoft.CostManagement/exports — scheduled cost data exports to storage. GET /{scope}/providers/Microsoft.CostManagement/scheduledActions — scheduled cost alert emails/reports. GET /{scope}/providers/Microsoft.CostManagement/views — pre-saved cost analysis views. GET /{scope}/providers/Microsoft.CostManagement/settings — cost management settings per scope. POST .../pricesheets/download — download price sheets by billing account/profile/invoice.
+
+=== BUDGETS (Microsoft.Consumption, api-version=2024-08-01) ===
+GET /{scope}/providers/Microsoft.Consumption/budgets?api-version=2024-08-01 — list all budgets for a scope; returns budget name, amount, time grain (Monthly/Quarterly/Annually), current spend vs limit, and notification thresholds. GET /{scope}/providers/Microsoft.Consumption/budgets/{budgetName}?api-version=2024-08-01 — get specific budget details including spend-to-date and forecast.
+
+=== BILLING (Microsoft.Billing, api-version=2024-04-01) ===
+GET /providers/Microsoft.Billing/billingAccounts?api-version=2024-04-01 — list all billing accounts (EA enrollment, MCA, MPA). GET /providers/Microsoft.Billing/billingAccounts/{billingAccountId}/billingProfiles?api-version=2024-04-01 — billing profiles (MCA payment instruments). GET /providers/Microsoft.Billing/billingAccounts/{billingAccountId}/billingProfiles/{profileId}/invoiceSections?api-version=2024-04-01 — invoice sections for cost grouping. GET /providers/Microsoft.Billing/billingAccounts/{billingAccountId}/invoices?api-version=2024-04-01 — list invoices with amounts, due dates, PDF download links. GET /providers/Microsoft.Billing/billingAccounts/{billingAccountId}/transactions?api-version=2024-04-01 — individual billing transactions. GET /providers/Microsoft.Billing/billingAccounts/{billingAccountId}/billingSubscriptions?api-version=2024-04-01 — subscriptions under billing account with status and spend. GET /providers/Microsoft.Billing/billingAccounts/{billingAccountId}/departments?api-version=2024-04-01 — EA departments. GET /providers/Microsoft.Billing/billingAccounts/{billingAccountId}/enrollmentAccounts?api-version=2024-04-01 — EA enrollment accounts. GET /providers/Microsoft.Billing/billingAccounts/{billingAccountId}/customers?api-version=2024-04-01 — CSP partner customers.
+
+=== CONSUMPTION (Microsoft.Consumption, api-version=2024-08-01) ===
+GET /{scope}/providers/Microsoft.Consumption/pricesheets/default?api-version=2024-08-01 — negotiated price sheet for EA/MCA (meter rates, unit prices). GET /{scope}/providers/Microsoft.Consumption/reservationSummaries?grain=daily&api-version=2024-08-01 — reservation utilization summary (daily/monthly grain). GET /{scope}/providers/Microsoft.Consumption/reservationRecommendations?api-version=2024-08-01 — purchase recommendations based on usage patterns (single/shared scope, 1yr/3yr). GET /{scope}/providers/Microsoft.Consumption/reservationTransactions?api-version=2024-08-01 — reservation buy/exchange/refund transactions. GET /providers/Microsoft.Billing/billingAccounts/{id}/providers/Microsoft.Consumption/lots?api-version=2024-08-01 — Azure prepayment (monetary commitment) lot balances. GET /providers/Microsoft.Billing/billingAccounts/{id}/providers/Microsoft.Consumption/credits?api-version=2024-08-01 — Azure credit balance and expiry. GET /providers/Microsoft.Billing/billingAccounts/{id}/providers/Microsoft.Consumption/balances?api-version=2024-08-01 — EA monetary commitment balance summary. GET /{scope}/providers/Microsoft.Consumption/charges?api-version=2024-08-01 — charges by department/enrollment account. GET /{scope}/providers/Microsoft.Consumption/marketplaces?api-version=2024-08-01 — third-party Marketplace charges with publisher, plan, cost. NOTE: usageDetails is deprecated — prefer generateCostDetailsReport or Exports. reservationDetails is deprecated — prefer generateReservationDetailsReport.
+
+=== RESERVATIONS (Microsoft.Capacity, api-version=2022-11-01) ===
+GET /providers/Microsoft.Capacity/reservationOrders?api-version=2022-11-01 — list all reservation orders (purchase records with term, quantity, billing scope). GET /providers/Microsoft.Capacity/reservationOrders/{orderId}/reservations?api-version=2022-11-01 — individual reservations within an order (utilization %, expiry, applied scope). GET /subscriptions/{id}/providers/Microsoft.Capacity/catalogs?api-version=2022-11-01&reservedResourceType=VirtualMachines&location={region} — available reservation catalog for a resource type and region. POST /providers/Microsoft.Capacity/calculatePrice?api-version=2022-11-01 — simulate reservation purchase price without buying (body: {sku, term, quantity, location}). POST /providers/Microsoft.Capacity/calculateExchange?api-version=2022-11-01 — simulate exchange/return costs (body: {reservationsToExchange, reservationsToReturn}).
+
+=== SAVINGS PLANS (Microsoft.BillingBenefits, api-version=2022-11-01) ===
+GET /providers/Microsoft.BillingBenefits/savingsPlanOrders?api-version=2022-11-01 — list all savings plan orders (commitment amount, term, billing scope). GET /providers/Microsoft.BillingBenefits/savingsPlanOrders/{orderId}/savingsPlans?api-version=2022-11-01 — individual savings plans with utilization %, committed hourly amount, applied scope. POST /providers/Microsoft.BillingBenefits/savingsPlanOrders/calculatePrice?api-version=2022-11-01 — simulate savings plan purchase price. POST /providers/Microsoft.BillingBenefits/savingsPlanOrders/validatePurchase?api-version=2022-11-01 — validate purchase eligibility without committing.
+
+=== ADVISOR (Microsoft.Advisor, api-version=2025-01-01) ===
+GET /subscriptions/{id}/providers/Microsoft.Advisor/recommendations?api-version=2025-01-01&$filter=Category eq 'Cost' — cost optimization recommendations (right-size VMs, shut down idle, buy reservations, delete orphaned resources). Also supports $filter=Category eq 'HighAvailability' | 'Security' | 'Performance' | 'OperationalExcellence'. Each recommendation returns impactedField (resource type), impactedValue (resource name), shortDescription, remediation actions, and estimatedSavings. Use $top=50 to limit results.
+
+=== RESOURCE GRAPH (Microsoft.ResourceGraph, api-version=2022-10-01) ===
+POST /providers/Microsoft.ResourceGraph/resources?api-version=2022-10-01 — run KQL queries across all subscriptions in one call. Body: {""query"": ""Resources | where type =~ 'Microsoft.Compute/virtualMachines' | project name, resourceGroup, location, properties.hardwareProfile.vmSize | top 20"", ""subscriptions"": [""subId1""]}. Supports all resource types, tags, properties. Use for: cross-subscription resource inventory, finding untagged resources, orphaned NICs/IPs/disks, resource counts by type/region. ALWAYS use 'project' to limit columns and 'top N' to limit rows.
+
+=== MONITOR (Microsoft.Insights) ===
+GET /{resourceId}/providers/Microsoft.Insights/metrics?api-version=2023-10-01. GET /{resourceId}/providers/Microsoft.Insights/metricDefinitions?api-version=2023-10-01. GET /{resourceId}/providers/Microsoft.Insights/metricBaselines?api-version=2023-10-01. GET /{resourceId}/providers/Microsoft.Insights/diagnosticSettings?api-version=2021-05-01-preview. GET /subscriptions/{id}/providers/Microsoft.Insights/autoscaleSettings?api-version=2022-10-01.
+
+=== ACTIVITY LOG (Microsoft.Insights, api-version=2015-04-01) ===
+GET /subscriptions/{id}/providers/Microsoft.Insights/eventtypes/management/values?$filter=eventTimestamp ge '...' — who created/deleted/modified resources (cost attribution audit trail).
+
+=== COMPUTE (Microsoft.Compute) ===
+GET /subscriptions/{id}/providers/Microsoft.Compute/virtualMachines?api-version=2025-04-01 — list all VMs in subscription. GET .../virtualMachineScaleSets?api-version=2025-04-01 — VMSS instances for right-sizing. GET /subscriptions/{id}/providers/Microsoft.Compute/skus?api-version=2021-07-01&$filter=location eq '{region}' — VM sizes per region (use filter to limit; includes 'family' field and capabilities like LowPriorityCapable). GET /subscriptions/{id}/providers/Microsoft.Compute/disks?api-version=2025-01-02 — managed disks (find unattached via diskState=Unattached). GET /subscriptions/{id}/providers/Microsoft.Compute/locations/{region}/usages?api-version=2025-04-01 — quota usage per VM family.
+
+=== QUOTA (Microsoft.Quota, api-version=2025-09-01) ===
+GET /subscriptions/{subId}/providers/Microsoft.Compute/locations/{region}/providers/Microsoft.Quota/quotas?api-version=2025-09-01 — list ALL compute quotas for a region (standard family quotas + lowPriorityCores). GET .../quotas/{resourceName}?api-version=2025-09-01 — get single quota by name. GET .../providers/Microsoft.Quota/quotaRequests?api-version=2025-09-01 — list quota change requests.
+IMPORTANT — SPOT QUOTA NAMING: Spot/low-priority VM quota is a SINGLE regional bucket called 'lowPriorityCores' (NOT per VM family). This covers ALL spot VMs including H100, A100, etc. Standard quotas are per-family (e.g., 'standardNDSH100v5Family', 'StandardNCadsH100v5Family'). To check H100 spot capacity: query lowPriorityCores limit. To check H100 standard capacity: query standardNDSH100v5Family and StandardNCadsH100v5Family.
+ALSO: Legacy Compute usage API (GET .../locations/{region}/usages?api-version=2025-04-01) returns BOTH standard and spot usage with family names like 'lowPriorityCores' and per-family entries. Use BOTH APIs for a complete picture.
+
+=== AKS (Microsoft.ContainerService, api-version=2026-01-01) ===
+GET /subscriptions/{id}/providers/Microsoft.ContainerService/managedClusters?api-version=2026-01-01 — list all AKS clusters; returns cluster name, location, kubernetesVersion, powerState (Running/Stopped), networkProfile, sku (Free/Standard/Premium). GET /subscriptions/{id}/resourceGroups/{rg}/providers/Microsoft.ContainerService/managedClusters/{name}?api-version=2026-01-01 — single cluster detail with agentPoolProfiles (node pools): vmSize, count, minCount/maxCount (autoscaler), osDiskSizeGB, mode (System/User), enableAutoScaling, spotMaxPrice (spot node pools). Use for: right-sizing node pools, identifying stopped clusters still incurring costs, evaluating spot vs regular node pools.
+
+=== NETWORK (Microsoft.Network, api-version=2025-05-01) ===
+GET /subscriptions/{id}/providers/Microsoft.Network/publicIPAddresses?api-version=2025-05-01 — all public IPs; find unassociated IPs (ipConfiguration is null = orphaned, still billed). GET /subscriptions/{id}/providers/Microsoft.Network/loadBalancers?api-version=2025-05-01 — LBs with sku (Basic/Standard/Gateway) and pricing tier. GET /subscriptions/{id}/providers/Microsoft.Network/applicationGateways?api-version=2025-05-01 — App Gateways with sku (Standard_v2/WAF_v2), tier, capacity units for cost analysis. GET /subscriptions/{id}/providers/Microsoft.Network/expressRouteCircuits?api-version=2025-05-01 — ExpressRoute circuits with bandwidth (Mbps), peering, provider for billing analysis. GET /subscriptions/{id}/providers/Microsoft.Network/vpnGateways?api-version=2025-05-01 — VPN gateways with sku (Basic/VpnGw1-5) for right-sizing. GET /subscriptions/{id}/providers/Microsoft.Network/natGateways?api-version=2025-05-01 — NAT gateways (billed per hour + data processed). GET /subscriptions/{id}/providers/Microsoft.Network/azureFirewalls?api-version=2025-05-01 — Azure Firewalls with sku (Standard/Premium) and threat intel mode. GET /subscriptions/{id}/providers/Microsoft.Network/privateEndpoints?api-version=2025-05-01 — private endpoints (billed per hour). GET /subscriptions/{id}/providers/Microsoft.Network/virtualNetworks?api-version=2025-05-01 — VNets with subnets, peerings, address space.
+
+=== STORAGE (Microsoft.Storage, api-version=2025-06-01) ===
+GET /subscriptions/{id}/providers/Microsoft.Storage/storageAccounts?api-version=2025-06-01 — all storage accounts; returns kind (StorageV2/BlobStorage/FileStorage), sku.name (Standard_LRS/Standard_GRS/Premium_LRS), accessTier (Hot/Cool/Cold/Archive), primaryLocation, encryption, networkAcls. GET /subscriptions/{id}/resourceGroups/{rg}/providers/Microsoft.Storage/storageAccounts/{name}?api-version=2025-06-01 — single account detail including creation time, lastGeoFailover, minimumTlsVersion. For cost optimization: identify accounts on expensive replication (GRS→LRS), wrong access tier (Hot with infrequent access → Cool), or unused accounts (check metrics via Monitor API).
+
+=== SQL (Microsoft.Sql, api-version=2025-01-01) ===
+GET /subscriptions/{id}/providers/Microsoft.Sql/servers?api-version=2025-01-01 — all SQL logical servers with location, version, admin login. GET /subscriptions/{id}/resourceGroups/{rg}/providers/Microsoft.Sql/servers/{serverName}/databases?api-version=2025-01-01 — databases on a server; returns sku (name=GP_S_Gen5_2 / BC_Gen5_4 / S0-S12 / P1-P15), maxSizeBytes, currentServiceObjectiveName (DTU tier or vCore config), zoneRedundant, licenseType (BasePrice=AHUB, LicenseIncluded=full price), requestedBackupStorageRedundancy (Geo/Local/Zone). GET /subscriptions/{id}/providers/Microsoft.Sql/managedInstances?api-version=2025-01-01 — SQL Managed Instances with sku (GP_Gen5/BC_Gen5), vCores, storageSizeInGB, licenseType for right-sizing. For cost optimization: check AHB license savings, over-provisioned DTU/vCores, Basic/S0 tier for dev databases, zone redundancy cost.
+
+=== APP SERVICE (Microsoft.Web, api-version=2024-04-01) ===
+GET /subscriptions/{id}/providers/Microsoft.Web/serverfarms?api-version=2024-04-01 — all App Service plans; returns sku (name=F1/B1/B2/S1/P1v3/P0v3, tier=Free/Basic/Standard/Premium/PremiumV3), numberOfWorkers, currentNumberOfWorkers, maximumNumberOfWorkers, numberOfSites (0 = empty plan still billed). GET /subscriptions/{id}/providers/Microsoft.Web/sites?api-version=2024-04-01 — all web/function apps; returns kind (app/functionapp/linux), state (Running/Stopped), serverFarmId (linked plan), httpsOnly, clientAffinityEnabled, siteConfig.alwaysOn. For cost optimization: find empty App Service plans (numberOfSites=0 still billed), over-provisioned plans, stopped apps on paid plans, F1→B1 upgrade opportunities.
+
+=== LOG ANALYTICS (Microsoft.OperationalInsights, api-version=2025-07-01) ===
+GET /subscriptions/{id}/providers/Microsoft.OperationalInsights/workspaces?api-version=2025-07-01 — all Log Analytics workspaces; returns sku (PerGB2018/CapacityReservation/Free), retentionInDays, dailyQuotaGb (ingestion cap), workspaceCapping, customerId (workspace GUID). GET /subscriptions/{id}/resourceGroups/{rg}/providers/Microsoft.OperationalInsights/workspaces/{name}/usages?api-version=2025-07-01 — data ingestion volume per data type (SecurityEvent, Perf, Heartbeat, Syslog, etc.) in bytes — identify top ingestion cost drivers. GET /subscriptions/{id}/resourceGroups/{rg}/providers/Microsoft.OperationalInsights/workspaces/{name}/tables?api-version=2025-07-01 — table-level config: plan (Analytics=full query/$$$, Basic=limited query/$$, Archive=cheapest/no query), retentionInDays, totalRetentionInDays. For cost optimization: move verbose tables to Basic/Archive plan, reduce retention, identify tables ingesting >1GB/day, evaluate CapacityReservation tier.
+
+=== AZURE ML (Microsoft.MachineLearningServices, api-version=2025-12-01) ===
+GET /subscriptions/{id}/providers/Microsoft.MachineLearningServices/workspaces?api-version=2025-12-01 — all ML workspaces with sku, storageAccount, keyVault associations. GET /subscriptions/{id}/resourceGroups/{rg}/providers/Microsoft.MachineLearningServices/workspaces/{name}/computes?api-version=2025-12-01 — compute resources: type (ComputeInstance/AmlCompute/Kubernetes), vmSize (Standard_NC6s_v3, Standard_ND96asr_v4 etc.), state (Running/Stopped/Creating), scaleSettings (minNodeCount/maxNodeCount), idleTimeBeforeShutdown. Find idle GPU instances, over-provisioned clusters, and instances left running without auto-shutdown. GET .../workspaces/{name}/onlineEndpoints?api-version=2025-12-01 — managed online endpoints with deployment details, instance count, sku for inference cost analysis. GET .../workspaces/{name}/batchEndpoints?api-version=2025-12-01 — batch inference endpoints.
+
+=== DATABRICKS (Microsoft.Databricks, api-version=2026-01-01) ===
+GET /subscriptions/{id}/providers/Microsoft.Databricks/workspaces?api-version=2026-01-01 — all Databricks workspaces; returns sku (standard/premium/trial — premium costs more but adds RBAC, audit logs, Unity Catalog), managedResourceGroupId (contains VMs, disks, NSGs billed to your subscription), provisioningState, authorizations, storageAccountIdentity. For cost optimization: compare premium vs standard tier justification, check managed RG for orphaned resources, evaluate workspace consolidation.
+
+=== COSMOS DB (Microsoft.DocumentDB, api-version=2025-10-15) ===
+GET /subscriptions/{id}/providers/Microsoft.DocumentDB/databaseAccounts?api-version=2025-10-15 — all Cosmos DB accounts; returns databaseAccountOfferType (Standard), consistencyPolicy (Strong/Bounded/Session/Eventual — affects cost), locations (multi-region write = 2x cost), capabilities (e.g. EnableServerless), enableFreeTier, enableAutomaticFailover, backupPolicy (Periodic/Continuous). GET /subscriptions/{id}/resourceGroups/{rg}/providers/Microsoft.DocumentDB/databaseAccounts/{name}/sqlDatabases?api-version=2025-10-15 — SQL databases with resource.id. GET .../sqlDatabases/{dbName}/containers?api-version=2025-10-15 — containers with partition key and indexing policy. GET .../sqlDatabases/{dbName}/throughputSettings/default?api-version=2025-10-15 — database-level throughput (RU/s): manual vs autoscale, current RU/s value, maxThroughput for autoscale. For cost optimization: identify over-provisioned RU/s (manual > actual usage), evaluate serverless vs provisioned, multi-region write cost, consistency level cost impact.
+
+=== REDIS (Microsoft.Cache, api-version=2024-11-01) ===
+GET /subscriptions/{id}/providers/Microsoft.Cache/redis?api-version=2024-11-01 — all Redis Cache instances; returns sku (name=Basic/Standard/Premium, family=C/P, capacity=0-6 mapping to cache size), hostName, port, sslPort, provisioningState, redisVersion, linkedServers (geo-replication adds cost), instances (shards for Premium), minimumTlsVersion. For cost optimization: downsize over-provisioned caches (Premium→Standard if clustering not needed), identify Basic tier in production (no SLA), find unused caches via connection metrics.
+
+=== DATA FACTORY (Microsoft.DataFactory, api-version=2018-06-01) ===
+GET /subscriptions/{id}/providers/Microsoft.DataFactory/factories?api-version=2018-06-01 — all ADF instances; returns name, location, provisioningState, repoConfiguration (Git integration), globalParameters, encryption. GET /subscriptions/{id}/resourceGroups/{rg}/providers/Microsoft.DataFactory/factories/{name}/pipelines?api-version=2018-06-01 — all pipelines with activities (Copy, DataFlow, HDInsight, Databricks, SQL), parameters, and concurrency settings. GET .../factories/{name}/datasets?api-version=2018-06-01 — datasets (linked data sources). GET .../factories/{name}/linkedservices?api-version=2018-06-01 — linked services (connections to storage, SQL, Databricks, etc.). GET .../factories/{name}/triggers?api-version=2018-06-01 — triggers (schedule, tumbling window, event) with frequency/interval for run cost projection. GET .../factories/{name}/integrationRuntimes?api-version=2018-06-01 — integration runtimes: type (Managed/SelfHosted), computeProperties (location, nodeSize=Standard_D1_v2 etc., numberOfNodes, maxParallelExecutionsPerNode) — self-hosted IR nodes are customer-managed VMs. For cost optimization: identify idle pipelines, over-provisioned SSIS IR clusters, optimize Data Flow compute type/core counts.
+
+=== SYNAPSE (Microsoft.Synapse, api-version=2021-06-01) ===
+GET /subscriptions/{id}/providers/Microsoft.Synapse/workspaces?api-version=2021-06-01 — all Synapse workspaces with managedResourceGroupName, defaultDataLakeStorage, sqlAdministratorLogin. GET /subscriptions/{id}/resourceGroups/{rg}/providers/Microsoft.Synapse/workspaces/{name}/sqlPools?api-version=2021-06-01 — dedicated SQL pools; returns sku (name=DW100c through DW30000c — DWU tier), status (Online/Paused — paused pools don't incur compute cost), collation, maxSizeBytes, storageAccountType. GET .../workspaces/{name}/bigDataPools?api-version=2021-06-01 — Spark pools; returns nodeSize (Small/Medium/Large/XLarge/XXLarge), nodeSizeFamily (MemoryOptimized), nodeCount, autoScale (enabled, minNodeCount, maxNodeCount), autoPause (enabled, delayInMinutes), sparkVersion. For cost optimization: pause idle dedicated SQL pools, right-size DWU tier, enable Spark auto-pause and auto-scale, evaluate serverless on-demand vs provisioned.
+
+=== CONTAINER APPS (Microsoft.App, api-version=2026-01-01) ===
+GET /subscriptions/{id}/providers/Microsoft.App/containerApps?api-version=2026-01-01 — all Container Apps; returns configuration (activeRevisionsMode, ingress with targetPort/transport/traffic weights), template (containers with image/resources.cpu/resources.memory, scale with minReplicas/maxReplicas/rules), provisioningState, latestRevisionFqdn. GET /subscriptions/{id}/providers/Microsoft.App/managedEnvironments?api-version=2026-01-01 — Container App environments; returns sku (name=Consumption/Premium), vnetConfiguration, zoneRedundant, workloadProfiles (Consumption/Dedicated with workloadProfileType like D4/D8/E4/E8/NC24-A100). For cost optimization: ensure minReplicas=0 for non-critical apps (scale to zero), right-size CPU/memory per container, evaluate Consumption vs Dedicated workload profiles.
+
+=== RESOURCE HEALTH (Microsoft.ResourceHealth, api-version=2024-02-01) ===
+GET /{resourceId}/providers/Microsoft.ResourceHealth/availabilityStatuses/current?api-version=2024-02-01 — current availability status (Available/Unavailable/Degraded/Unknown) with reasonType and summary. GET /subscriptions/{id}/providers/Microsoft.ResourceHealth/availabilityStatuses?api-version=2024-02-01 — availability status of all resources in subscription. Useful for identifying resources with frequent outages that may indicate over/under-provisioning.
+
+=== SECURITY (Microsoft.Security, api-version=2020-01-01) ===
+GET /subscriptions/{id}/providers/Microsoft.Security/assessments?api-version=2020-01-01 — all Defender for Cloud security assessments; each returns displayName, status.code (Healthy/Unhealthy/NotApplicable), resourceDetails.id (affected resource), severity, category (Compute/Networking/Data/IdentityAndAccess). Use to find unprotected resources that may also be idle/orphaned. GET /subscriptions/{id}/providers/Microsoft.Security/secureScores?api-version=2020-01-01 — overall security score (current/max) and per-control score breakdown.
+
+=== SUBSCRIPTIONS (api-version=2022-12-01) ===
+GET /subscriptions?api-version=2022-12-01.
+
+=== CARBON (Microsoft.Carbon, api-version=2025-04-01) ===
+POST /providers/Microsoft.Carbon/carbonEmissionReports?api-version=2025-04-01 — generate carbon emission reports for Azure resources (body: {reportType, subscriptionIds, dateRange}). Returns emissions data in kgCO2e by resource type, region, service — correlate with cost data for sustainability-aware FinOps.
+
+=== POLICY (Microsoft.Authorization, api-version=2023-04-01) ===
+GET /{scope}/providers/Microsoft.Authorization/policyDefinitions?api-version=2023-04-01 — all policy definitions (built-in + custom). GET /{scope}/providers/Microsoft.Authorization/policyAssignments?api-version=2023-04-01 — all policy assignments with scope, enforcement mode (Default/DoNotEnforce), parameters. POST /{scope}/providers/Microsoft.PolicyInsights/policyStates/latest/summarize?api-version=2024-10-01 — compliance summary: total resources, compliant/non-compliant counts per policy. For FinOps: check tag enforcement policies, allowed VM size policies, region restrictions.
+
+=== RBAC (Microsoft.Authorization, api-version=2022-04-01) ===
+GET /{scope}/providers/Microsoft.Authorization/roleAssignments?api-version=2022-04-01 — all role assignments; returns principalId, roleDefinitionId, scope, principalType (User/Group/ServicePrincipal). For FinOps governance: audit who has Contributor/Owner (can create costly resources), identify over-privileged service principals. GET /{scope}/providers/Microsoft.Authorization/roleDefinitions?api-version=2022-04-01 — role definitions with permissions (actions/notActions).
+
+=== LOCKS (Microsoft.Authorization, api-version=2020-05-01) ===
+GET /{scope}/providers/Microsoft.Authorization/locks?api-version=2020-05-01 — all resource locks; returns lockLevel (CanNotDelete/ReadOnly), notes, owners. CanNotDelete locks prevent accidental deletion of critical resources; ReadOnly locks prevent any modification. For FinOps: verify critical resources are locked, identify resources that can't be cleaned up due to locks.
+
+=== MGMT GROUPS (Microsoft.Management, api-version=2020-05-01) ===
+GET /providers/Microsoft.Management/managementGroups?api-version=2020-05-01 — top-level management groups (org hierarchy for cost governance). GET /providers/Microsoft.Management/managementGroups/{groupId}/descendants?api-version=2020-05-01 — all child groups and subscriptions under a management group. POST /providers/Microsoft.Management/getEntities?api-version=2020-05-01 — full entity tree (management groups + subscriptions) for org-wide cost visibility.
+
+=== TAGS (Microsoft.Resources, api-version=2021-04-01) ===
+GET /subscriptions/{id}/tagNames?api-version=2021-04-01 — all tag names used in subscription with value counts. GET /subscriptions/{id}/resources?api-version=2021-04-01 — list all resources with type, location, tags, sku. Use for: resource inventory, untagged resource discovery (resources missing CostCenter/Environment/Owner tags), tag coverage analysis for chargeback.
+
+=== MIGRATE (Microsoft.Migrate, api-version=2024-01-15) ===
+GET /subscriptions/{id}/resourceGroups/{rg}/providers/Microsoft.Migrate/migrateProjects?api-version=2024-01-15 — migration projects with discovery and assessment status. GET .../migrateProjects/{project}/assessments?api-version=2024-01-15 — migration assessments with target Azure sizing recommendations, estimated monthly cost, readiness status (Ready/ConditionallyReady/NotReady). GET .../assessments/{name}/assessedMachines?api-version=2024-01-15 — individual assessed machines with recommended VM size, disk type, estimated cost — use for pre-migration cost projection.
+
+=== SUPPORT (Microsoft.Support, api-version=2024-04-01) ===
+GET /subscriptions/{id}/providers/Microsoft.Support/supportTickets?api-version=2024-04-01 — all support tickets with severity (Minimal/Moderate/Critical/Highestcriticalimpact), status (Open/Closed), title, createdDate, serviceId. GET /providers/Microsoft.Support/services?api-version=2024-04-01 — available Azure services for support ticket categorization.
+
 Scope = /subscriptions/{subId} or /subscriptions/{subId}/resourceGroups/{rg}.
 For retail pricing use the built-in fetch tool with https://prices.azure.com (no auth required). ALWAYS filter by armRegionName + serviceName + armSkuName and use $top=20 for comparisons.
 SECURITY: Only GET and read-only POST endpoints are allowed. PUT, PATCH, DELETE, and mutating POST actions are blocked at the HTTP client level.");
