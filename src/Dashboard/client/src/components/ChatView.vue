@@ -999,13 +999,13 @@
 <script setup>
 import * as echarts from "echarts";
 import {
-  computed,
-  nextTick,
-  onBeforeUnmount,
-  onMounted,
-  reactive,
-  ref,
-  watch,
+    computed,
+    nextTick,
+    onBeforeUnmount,
+    onMounted,
+    reactive,
+    ref,
+    watch,
 } from "vue";
 
 const props = defineProps({
@@ -1034,8 +1034,8 @@ function autoGrowInput() {
   const el = inputEl.value;
   if (!el) return;
   el.style.height = "auto";
-  el.style.height = Math.min(el.scrollHeight, 150) + "px";
-  el.style.overflowY = el.scrollHeight > 150 ? "auto" : "hidden";
+  el.style.height = Math.min(el.scrollHeight, 400) + "px";
+  el.style.overflowY = el.scrollHeight > 400 ? "auto" : "hidden";
 }
 
 // Smooth text reveal — drains pending chars fast enough to never lag behind the LLM
@@ -3928,11 +3928,11 @@ async function send() {
 }
 .input-wrapper {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   gap: 8px;
   border: 1px solid #e1dfdd;
   border-radius: 4px;
-  padding: 8px 8px 8px 16px;
+  padding: 12px 12px 12px 18px;
   background: #fff;
   transition: border-color 0.15s;
   flex: 1;
@@ -3956,15 +3956,15 @@ async function send() {
   background: transparent;
   border: none;
   color: #323130;
-  font-size: 14px;
+  font-size: 15px;
   font-family: inherit;
-  padding: 0;
+  padding: 4px 0;
   outline: none;
   line-height: 1.5;
   resize: none;
   overflow-y: hidden;
-  max-height: 150px;
-  min-height: 21px;
+  max-height: 400px;
+  min-height: 24px;
 }
 .input-field::placeholder {
   color: #a19f9d;
