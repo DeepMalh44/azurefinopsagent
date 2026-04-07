@@ -199,6 +199,78 @@
         <div class="sidebar-footer">
           <!-- Azure connect/status -->
           <div v-if="!azureConnected" class="azure-connect">
+            <!-- Admin approval / consent error banner -->
+            <div v-if="tenantError" class="tenant-error-banner">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="#d13438"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              <span
+                >Your home tenant blocked this app. Pick a tenant below or type
+                one manually.</span
+              >
+            </div>
+            <!-- Saved tenants — clickable buttons from previous connections -->
+            <div v-if="savedTenants.length" class="saved-tenants">
+              <span class="saved-tenants-label">Your tenants</span>
+              <button
+                v-for="t in savedTenants"
+                :key="t.tenantId"
+                class="saved-tenant-btn"
+                @click="switchTenant(t.tenantId)"
+                :title="t.tenantId"
+              >
+                <svg
+                  width="11"
+                  height="11"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                  <polyline points="9 22 9 12 15 12 15 22" />
+                </svg>
+                {{
+                  t.displayName ||
+                  t.defaultDomain ||
+                  t.tenantId.slice(0, 8) + "…"
+                }}
+              </button>
+            </div>
+            <!-- Manual tenant input -->
+            <div class="tenant-input-area">
+              <input
+                v-model="tenantId"
+                type="text"
+                class="tenant-input"
+                :class="{
+                  'tenant-input--highlight':
+                    tenantError && !savedTenants.length,
+                }"
+                :placeholder="
+                  savedTenants.length
+                    ? 'Or type a different tenant…'
+                    : 'Tenant ID or domain (e.g. contoso.onmicrosoft.com)'
+                "
+              />
+              <span v-if="!savedTenants.length" class="tenant-hint"
+                >Leave empty to use your home tenant, or specify a different
+                one</span
+              >
+            </div>
             <button
               class="azure-connect-btn"
               :disabled="authLoading === 'azure'"
@@ -220,7 +292,13 @@
                 <rect y="11" width="10" height="10" fill="#00a4ef" />
                 <rect x="11" y="11" width="10" height="10" fill="#ffb900" />
               </svg>
-              {{ authLoading === "azure" ? "Connecting..." : "Connect Azure" }}
+              {{
+                authLoading === "azure"
+                  ? "Connecting..."
+                  : tenantId.trim()
+                    ? "Connect to " + tenantId.trim()
+                    : "Connect Azure"
+              }}
             </button>
             <span class="azure-connect-hint"
               >Read-only — cannot modify resources</span
@@ -256,6 +334,66 @@
                   <line x1="6" y1="6" x2="18" y2="18" />
                 </svg>
               </button>
+            </div>
+            <!-- Tenant switcher -->
+            <div class="tenant-switcher" v-if="availableTenants.length > 1">
+              <label
+                class="tenant-switch-label"
+                @click="showTenantSwitcher = !showTenantSwitcher"
+              >
+                <svg
+                  width="11"
+                  height="11"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                  <polyline points="9 22 9 12 15 12 15 22" />
+                </svg>
+                Switch tenant ({{ availableTenants.length }})
+                <svg
+                  :class="['tenant-chevron', { open: showTenantSwitcher }]"
+                  width="10"
+                  height="10"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </label>
+              <div v-if="showTenantSwitcher" class="tenant-list">
+                <button
+                  v-for="t in availableTenants"
+                  :key="t.tenantId"
+                  class="tenant-list-item"
+                  :class="{ active: t.tenantId === currentTenantId }"
+                  :disabled="t.tenantId === currentTenantId"
+                  @click="switchTenant(t.tenantId)"
+                  :title="t.tenantId"
+                >
+                  <span class="tenant-list-name">{{
+                    t.displayName || t.defaultDomain || t.tenantId
+                  }}</span>
+                  <span
+                    v-if="t.tenantId === currentTenantId"
+                    class="tenant-list-current"
+                    >current</span
+                  >
+                  <span
+                    v-if="t.defaultDomain && t.displayName"
+                    class="tenant-list-domain"
+                    >{{ t.defaultDomain }}</span
+                  >
+                </button>
+              </div>
             </div>
             <!-- Incremental consent: each button navigates to Microsoft Entra ID consent screen -->
             <div class="azure-addons">
@@ -333,6 +471,83 @@
               </p>
 
               <div v-if="!azureConnected" class="es-connect-bar">
+                <!-- Admin approval / consent error banner -->
+                <div
+                  v-if="tenantError"
+                  class="tenant-error-banner es-tenant-error"
+                >
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="#d13438"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="12" />
+                    <line x1="12" y1="16" x2="12.01" y2="16" />
+                  </svg>
+                  <span
+                    >Your home tenant requires admin approval. Pick a tenant
+                    below or type one manually.</span
+                  >
+                </div>
+                <!-- Saved tenants — clickable buttons from previous connections -->
+                <div
+                  v-if="savedTenants.length"
+                  class="saved-tenants es-saved-tenants"
+                >
+                  <span class="saved-tenants-label">Your tenants</span>
+                  <div class="saved-tenants-list">
+                    <button
+                      v-for="t in savedTenants"
+                      :key="t.tenantId"
+                      class="saved-tenant-btn"
+                      @click="switchTenant(t.tenantId)"
+                      :title="t.tenantId"
+                    >
+                      <svg
+                        width="12"
+                        height="12"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      >
+                        <path
+                          d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"
+                        />
+                        <polyline points="9 22 9 12 15 12 15 22" />
+                      </svg>
+                      {{
+                        t.displayName ||
+                        t.defaultDomain ||
+                        t.tenantId.slice(0, 8) + "…"
+                      }}
+                    </button>
+                  </div>
+                </div>
+                <div class="es-tenant-input-row">
+                  <input
+                    v-model="tenantId"
+                    type="text"
+                    class="tenant-input es-tenant-input"
+                    :class="{
+                      'tenant-input--highlight':
+                        tenantError && !savedTenants.length,
+                    }"
+                    :placeholder="
+                      savedTenants.length
+                        ? 'Or type a different tenant…'
+                        : 'Tenant ID or domain (e.g. contoso.onmicrosoft.com)'
+                    "
+                  />
+                </div>
                 <button
                   class="es-step-btn es-step-btn--azure"
                   :disabled="authLoading === 'azure'"
@@ -371,7 +586,9 @@
                   {{
                     authLoading === "azure"
                       ? "Connecting..."
-                      : "Connect Azure tenant for contextual FinOps"
+                      : tenantId.trim()
+                        ? "Connect to " + tenantId.trim()
+                        : "Connect Azure tenant for contextual FinOps"
                   }}
                 </button>
               </div>
@@ -999,13 +1216,13 @@
 <script setup>
 import * as echarts from "echarts";
 import {
-    computed,
-    nextTick,
-    onBeforeUnmount,
-    onMounted,
-    reactive,
-    ref,
-    watch,
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  reactive,
+  ref,
+  watch,
 } from "vue";
 
 const props = defineProps({
@@ -1100,6 +1317,11 @@ const graphEnabled = ref(false);
 const licensesEnabled = ref(false);
 const chargebackEnabled = ref(false);
 const logAnalyticsEnabled = ref(false);
+const tenantId = ref(""); // User-specified tenant ID or domain for guest users
+const availableTenants = ref([]);
+const currentTenantId = ref("");
+const showTenantSwitcher = ref(false);
+const tenantError = ref(false);
 const clearing = ref(false);
 
 async function checkAzureStatus() {
@@ -1118,16 +1340,56 @@ async function checkAzureStatus() {
         licensesEnabled.value = gt.includes("licenses");
         chargebackEnabled.value = gt.includes("chargeback");
         logAnalyticsEnabled.value = data.logAnalyticsEnabled || false;
+        // Fetch tenant list after connecting
+        fetchTenants();
       }
     }
   } catch {}
 }
 
+async function fetchTenants() {
+  try {
+    const r = await fetch("/auth/azure/tenants");
+    if (r.ok) {
+      const data = await r.json();
+      availableTenants.value = data.tenants || [];
+      currentTenantId.value = data.currentTenantId || "";
+      // Persist tenants to localStorage so they appear as clickable buttons
+      // on future visits — even before connecting
+      if (availableTenants.value.length > 0) {
+        localStorage.setItem(
+          "knownTenants",
+          JSON.stringify(availableTenants.value),
+        );
+      }
+    }
+  } catch {}
+}
+
+// Load previously discovered tenants from localStorage
+const savedTenants = computed(() => {
+  try {
+    return JSON.parse(localStorage.getItem("knownTenants") || "[]");
+  } catch {
+    return [];
+  }
+});
+
+function switchTenant(tid) {
+  startAuth("azure", "/auth/microsoft?tenant=" + encodeURIComponent(tid));
+}
+
 function startAuth(provider, url) {
   authLoading.value = provider;
   sessionStorage.setItem("authLoading", provider);
+  // Append tenant param if user specified one (for guest users with multiple tenants)
+  let authUrl = url;
+  if (tenantId.value.trim()) {
+    const sep = url.includes("?") ? "&" : "?";
+    authUrl += sep + "tenant=" + encodeURIComponent(tenantId.value.trim());
+  }
   setTimeout(() => {
-    window.location.href = url;
+    window.location.href = authUrl;
   }, 100);
 }
 
@@ -1254,10 +1516,8 @@ onMounted(async () => {
   const params = new URLSearchParams(window.location.search);
   const azureError = params.get("azure_error");
   if (azureError) {
-    messages.value.push({
-      role: "assistant",
-      content: `**Azure connection failed:** ${azureError}. Please try again.`,
-    });
+    // Show tenant picker with error banner — the user's home tenant likely blocked the app
+    tenantError.value = true;
     window.history.replaceState({}, "", window.location.pathname);
   }
   try {
@@ -3133,6 +3393,71 @@ async function send() {
 }
 
 /* ── Azure connect / status (sidebar footer) ── */
+.tenant-error-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 4px;
+  background: #fef0f1;
+  border: 1px solid #f3d6d8;
+  font-size: 11.5px;
+  color: #a4262c;
+  line-height: 1.4;
+  margin-bottom: 6px;
+}
+.tenant-error-banner svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.es-tenant-error {
+  max-width: 400px;
+  margin: 0 auto 8px;
+}
+.tenant-input-area {
+  margin-bottom: 6px;
+}
+.tenant-input {
+  width: 100%;
+  padding: 6px 10px;
+  border-radius: 4px;
+  border: 1px solid #e1dfdd;
+  font-size: 12px;
+  color: #323130;
+  background: #faf9f8;
+  outline: none;
+  box-sizing: border-box;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
+}
+.tenant-input::placeholder {
+  color: #a19f9d;
+}
+.tenant-input:focus {
+  border-color: #0078d4;
+  background: #fff;
+  box-shadow: 0 0 0 1px #0078d4;
+}
+.tenant-input--highlight {
+  border-color: #0078d4;
+  background: #fff;
+  box-shadow: 0 0 0 1px #0078d4;
+}
+.tenant-hint {
+  display: block;
+  font-size: 10.5px;
+  color: #605e5c;
+  margin-top: 3px;
+}
+.es-tenant-input-row {
+  width: 100%;
+  max-width: 360px;
+}
+.es-tenant-input {
+  max-width: 360px;
+  text-align: center;
+}
 .azure-connect-btn {
   display: flex;
   align-items: center;
@@ -3193,6 +3518,73 @@ async function send() {
 }
 .azure-disconnect-btn:hover {
   color: #d13438;
+}
+/* ── Tenant switcher ── */
+.tenant-switcher {
+  margin-top: 6px;
+}
+.tenant-switch-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  color: #0078d4;
+  cursor: pointer;
+  user-select: none;
+  padding: 2px 0;
+}
+.tenant-switch-label:hover {
+  color: #106ebe;
+}
+.tenant-list {
+  margin-top: 4px;
+  max-height: 160px;
+  overflow-y: auto;
+  border: 1px solid #e1dfdd;
+  border-radius: 4px;
+  background: #faf9f8;
+}
+.tenant-list-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 6px 10px;
+  border: none;
+  background: transparent;
+  color: #323130;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.tenant-list-item:hover:not(.active) {
+  background: #edebe9;
+}
+.tenant-list-item.active {
+  background: #e6f2fb;
+  cursor: default;
+}
+.tenant-list-item + .tenant-list-item {
+  border-top: 1px solid #edebe9;
+}
+.tenant-list-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tenant-list-current {
+  font-size: 10px;
+  color: #0078d4;
+  font-weight: 600;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+.tenant-list-domain {
+  font-size: 10px;
+  color: #8a8886;
+  flex-shrink: 0;
 }
 .azure-addons {
   display: flex;
@@ -3317,6 +3709,10 @@ async function send() {
 }
 .es-connect-bar {
   margin-bottom: 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
 }
 .es-connect-bar .es-step-btn {
   display: inline-flex;
@@ -4456,7 +4852,7 @@ async function send() {
   position: fixed;
   bottom: 12px;
   right: 16px;
-  font-size: 11px;
+  font-size: 14px;
   font-family: "Cascadia Code", "Fira Code", Consolas, monospace;
   color: #605e5c;
   background: #f3f2f1;

@@ -298,6 +298,13 @@ app.MapGet("/auth/microsoft", (HttpContext ctx) =>
     if (string.IsNullOrEmpty(tier)) tier = "base";
     ctx.Session.SetString("auth_tier", tier);
 
+    // Allow user to specify a tenant (GUID or domain) — useful for guest users
+    // who belong to multiple tenants and want to sign into a non-home tenant.
+    var tenantParam = ctx.Request.Query["tenant"].ToString().Trim();
+    if (!string.IsNullOrEmpty(tenantParam))
+        ctx.Session.SetString("auth_tenant", tenantParam);
+    var effectiveTenant = ctx.Session.GetString("auth_tenant") ?? msTenantId;
+
     var redirectUri = $"{NormalizeCallbackHost(ctx)}/auth/microsoft/callback";
 
     // Build scopes: base OIDC + tier-specific resource scopes
@@ -310,7 +317,7 @@ app.MapGet("/auth/microsoft", (HttpContext ctx) =>
     ctx.Session.Remove("force_consent");
     var promptType = (tier != "base" || forceConsent) ? "consent" : "select_account";
 
-    var url = $"https://login.microsoftonline.com/{Uri.EscapeDataString(msTenantId)}/oauth2/v2.0/authorize" +
+    var url = $"https://login.microsoftonline.com/{Uri.EscapeDataString(effectiveTenant)}/oauth2/v2.0/authorize" +
               $"?client_id={Uri.EscapeDataString(msClientId)}" +
               $"&response_type=code" +
               $"&redirect_uri={Uri.EscapeDataString(redirectUri)}" +
@@ -319,7 +326,7 @@ app.MapGet("/auth/microsoft", (HttpContext ctx) =>
               $"&response_mode=query" +
               $"&prompt={promptType}";
 
-    logger.LogInformation("Microsoft OAuth redirect: tier={Tier} prompt={Prompt} from {Host}", tier, promptType, ctx.Request.Host);
+    logger.LogInformation("Microsoft OAuth redirect: tier={Tier} prompt={Prompt} tenant={Tenant} from {Host}", tier, promptType, effectiveTenant, ctx.Request.Host);
     return Results.Redirect(url);
 });
 
@@ -350,8 +357,11 @@ app.MapGet("/auth/microsoft/callback", async (HttpContext ctx, IHttpClientFactor
         var http = httpFactory.CreateClient();
         var redirectUri = $"{NormalizeCallbackHost(ctx)}/auth/microsoft/callback";
 
+        // Use the same tenant the user selected during the authorize step
+        var effectiveTenant = ctx.Session.GetString("auth_tenant") ?? msTenantId;
+
         using var tokenReq = new HttpRequestMessage(HttpMethod.Post,
-            $"https://login.microsoftonline.com/{Uri.EscapeDataString(msTenantId)}/oauth2/v2.0/token");
+            $"https://login.microsoftonline.com/{Uri.EscapeDataString(effectiveTenant)}/oauth2/v2.0/token");
 
         // Token exchange scope must match the tier that was requested
         var authTier = ctx.Session.GetString("auth_tier") ?? "base";
@@ -459,10 +469,11 @@ app.MapGet("/auth/microsoft/callback", async (HttpContext ctx, IHttpClientFactor
 });
 
 // Helper: exchange refresh token for a token scoped to a specific resource
-async Task<(string Token, DateTimeOffset Expiry)?> ExchangeRefreshTokenForResource(HttpClient http, string refreshToken, string scope)
+async Task<(string Token, DateTimeOffset Expiry)?> ExchangeRefreshTokenForResource(HttpClient http, string refreshToken, string scope, string? tenantOverride = null)
 {
+    var effectiveTenant = tenantOverride ?? msTenantId;
     using var req = new HttpRequestMessage(HttpMethod.Post,
-        $"https://login.microsoftonline.com/{Uri.EscapeDataString(msTenantId)}/oauth2/v2.0/token");
+        $"https://login.microsoftonline.com/{Uri.EscapeDataString(effectiveTenant)}/oauth2/v2.0/token");
     req.Content = new FormUrlEncodedContent(new Dictionary<string, string>
     {
         ["client_id"] = msClientId,
@@ -503,7 +514,8 @@ async Task<string?> GetSessionTokenAsync(HttpContext ctx, IHttpClientFactory htt
             return token;
         }
         var http = httpFactory.CreateClient();
-        var result = await ExchangeRefreshTokenForResource(http, refreshToken, refreshScope);
+        var sessionTenant = ctx.Session.GetString("auth_tenant");
+        var result = await ExchangeRefreshTokenForResource(http, refreshToken, refreshScope, sessionTenant);
         if (result is null)
         {
             // Refresh failed (transient error) — return the expired token as fallback
@@ -622,6 +634,54 @@ app.MapGet("/auth/azure/status", async (HttpContext ctx, IHttpClientFactory http
     });
 });
 
+// List all tenants the user has access to (for tenant switcher)
+app.MapGet("/auth/azure/tenants", async (HttpContext ctx, IHttpClientFactory httpFactory) =>
+{
+    var token = await GetAzureTokenAsync(ctx, httpFactory);
+    if (token is null)
+        return Results.Json(new { tenants = Array.Empty<object>() });
+
+    var http = httpFactory.CreateClient();
+    var tenants = new List<object>();
+    try
+    {
+        using var req = new HttpRequestMessage(HttpMethod.Get, "https://management.azure.com/tenants?api-version=2022-12-01");
+        req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        req.Headers.Add("User-Agent", "FinOps-Dashboard/1.0");
+        var res = await http.SendAsync(req);
+        var body = await res.Content.ReadAsStringAsync();
+        var json = JsonSerializer.Deserialize<JsonElement>(body);
+        if (json.TryGetProperty("value", out var vals))
+        {
+            foreach (var t in vals.EnumerateArray())
+            {
+                tenants.Add(new
+                {
+                    tenantId = t.GetProperty("tenantId").GetString(),
+                    displayName = t.TryGetProperty("displayName", out var dn) ? dn.GetString() : null,
+                    defaultDomain = t.TryGetProperty("defaultDomain", out var dd) ? dd.GetString() : null
+                });
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        logger.LogWarning(ex, "Failed to list tenants");
+    }
+
+    // Include current tenant from the ID token so the UI can highlight it
+    var currentTenantId = "";
+    var azureUserJson = ctx.Session.GetString("azure_user");
+    if (azureUserJson is not null)
+    {
+        var u = JsonSerializer.Deserialize<JsonElement>(azureUserJson);
+        if (u.TryGetProperty("tenantId", out var tid))
+            currentTenantId = tid.GetString() ?? "";
+    }
+
+    return Results.Json(new { tenants, currentTenantId });
+});
+
 // Disconnect Azure
 app.MapPost("/auth/azure/disconnect", (HttpContext ctx) =>
 {
@@ -653,6 +713,7 @@ app.MapPost("/auth/azure/disconnect", (HttpContext ctx) =>
     ctx.Session.Remove("graph_tier");
     ctx.Session.Remove("loganalytics_token");
     ctx.Session.Remove("loganalytics_token_expiry");
+    ctx.Session.Remove("auth_tenant");
     return Results.Ok(new { ok = true });
 });
 
