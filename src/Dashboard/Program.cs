@@ -210,6 +210,7 @@ string[] GetScopesForTier(string tier) => tier switch
     "licenses" => ["https://graph.microsoft.com/User.Read", "https://graph.microsoft.com/Organization.Read.All", "https://graph.microsoft.com/Reports.Read.All"],
     "chargeback" => ["https://graph.microsoft.com/User.Read", "https://graph.microsoft.com/User.Read.All", "https://graph.microsoft.com/Group.Read.All"],
     "loganalytics" => ["https://api.loganalytics.io/Data.Read"],
+    "storage" => ["https://storage.azure.com/user_impersonation"],
     _ => ["https://management.azure.com/user_impersonation"]
 };
 
@@ -414,6 +415,12 @@ app.MapGet("/auth/microsoft/callback", async (HttpContext ctx, IHttpClientFactor
             ctx.Session.SetString("loganalytics_token", accessToken);
             ctx.Session.SetString("loganalytics_token_expiry", DateTimeOffset.UtcNow.AddSeconds(expiresIn - 60).ToString("o"));
         }
+        else if (authTier == "storage")
+        {
+            // Azure Storage data-plane token — for reading cost exports
+            ctx.Session.SetString("storage_token", accessToken);
+            ctx.Session.SetString("storage_token_expiry", DateTimeOffset.UtcNow.AddSeconds(expiresIn - 60).ToString("o"));
+        }
         else
         {
             // Base tier — ARM token
@@ -542,6 +549,10 @@ Task<string?> GetLogAnalyticsTokenAsync(HttpContext ctx, IHttpClientFactory http
     GetSessionTokenAsync(ctx, httpFactory, "loganalytics_token", "loganalytics_token_expiry",
         "https://api.loganalytics.io/Data.Read offline_access");
 
+Task<string?> GetStorageTokenAsync(HttpContext ctx, IHttpClientFactory httpFactory) =>
+    GetSessionTokenAsync(ctx, httpFactory, "storage_token", "storage_token_expiry",
+        "https://storage.azure.com/user_impersonation offline_access");
+
 // Azure connection status + subscription discovery
 app.MapGet("/auth/azure/status", async (HttpContext ctx, IHttpClientFactory httpFactory) =>
 {
@@ -630,7 +641,8 @@ app.MapGet("/auth/azure/status", async (HttpContext ctx, IHttpClientFactory http
         apis = connectedApis,
         graphEnabled = ctx.Session.GetString("graph_token") is not null,
         graphTier = ctx.Session.GetString("graph_tier") ?? "",
-        logAnalyticsEnabled = ctx.Session.GetString("loganalytics_token") is not null
+        logAnalyticsEnabled = ctx.Session.GetString("loganalytics_token") is not null,
+        storageEnabled = ctx.Session.GetString("storage_token") is not null
     });
 });
 
@@ -696,6 +708,7 @@ app.MapPost("/auth/azure/disconnect", (HttpContext ctx) =>
             tokens.AzureToken = null;
             tokens.GraphToken = null;
             tokens.LogAnalyticsToken = null;
+            tokens.StorageToken = null;
         }
         logger.LogInformation("Azure disconnected for user {UserId}", uid);
     }
@@ -713,6 +726,8 @@ app.MapPost("/auth/azure/disconnect", (HttpContext ctx) =>
     ctx.Session.Remove("graph_tier");
     ctx.Session.Remove("loganalytics_token");
     ctx.Session.Remove("loganalytics_token_expiry");
+    ctx.Session.Remove("storage_token");
+    ctx.Session.Remove("storage_token_expiry");
     ctx.Session.Remove("auth_tenant");
     return Results.Ok(new { ok = true });
 });
@@ -735,6 +750,7 @@ app.MapPost("/auth/azure/revoke", (HttpContext ctx) =>
             tokens.AzureToken = null;
             tokens.GraphToken = null;
             tokens.LogAnalyticsToken = null;
+            tokens.StorageToken = null;
         }
         userSessions.TryRemove(uid, out _);
         userTools.TryRemove(uid, out _);
@@ -749,6 +765,8 @@ app.MapPost("/auth/azure/revoke", (HttpContext ctx) =>
     ctx.Session.Remove("graph_tier");
     ctx.Session.Remove("loganalytics_token");
     ctx.Session.Remove("loganalytics_token_expiry");
+    ctx.Session.Remove("storage_token");
+    ctx.Session.Remove("storage_token_expiry");
     // Flag to force consent screen on next connect
     ctx.Session.SetString("force_consent", "1");
     logger.LogInformation("Azure revoked — session cleared, next connect will force consent");
@@ -791,6 +809,7 @@ sharedTools.AddRange(FollowUpTools.Create());
 sharedTools.AddRange(FaqTools.Create());
 sharedTools.AddRange(ScoreTools.Create());
 sharedTools.AddRange(ScriptTools.Create());
+sharedTools.AddRange(ScheduleTools.Create());
 
 // Per-user token holders and tool lists — tools capture the UserTokens instance
 // via closure, so they always read the latest tokens regardless of thread.
@@ -804,6 +823,7 @@ List<AIFunction> GetOrCreateUserTools(long userId)
         tools.AddRange(new AzureQueryTools(tokens).Create());
         tools.AddRange(new GraphQueryTools(tokens).Create());
         tools.AddRange(new LogAnalyticsQueryTools(tokens).Create());
+        tools.AddRange(new StorageQueryTools(tokens).Create());
         return tools;
     });
 }
@@ -874,20 +894,22 @@ app.MapPost("/api/chat", (Delegate)(async (HttpContext ctx, IHttpClientFactory h
         tokens.AzureToken = await GetAzureTokenAsync(ctx, httpFactory);
         tokens.GraphToken = await GetGraphTokenAsync(ctx, httpFactory);
         tokens.LogAnalyticsToken = await GetLogAnalyticsTokenAsync(ctx, httpFactory);
+        tokens.StorageToken = await GetStorageTokenAsync(ctx, httpFactory);
     }
     finally
     {
         tokens.RefreshLock.Release();
     }
 
-    logger.LogInformation("Chat tokens: azure={HasAzure} graph={HasGraph} la={HasLA}",
-        tokens.AzureToken is not null, tokens.GraphToken is not null, tokens.LogAnalyticsToken is not null);
+    logger.LogInformation("Chat tokens: azure={HasAzure} graph={HasGraph} la={HasLA} storage={HasStorage}",
+        tokens.AzureToken is not null, tokens.GraphToken is not null, tokens.LogAnalyticsToken is not null, tokens.StorageToken is not null);
 
     // Inject connection context so the LLM knows the user's actual state
     var connectedApis = new List<string>();
     if (tokens.AzureToken is not null) connectedApis.Add("Azure ARM (QueryAzure)");
     if (tokens.GraphToken is not null) connectedApis.Add("Microsoft Graph (QueryGraph)");
     if (tokens.LogAnalyticsToken is not null) connectedApis.Add("Log Analytics (QueryLogAnalytics)");
+    if (tokens.StorageToken is not null) connectedApis.Add("Azure Storage (ListCostExportBlobs, ReadCostExportBlob)");
     var connectionContext = connectedApis.Count > 0
         ? $"[CONTEXT: User IS connected to Azure. Available APIs: {string.Join(", ", connectedApis)}. Proceed with tool calls directly.]"
         : "[CONTEXT: User is NOT connected to Azure. Tell them to click 'Connect Azure' in the sidebar.]";

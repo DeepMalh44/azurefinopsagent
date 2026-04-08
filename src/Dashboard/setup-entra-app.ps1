@@ -119,6 +119,10 @@ $graphGroupReadAll = "5b567255-7703-4780-807c-7be8301ae99b"       # Group.Read.A
 $laAppId = "ca7f3f0b-7d91-482c-8e09-c5d840d0eac5"
 $laDataRead = "e4aa47b9-9a69-4109-82ed-36ec70d85f3f"              # Data.Read
 
+# Azure Storage
+$storageAppId = "e406a681-f3d4-42a8-90b6-c2b029497af1"
+$storageUserImpersonation = "03e0da56-190b-40ad-a80c-ea378c433f7f"  # user_impersonation
+
 # Build the required resource access JSON
 $requiredAccess = @(
     @{
@@ -142,6 +146,12 @@ $requiredAccess = @(
         resourceAccess = @(
             @{ id = $laDataRead; type = "Scope" }
         )
+    },
+    @{
+        resourceAppId  = $storageAppId
+        resourceAccess = @(
+            @{ id = $storageUserImpersonation; type = "Scope" }
+        )
     }
 ) | ConvertTo-Json -Depth 4 -Compress
 
@@ -156,6 +166,7 @@ Write-Host "  Azure ARM:       user_impersonation (delegated)" -ForegroundColor 
 Write-Host "  Microsoft Graph: User.Read, Organization.Read.All, Reports.Read.All," -ForegroundColor Gray
 Write-Host "                   User.Read.All, Group.Read.All (all delegated, read-only)" -ForegroundColor Gray
 Write-Host "  Log Analytics:   Data.Read (delegated, read-only)" -ForegroundColor Gray
+Write-Host "  Azure Storage:   user_impersonation (delegated, for cost exports)" -ForegroundColor Gray
 Write-Host ""
 Write-Host "  NOTE: All Graph and Log Analytics scopes use incremental consent —" -ForegroundColor DarkYellow
 Write-Host "  users only see consent prompts when they opt into each tier." -ForegroundColor DarkYellow

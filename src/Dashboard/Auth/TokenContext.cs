@@ -10,6 +10,7 @@ public class UserTokens
     private volatile string? _azureToken;
     private volatile string? _graphToken;
     private volatile string? _logAnalyticsToken;
+    private volatile string? _storageToken;
 
     /// <summary>Azure ARM API token (management.azure.com)</summary>
     public string? AzureToken { get => _azureToken; set => _azureToken = value; }
@@ -19,6 +20,9 @@ public class UserTokens
 
     /// <summary>Log Analytics / App Insights API token (api.loganalytics.io)</summary>
     public string? LogAnalyticsToken { get => _logAnalyticsToken; set => _logAnalyticsToken = value; }
+
+    /// <summary>Azure Storage data-plane token (storage.azure.com) for reading cost exports</summary>
+    public string? StorageToken { get => _storageToken; set => _storageToken = value; }
 
     /// <summary>Lock for serializing token refresh operations to prevent double-refresh races.</summary>
     public SemaphoreSlim RefreshLock { get; } = new(1, 1);

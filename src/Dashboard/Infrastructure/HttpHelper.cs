@@ -24,7 +24,9 @@ public static class HttpHelper
         string telemetryPrefix,
         HttpMethod? method = null,
         string? jsonBody = null,
-        bool includeTimestamp = false)
+        bool includeTimestamp = false,
+        Dictionary<string, string>? extraHeaders = null,
+        int? maxResponseChars = null)
     {
         method ??= HttpMethod.Get;
 
@@ -34,6 +36,10 @@ public static class HttpHelper
             using var req = new HttpRequestMessage(method, url);
             req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
             req.Headers.Add("User-Agent", "FinOps-Dashboard/1.0");
+
+            if (extraHeaders is not null)
+                foreach (var (key, value) in extraHeaders)
+                    req.Headers.TryAddWithoutValidation(key, value);
 
             if (jsonBody is not null)
                 req.Content = new StringContent(jsonBody, Encoding.UTF8, "application/json");
@@ -61,7 +67,16 @@ public static class HttpHelper
         var result = $"HTTP {(int)res.StatusCode} {res.StatusCode}\n";
         if (includeTimestamp)
             result += $"Current UTC time: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}\n";
-        result += responseBody;
+
+        if (maxResponseChars.HasValue && responseBody.Length > maxResponseChars.Value)
+        {
+            result += responseBody[..maxResponseChars.Value];
+            result += $"\n\n[TRUNCATED — showing first {maxResponseChars.Value / 1024}KB of {responseBody.Length / 1024}KB. Use Python with pandas for full analysis.]";
+        }
+        else
+        {
+            result += responseBody;
+        }
 
         return result;
     }

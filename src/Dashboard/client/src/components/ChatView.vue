@@ -444,6 +444,22 @@
                 title="Log Analytics & App Insights KQL — consented in Entra ID"
                 >✓ KQL</span
               >
+
+              <button
+                v-if="!storageEnabled"
+                class="azure-addon-btn"
+                @click="startAuth('azure', '/auth/microsoft?tier=storage')"
+                title="Opens Microsoft consent screen for: Read Azure Storage data (cost exports)"
+              >
+                <span class="azure-addon-icon">+</span>
+                Cost Exports
+              </button>
+              <span
+                v-else
+                class="azure-addon-active"
+                title="Azure Storage access for cost export data — consented in Entra ID"
+                >✓ Exports</span
+              >
             </div>
             <button
               class="azure-revoke-btn"
@@ -1317,6 +1333,7 @@ const graphEnabled = ref(false);
 const licensesEnabled = ref(false);
 const chargebackEnabled = ref(false);
 const logAnalyticsEnabled = ref(false);
+const storageEnabled = ref(false);
 const tenantId = ref(""); // User-specified tenant ID or domain for guest users
 const availableTenants = ref([]);
 const currentTenantId = ref("");
@@ -1340,6 +1357,7 @@ async function checkAzureStatus() {
         licensesEnabled.value = gt.includes("licenses");
         chargebackEnabled.value = gt.includes("chargeback");
         logAnalyticsEnabled.value = data.logAnalyticsEnabled || false;
+        storageEnabled.value = data.storageEnabled || false;
         // Fetch tenant list after connecting
         fetchTenants();
       }
@@ -1405,9 +1423,11 @@ async function disconnectAzure() {
     licensesEnabled.value = false;
     chargebackEnabled.value = false;
     logAnalyticsEnabled.value = false;
+    storageEnabled.value = false;
     maturityScores.crawl = null;
     maturityScores.walk = null;
     maturityScores.run = null;
+    maturityScores.playbook = null;
     await clearMessages();
   } catch {}
 }
@@ -1431,6 +1451,7 @@ async function revokeAllPermissions() {
     licensesEnabled.value = false;
     chargebackEnabled.value = false;
     logAnalyticsEnabled.value = false;
+    storageEnabled.value = false;
     await clearMessages();
   } catch {}
 }
@@ -1452,6 +1473,11 @@ watch(graphEnabled, async (enabled, was) => {
   }
 });
 watch(logAnalyticsEnabled, async (enabled, was) => {
+  if (enabled && !was) {
+    await clearMessages();
+  }
+});
+watch(storageEnabled, async (enabled, was) => {
   if (enabled && !was) {
     await clearMessages();
   }
@@ -1597,6 +1623,7 @@ const maturityScores = reactive({
   crawl: null, // null = not scored, array of {id, label, score, detail} when scored
   walk: null,
   run: null,
+  playbook: null,
 });
 
 function maturityOverall(level) {
@@ -2043,6 +2070,136 @@ const maturityCategories = [
         label: "FinOps maturity assessment",
         prompt:
           "Conduct a structured FinOps maturity assessment. Check each dimension: (1) Do I have budgets set per subscription? (2) What % of resources are tagged? (3) Am I using reservations/savings plans? (4) Advisor recommendation adoption rate? (5) Do I have cost exports configured? (6) Are my management groups structured for cost governance? Score each as Crawl/Walk/Run and recommend next steps.",
+      },
+    ],
+  },
+  // ── PLAYBOOK — Tailored FinOps priorities ──
+  {
+    key: "playbook",
+    label: "Playbook",
+    subtitle: "Tailored Analysis",
+    icon: "P",
+    colorClass: "cat-playbook",
+    requiresAzure: true,
+    prompts: [
+      {
+        label: "Score Playbook maturity",
+        prompt:
+          "Score my Playbook-level FinOps maturity (0-5 per dimension). Check these using Azure APIs: (1) Budget Coverage — what % of subscriptions have budgets configured with alert thresholds? (2) Budget Alerting — do existing budgets have alerts for actual (80%, 100%) and forecasted (100%, 120%) spend? (3) Anomaly Detection — are cost anomaly alerts enabled? (4) Egress Optimization — what is my bandwidth/egress cost as a % of total spend? (5) Reservation Health — what is the average utilization of my active reservations? (6) Tag-based Grouping — can costs be grouped by application/team via tags? For each, give a score 0-5 and a one-line reason, then call ReportMaturityScore with level 'playbook' and the scores array.",
+      },
+      {
+        label: "Score trend over time",
+        prompt:
+          "Show my FinOps maturity score trend over time. Retrieve my score history using the GetScoreHistory tool and compare previous assessments to the latest. Show a line chart of overall scores per level over time and highlight whether I'm trending positively or negatively. If no history exists, tell me to run a scoring first.",
+      },
+      // ── Cost Overview by Analysis Bucket ──
+      {
+        label: "Spend by analysis bucket",
+        prompt:
+          "Analyze my Azure spend across all subscriptions and group it into these analysis buckets: Compute (VMs, VMSS, dedicated hosts), Storage (blob, files, disks, managed disks, NetApp), Databases (SQL, Cosmos DB, MySQL, PostgreSQL, MariaDB, Redis Cache), DataServices (Data Factory, Synapse, Databricks, HDInsight, Data Lake, Stream Analytics, Purview), Networking (VNets, peering, ExpressRoute, VPN, Load Balancer, App Gateway, Firewall, Front Door, CDN, bandwidth/egress, NAT Gateway, Traffic Manager, Private Link), Serverless (Functions, Logic Apps, Event Grid, Service Bus, Event Hubs, API Management), Monitoring (Log Analytics, App Insights, Monitor, Sentinel), Backup_DR (Recovery Services, Site Recovery, Backup), Integration (API Management, Service Bus, Logic Apps, Event Grid), Security (Defender, Key Vault, DDoS Protection, WAF), Containers (AKS, Container Instances, Container Registry, Container Apps), Identity (Entra ID, MFA), AI_ML (Cognitive Services, OpenAI, ML workspaces). Show a pie chart of spend by bucket with % of total. Then show a table with bucket name, total cost, and % of total spend sorted by highest spend first.",
+      },
+      {
+        label: "Top 20 subscriptions by spend",
+        prompt:
+          "Show the top 20 Azure subscriptions by total spend for the current month. Show a bar chart and a table with rank, subscription name, cost, and % of total spend.",
+      },
+      {
+        label: "Top subs per service bucket",
+        prompt:
+          "For each of my top 5 analysis buckets by spend (Compute, Storage, Databases, DataServices, Networking), show the top 10 subscriptions contributing the most cost within that bucket. Use Cost Management queries grouped by SubscriptionName and filtered by the relevant ServiceName/MeterCategory for each bucket. Show a summary table per bucket with subscription name, cost within that bucket, and % of bucket spend.",
+      },
+      {
+        label: "Drill down subscription costs",
+        prompt:
+          "For my most expensive subscription, drill down into the cost details. Break down by analysis bucket (Compute, Storage, Databases, DataServices, Networking, Serverless, Monitoring, Backup_DR, Integration, Security, Containers). Show which resource types and specific resources are increasing or decreasing month over month. Show a waterfall chart of cost changes by service.",
+      },
+      // ── Trends ──
+      {
+        label: "Month-over-month trends",
+        prompt:
+          "Show historic cost trends for the last 6 months grouped by analysis bucket (Compute, Storage, Databases, DataServices, Networking, Serverless, Monitoring, Backup_DR). Show a line chart with monthly totals per bucket and highlight significant month-over-month increases or decreases. Then show the same trend for my top 10 subscriptions by spend.",
+      },
+      {
+        label: "Subscription spend change",
+        prompt:
+          "Compare this month vs last month spend by subscription. Which subscriptions had the biggest cost increase and decrease? Show a waterfall chart of changes and a table with subscription name, last month cost, this month cost, change amount, and change %.",
+      },
+      // ── Budgets ──
+      {
+        label: "Budget coverage gaps",
+        prompt:
+          "Which of my Azure subscriptions are NOT covered by a budget? List all subscriptions and indicate whether each has a budget configured. Show the coverage percentage and flag uncovered subscriptions. This is a large estate — query across all subscriptions efficiently.",
+      },
+      {
+        label: "Budget exceeded or at risk",
+        prompt:
+          "For all my Azure budgets, show which have been exceeded and which are forecasted to be exceeded this month. Show a table with budget name, scope, budget amount, actual spend, forecasted spend, and status (OK / At Risk / Exceeded). Show a gauge chart for each at-risk budget.",
+      },
+      {
+        label: "Suggest budget amounts",
+        prompt:
+          "For subscriptions that don't have budgets, analyze the last 3 months of spend and suggest an appropriate monthly budget amount for each. Also recommend alert thresholds following Microsoft best practices: 50%, 80%, 100% for actual spend and 100%, 120% for forecasted spend.",
+      },
+      {
+        label: "Budget alert audit",
+        prompt:
+          "Audit my existing Azure budget alert configurations. For each budget, show the configured notification thresholds for actual and forecasted spend. Compare against Microsoft best practices (actual: 50%, 80%, 100%; forecasted: 100%, 120%). Flag budgets with missing or misconfigured alerts.",
+      },
+      {
+        label: "Cost anomaly detection check",
+        prompt:
+          "Check if cost anomaly detection and alerting is enabled for my Azure subscriptions. List any active cost anomaly alerts and scheduled actions. Are these following Microsoft best practices? What's missing?",
+      },
+      // ── Networking ──
+      {
+        label: "Egress cost analysis",
+        prompt:
+          "Analyze my Azure egress and bandwidth charges across all subscriptions. Networking is ~9% of total spend. Break down by subscription, service, and region. Which services generate the most outbound data transfer costs? Show a bar chart of egress costs by service and recommend ways to reduce excessive charges.",
+      },
+      {
+        label: "VNet peering cost analysis",
+        prompt:
+          "Analyze my virtual network peering costs and topology. List all VNet peerings with their data transfer volumes and costs. Which peering connections are the most expensive? Are there opportunities to reduce costs by consolidating VNets or using service endpoints instead?",
+      },
+      // ── Reservations ──
+      {
+        label: "Reservation breakeven analysis",
+        prompt:
+          "For each of my active reservations, calculate the breakeven utilization point. Show the purchase price, on-demand equivalent cost over the term, breakeven utilization %, and actual average utilization %. Am I saving money or losing money on each reservation? Show a table sorted by savings/loss.",
+      },
+      // ── Regions ──
+      {
+        label: "Region cost comparison",
+        prompt:
+          "If I moved my workloads to a different Azure region, what would be the cost difference? List my current resources by region, look up retail pricing for my top resources in 3 alternative regions, and show a comparison table with current vs alternative monthly costs. Highlight the cheapest option.",
+      },
+      // ── Subscription Mapping ──
+      {
+        label: "Group costs by application tag",
+        prompt:
+          "Group my Azure costs by the 'Application' or 'app' tag across all subscriptions. Show total cost per application as a bar chart. Which applications span multiple subscriptions? Show a table with application name, subscriptions involved, and total cost.",
+      },
+      {
+        label: "Scope costs by tag",
+        prompt:
+          "I want to see costs for a specific scope defined by tags. Show me how costs break down when I filter by environment (Production vs Dev vs Test) or by team/department tags. Show a pie chart of cost distribution by the selected tag.",
+      },
+      // ── Cost Exports ──
+      {
+        label: "Analyze cost export data",
+        prompt:
+          "I have cost export data in an Azure Storage account (scheduled export, FOCUS format). Help me analyze it. First, ask me for the storage account name and container. Then list the available export blobs, read the latest one, and analyze it: show spend by service bucket, top subscriptions, and month-over-month trends.",
+      },
+      // ── Scheduling ──
+      {
+        label: "Schedule a report",
+        prompt:
+          "I want to schedule a recurring FinOps report. Help me set it up — ask me what analysis I want (cost overview, FinOps score, recommendations, etc.), the frequency (daily, weekly, monthly), the scope (subscription, resource group, or all), and the output format (chat summary or PowerPoint). Then save the schedule.",
+      },
+      {
+        label: "View saved reports",
+        prompt:
+          "Show all my saved report schedules. For each, show the name, frequency, scope, last run time, and next scheduled run. Are any overdue?",
       },
     ],
   },
@@ -2865,7 +3022,10 @@ async function send() {
               const level = data.level?.toLowerCase();
               if (
                 level &&
-                (level === "crawl" || level === "walk" || level === "run")
+                (level === "crawl" ||
+                  level === "walk" ||
+                  level === "run" ||
+                  level === "playbook")
               ) {
                 const scores =
                   typeof data.scores === "string"
@@ -3275,6 +3435,10 @@ async function send() {
 .sidebar-question-icon--cat-run {
   background: #dff6dd;
   color: #107c10;
+}
+.sidebar-question-icon--cat-playbook {
+  background: #f3e8fd;
+  color: #7b2ff2;
 }
 
 /* ── Category header layout ── */
