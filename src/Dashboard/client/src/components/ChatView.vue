@@ -3643,6 +3643,37 @@ async function send() {
   color: #0078d4;
   background: #f3f2f1;
 }
+.saved-tenants {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.saved-tenants-label {
+  font-size: 11px;
+  color: #8a8886;
+  margin-right: 2px;
+}
+.saved-tenant-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: 16px;
+  border: 1px solid #e1dfdd;
+  background: #f3f2f1;
+  color: #323130;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.saved-tenant-btn:hover {
+  border-color: #0078d4;
+  color: #0078d4;
+  background: #deecf9;
+}
 .azure-connect-hint {
   display: block;
   font-size: 11px;
