@@ -72,7 +72,7 @@ Microsoft.ContainerService: 2026-01-01 (managedClusters — AKS)
 Microsoft.Network: 2025-05-01 (virtualNetworks, publicIPAddresses, loadBalancers, applicationGateways, expressRouteCircuits, vpnGateways, natGateways, azureFirewalls, privateEndpoints)
 Microsoft.Storage: 2025-08-01 (storageAccounts)
 Microsoft.Sql: 2025-01-01 (servers, databases, managedInstances — now GA)
-Microsoft.Web: 2024-04-01 (serverfarms, sites)
+Microsoft.Web: 2025-03-01 (serverfarms, sites)
 Microsoft.OperationalInsights: 2025-07-01 (workspaces, tables, usages)
 Microsoft.MachineLearningServices: 2025-12-01 (workspaces, computes, onlineEndpoints, batchEndpoints)
 Microsoft.Databricks: 2026-01-01 (workspaces)
@@ -81,8 +81,8 @@ Microsoft.Cache: 2024-11-01 (redis)
 Microsoft.DataFactory: 2018-06-01 (factories, pipelines)
 Microsoft.Synapse: 2021-06-01 (workspaces, sqlPools, bigDataPools)
 Microsoft.App: 2026-01-01 (containerApps, managedEnvironments)
-Microsoft.ResourceHealth: 2024-02-01 (availabilityStatuses)
-Microsoft.Security: 2020-01-01 (assessments, secureScores)
+Microsoft.ResourceHealth: 2025-05-01 (availabilityStatuses)
+Microsoft.Security: 2025-05-04 (assessments, assessmentMetadata); 2020-01-01 (secureScores)
 Microsoft.Authorization (RBAC): 2022-04-01 (roleAssignments, roleDefinitions)
 Microsoft.Authorization (Policy): 2023-04-01 (policyDefinitions, policyAssignments)
 Microsoft.Authorization (Locks): 2020-05-01 (locks)
@@ -148,8 +148,8 @@ GET /subscriptions/{id}/providers/Microsoft.Storage/storageAccounts?api-version=
 === SQL (Microsoft.Sql, api-version=2025-01-01) ===
 GET /subscriptions/{id}/providers/Microsoft.Sql/servers?api-version=2025-01-01 — all SQL logical servers with location, version, admin login. GET /subscriptions/{id}/resourceGroups/{rg}/providers/Microsoft.Sql/servers/{serverName}/databases?api-version=2025-01-01 — databases on a server; returns sku (name=GP_S_Gen5_2 / BC_Gen5_4 / S0-S12 / P1-P15), maxSizeBytes, currentServiceObjectiveName (DTU tier or vCore config), zoneRedundant, licenseType (BasePrice=AHUB, LicenseIncluded=full price), requestedBackupStorageRedundancy (Geo/Local/Zone). GET /subscriptions/{id}/providers/Microsoft.Sql/managedInstances?api-version=2025-01-01 — SQL Managed Instances with sku (GP_Gen5/BC_Gen5), vCores, storageSizeInGB, licenseType for right-sizing. For cost optimization: check AHB license savings, over-provisioned DTU/vCores, Basic/S0 tier for dev databases, zone redundancy cost.
 
-=== APP SERVICE (Microsoft.Web, api-version=2024-04-01) ===
-GET /subscriptions/{id}/providers/Microsoft.Web/serverfarms?api-version=2024-04-01 — all App Service plans; returns sku (name=F1/B1/B2/S1/P1v3/P0v3, tier=Free/Basic/Standard/Premium/PremiumV3), numberOfWorkers, currentNumberOfWorkers, maximumNumberOfWorkers, numberOfSites (0 = empty plan still billed). GET /subscriptions/{id}/providers/Microsoft.Web/sites?api-version=2024-04-01 — all web/function apps; returns kind (app/functionapp/linux), state (Running/Stopped), serverFarmId (linked plan), httpsOnly, clientAffinityEnabled, siteConfig.alwaysOn. For cost optimization: find empty App Service plans (numberOfSites=0 still billed), over-provisioned plans, stopped apps on paid plans, F1→B1 upgrade opportunities.
+=== APP SERVICE (Microsoft.Web, api-version=2025-03-01) ===
+GET /subscriptions/{id}/providers/Microsoft.Web/serverfarms?api-version=2025-03-01 — all App Service plans; returns sku (name=F1/B1/B2/S1/P1v3/P0v3, tier=Free/Basic/Standard/Premium/PremiumV3), numberOfWorkers, currentNumberOfWorkers, maximumNumberOfWorkers, numberOfSites (0 = empty plan still billed). GET /subscriptions/{id}/providers/Microsoft.Web/sites?api-version=2025-03-01 — all web/function apps; returns kind (app/functionapp/linux), state (Running/Stopped), serverFarmId (linked plan), httpsOnly, clientAffinityEnabled, siteConfig.alwaysOn. For cost optimization: find empty App Service plans (numberOfSites=0 still billed), over-provisioned plans, stopped apps on paid plans, F1→B1 upgrade opportunities.
 
 === LOG ANALYTICS (Microsoft.OperationalInsights, api-version=2025-07-01) ===
 GET /subscriptions/{id}/providers/Microsoft.OperationalInsights/workspaces?api-version=2025-07-01 — all Log Analytics workspaces; returns sku (PerGB2018/CapacityReservation/Free), retentionInDays, dailyQuotaGb (ingestion cap), workspaceCapping, customerId (workspace GUID). GET /subscriptions/{id}/resourceGroups/{rg}/providers/Microsoft.OperationalInsights/workspaces/{name}/usages?api-version=2025-07-01 — data ingestion volume per data type (SecurityEvent, Perf, Heartbeat, Syslog, etc.) in bytes — identify top ingestion cost drivers. GET /subscriptions/{id}/resourceGroups/{rg}/providers/Microsoft.OperationalInsights/workspaces/{name}/tables?api-version=2025-07-01 — table-level config: plan (Analytics=full query/$$$, Basic=limited query/$$, Archive=cheapest/no query), retentionInDays, totalRetentionInDays. For cost optimization: move verbose tables to Basic/Archive plan, reduce retention, identify tables ingesting >1GB/day, evaluate CapacityReservation tier.
@@ -175,11 +175,11 @@ GET /subscriptions/{id}/providers/Microsoft.Synapse/workspaces?api-version=2021-
 === CONTAINER APPS (Microsoft.App, api-version=2026-01-01) ===
 GET /subscriptions/{id}/providers/Microsoft.App/containerApps?api-version=2026-01-01 — all Container Apps; returns configuration (activeRevisionsMode, ingress with targetPort/transport/traffic weights), template (containers with image/resources.cpu/resources.memory, scale with minReplicas/maxReplicas/rules), provisioningState, latestRevisionFqdn. GET /subscriptions/{id}/providers/Microsoft.App/managedEnvironments?api-version=2026-01-01 — Container App environments; returns sku (name=Consumption/Premium), vnetConfiguration, zoneRedundant, workloadProfiles (Consumption/Dedicated with workloadProfileType like D4/D8/E4/E8/NC24-A100). For cost optimization: ensure minReplicas=0 for non-critical apps (scale to zero), right-size CPU/memory per container, evaluate Consumption vs Dedicated workload profiles.
 
-=== RESOURCE HEALTH (Microsoft.ResourceHealth, api-version=2024-02-01) ===
-GET /{resourceId}/providers/Microsoft.ResourceHealth/availabilityStatuses/current?api-version=2024-02-01 — current availability status (Available/Unavailable/Degraded/Unknown) with reasonType and summary. GET /subscriptions/{id}/providers/Microsoft.ResourceHealth/availabilityStatuses?api-version=2024-02-01 — availability status of all resources in subscription. Useful for identifying resources with frequent outages that may indicate over/under-provisioning.
+=== RESOURCE HEALTH (Microsoft.ResourceHealth, api-version=2025-05-01) ===
+GET /{resourceId}/providers/Microsoft.ResourceHealth/availabilityStatuses/current?api-version=2025-05-01 — current availability status (Available/Unavailable/Degraded/Unknown) with reasonType and summary. GET /subscriptions/{id}/providers/Microsoft.ResourceHealth/availabilityStatuses?api-version=2025-05-01 — availability status of all resources in subscription. Useful for identifying resources with frequent outages that may indicate over/under-provisioning.
 
-=== SECURITY (Microsoft.Security, api-version=2020-01-01) ===
-GET /subscriptions/{id}/providers/Microsoft.Security/assessments?api-version=2020-01-01 — all Defender for Cloud security assessments; each returns displayName, status.code (Healthy/Unhealthy/NotApplicable), resourceDetails.id (affected resource), severity, category (Compute/Networking/Data/IdentityAndAccess). Use to find unprotected resources that may also be idle/orphaned. GET /subscriptions/{id}/providers/Microsoft.Security/secureScores?api-version=2020-01-01 — overall security score (current/max) and per-control score breakdown.
+=== SECURITY (Microsoft.Security) ===
+GET /subscriptions/{id}/providers/Microsoft.Security/assessments?api-version=2025-05-04 — all Defender for Cloud security assessments; each returns displayName, status.code (Healthy/Unhealthy/NotApplicable), resourceDetails.id (affected resource), severity, category (Compute/Networking/Data/IdentityAndAccess). Use to find unprotected resources that may also be idle/orphaned. GET /subscriptions/{id}/providers/Microsoft.Security/secureScores?api-version=2020-01-01 — overall security score (current/max) and per-control score breakdown.
 
 === SUBSCRIPTIONS (api-version=2022-12-01) ===
 GET /subscriptions?api-version=2022-12-01.
