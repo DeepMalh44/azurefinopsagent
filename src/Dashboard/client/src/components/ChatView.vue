@@ -30,6 +30,28 @@
           >Read-only</span
         >
       </div>
+      <div v-if="azureConnected && azureUserEmail" class="portal-header-right">
+        <span class="portal-header-email">{{ azureUserEmail }}</span>
+        <button
+          class="portal-header-disconnect"
+          @click="disconnectAzure"
+          title="Disconnect Azure"
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
     </header>
 
     <!-- Auth loading overlay -->
@@ -1232,13 +1254,13 @@
 <script setup>
 import * as echarts from "echarts";
 import {
-  computed,
-  nextTick,
-  onBeforeUnmount,
-  onMounted,
-  reactive,
-  ref,
-  watch,
+    computed,
+    nextTick,
+    onBeforeUnmount,
+    onMounted,
+    reactive,
+    ref,
+    watch,
 } from "vue";
 
 const props = defineProps({
@@ -3203,6 +3225,33 @@ async function send() {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+.portal-header-email {
+  font-size: 12px;
+  color: #fff;
+  opacity: 0.9;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 220px;
+}
+.portal-header-disconnect {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.8);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+.portal-header-disconnect:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
 }
 .portal-user-identity {
   display: flex;
