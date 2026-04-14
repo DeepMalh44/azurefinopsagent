@@ -156,12 +156,6 @@
                 @click="sendQuestion(q.prompt)"
               >
                 <span
-                  class="sidebar-question-icon"
-                  :class="'sidebar-question-icon--' + cat.colorClass"
-                >
-                  {{ cat.icon }}
-                </span>
-                <span
                   :class="{
                     'sidebar-question-label--score':
                       q.label.startsWith('Score '),
@@ -1009,131 +1003,124 @@
               rows="1"
               @keydown.enter.exact.prevent="send"
               @input="autoGrowInput"
-              :placeholder="
-                user
-                  ? 'Ask about Azure pricing, cost comparisons, or FinOps insights...'
-                  : 'Ask about Azure costs, pricing, or optimization...'
-              "
+              placeholder="Ask a question about your data"
               class="input-field"
               :disabled="!user"
             ></textarea>
-            <button
-              v-if="streaming"
-              class="action-btn action-btn--stop"
-              @click="stopGeneration"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-              >
-                <rect x="6" y="6" width="12" height="12" rx="2" />
-              </svg>
-            </button>
-            <button
-              v-else
-              class="action-btn"
-              :class="
-                input.trim() ? 'action-btn--active' : 'action-btn--disabled'
-              "
-              :disabled="!input.trim()"
-              @click="send"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2.5"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <line x1="12" y1="19" x2="12" y2="5" />
-                <polyline points="5 12 12 5 19 12" />
-              </svg>
-            </button>
-          </div>
-          <div class="input-side-actions">
-            <button
-              class="input-pill-btn"
-              :class="{
-                'input-pill-btn--disabled': messages.length === 0 || streaming,
-              }"
-              :disabled="messages.length === 0 || streaming"
-              @click="clearMessages"
-              title="Clear chat"
-            >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-                <path d="M3 3v5h5" />
-              </svg>
-              <span class="input-pill-label">Clear</span>
-            </button>
-            <button
-              class="input-pill-btn"
-              :class="{
-                'input-pill-btn--disabled': messages.length < 2 || streaming,
-              }"
-              :disabled="messages.length < 2 || streaming"
-              @click="requestPresentation"
-              title="Generate PowerPoint"
-            >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <path
-                  d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
-                />
-                <polyline points="14 2 14 8 20 8" />
-                <path d="M9 13h2v4h-2z" />
-                <path d="M9 11h4" />
-              </svg>
-              <span class="input-pill-label">PowerPoint</span>
-            </button>
-            <button
-              class="input-pill-btn"
-              :class="{
-                'input-pill-btn--disabled': messages.length < 2 || streaming,
-              }"
-              :disabled="messages.length < 2 || streaming"
-              @click="requestScript"
-              title="Generate Script"
-            >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <polyline points="16 18 22 12 16 6" />
-                <polyline points="8 6 2 12 8 18" />
-              </svg>
-              <span class="input-pill-label">Script</span>
-            </button>
+            <div class="input-bottom-bar">
+              <div class="input-bottom-left">
+                <button
+                  class="input-action-btn"
+                  :disabled="messages.length === 0 || streaming"
+                  @click="clearMessages()"
+                  title="Clear chat"
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path
+                      d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"
+                    />
+                    <path d="M3 3v5h5" />
+                  </svg>
+                  <span>Clear</span>
+                </button>
+                <button
+                  class="input-action-btn"
+                  :disabled="messages.length < 2 || streaming"
+                  @click="requestPresentation()"
+                  title="Generate PowerPoint"
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path
+                      d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+                    />
+                    <polyline points="14 2 14 8 20 8" />
+                    <path d="M9 13h2v4h-2z" />
+                    <path d="M9 11h4" />
+                  </svg>
+                  <span>PowerPoint</span>
+                </button>
+                <button
+                  class="input-action-btn"
+                  :disabled="messages.length < 2 || streaming"
+                  @click="requestScript()"
+                  title="Generate Script"
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <polyline points="16 18 22 12 16 6" />
+                    <polyline points="8 6 2 12 8 18" />
+                  </svg>
+                  <span>Script</span>
+                </button>
+              </div>
+              <div class="input-bottom-right">
+                <button
+                  v-if="streaming"
+                  class="action-btn action-btn--stop"
+                  @click="stopGeneration"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                  >
+                    <rect x="6" y="6" width="12" height="12" rx="2" />
+                  </svg>
+                </button>
+                <button
+                  v-else
+                  class="action-btn"
+                  :class="
+                    input.trim() ? 'action-btn--active' : 'action-btn--disabled'
+                  "
+                  :disabled="!input.trim()"
+                  @click="send"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <line x1="12" y1="19" x2="12" y2="5" />
+                    <polyline points="5 12 12 5 19 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -1254,13 +1241,13 @@
 <script setup>
 import * as echarts from "echarts";
 import {
-    computed,
-    nextTick,
-    onBeforeUnmount,
-    onMounted,
-    reactive,
-    ref,
-    watch,
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  reactive,
+  ref,
+  watch,
 } from "vue";
 
 const props = defineProps({
@@ -1339,6 +1326,7 @@ function toggleSection(key) {
 const buildSha = ref("");
 const buildNumber = ref("0");
 const sidebarOpen = ref(true);
+const plusMenuOpen = ref(false);
 const availableModels = ref(["claude-sonnet-4.6"]);
 const selectedModel = ref("claude-sonnet-4.6");
 
@@ -1482,7 +1470,10 @@ async function revokeAllPermissions() {
 watch(azureConnected, async (connected, wasConnected) => {
   if (!connected) return;
   collapsedSections.pricing = true;
-  collapsedSections.crawl = false;
+  collapsedSections.crawl = true;
+  collapsedSections.walk = true;
+  collapsedSections.run = true;
+  collapsedSections.playbook = true;
   // Auto-clear chat when Azure connects — removes stale "Connect Azure first" messages
   // and resets the Copilot session so the LLM knows the user is now connected
   if (!wasConnected) await clearMessages();
@@ -3332,11 +3323,11 @@ async function send() {
   gap: 2px;
 }
 .sidebar-category-label {
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: #605e5c;
+  text-transform: none;
+  letter-spacing: 0;
+  color: #323130;
   margin-bottom: 4px;
   padding: 0 16px;
 }
@@ -3384,24 +3375,29 @@ async function send() {
 .sidebar-question {
   display: flex;
   align-items: center;
-  gap: 10px;
-  width: 100%;
-  padding: 6px 16px;
-  border: none;
-  border-radius: 0;
-  background: transparent;
+  width: calc(100% - 20px);
+  margin: 2px 10px;
+  padding: 8px 12px;
+  border: 1px solid #edebe9;
+  border-radius: 6px;
+  background: #fff;
   font-size: 13px;
   font-weight: 400;
   color: #323130;
   cursor: pointer;
   text-align: left;
   line-height: 1.4;
-  transition: background 0.1s;
+  transition:
+    border-color 0.15s,
+    background 0.15s,
+    box-shadow 0.15s;
   font-family: inherit;
 }
 .sidebar-question:hover {
+  border-color: #0078d4;
   background: #f3f2f1;
   color: #0078d4;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 .sidebar-question:disabled {
   opacity: 0.4;
@@ -3417,77 +3413,6 @@ async function send() {
 .sidebar-question--locked:hover {
   background: transparent;
   color: #323130;
-}
-.sidebar-question-icon {
-  flex-shrink: 0;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  font-size: 10px;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.sidebar-question-icon--cat-cost {
-  background: #deecf9;
-  color: #0078d4;
-}
-.sidebar-question-icon--cat-optimize {
-  background: #fed9cc;
-  color: #d83b01;
-}
-.sidebar-question-icon--cat-reservations {
-  background: #e8daef;
-  color: #8661c5;
-}
-.sidebar-question-icon--cat-storage {
-  background: #d2f0e8;
-  color: #008575;
-}
-.sidebar-question-icon--cat-licensing {
-  background: #dff6dd;
-  color: #107c10;
-}
-.sidebar-question-icon--cat-governance {
-  background: #d6dbe4;
-  color: #002050;
-}
-.sidebar-question-icon--cat-pricing {
-  background: #deecf9;
-  color: #005a9e;
-}
-.sidebar-question-icon--cat-infra {
-  background: #fde7e9;
-  color: #d13438;
-}
-.sidebar-question-icon--cat-ai {
-  background: #f9e0f0;
-  color: #b4009e;
-}
-.sidebar-question-icon--cat-advanced {
-  background: #e0e4f5;
-  color: #4f6bed;
-}
-.sidebar-question-icon--cat-estimator {
-  background: #d8f5f7;
-  color: #008272;
-}
-.sidebar-question-icon--cat-crawl {
-  background: #deecf9;
-  color: #0078d4;
-}
-.sidebar-question-icon--cat-walk {
-  background: #fff4ce;
-  color: #986f0b;
-}
-.sidebar-question-icon--cat-run {
-  background: #dff6dd;
-  color: #107c10;
-}
-.sidebar-question-icon--cat-playbook {
-  background: #f3e8fd;
-  color: #7b2ff2;
 }
 
 /* ── Category header layout ── */
@@ -4568,28 +4493,25 @@ async function send() {
 }
 .input-wrapper {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  border: 1px solid #e1dfdd;
-  border-radius: 4px;
-  padding: 12px 12px 12px 18px;
+  flex-direction: column;
+  border: 1px solid #8a8886;
+  border-radius: 20px;
+  padding: 14px 18px 10px 18px;
   background: #fff;
-  transition: border-color 0.15s;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
   flex: 1;
   min-width: 0;
 }
 .input-wrapper:focus-within {
   border-color: #0078d4;
+  box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.1);
 }
 .input-wrapper--disabled {
   background: #f3f2f1;
   opacity: 0.6;
-}
-.input-side-actions {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  flex-shrink: 0;
 }
 .input-field {
   flex: 1;
@@ -4598,7 +4520,7 @@ async function send() {
   color: #323130;
   font-size: 15px;
   font-family: inherit;
-  padding: 4px 0;
+  padding: 0;
   outline: none;
   line-height: 1.5;
   resize: none;
@@ -4609,38 +4531,47 @@ async function send() {
 .input-field::placeholder {
   color: #a19f9d;
 }
-.input-pill-btn {
-  flex-shrink: 0;
-  height: 36px;
+.input-bottom-bar {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 0 14px;
-  border-radius: 4px;
-  border: 1px solid #e1dfdd;
-  background: #fff;
+  justify-content: space-between;
+  margin-top: 8px;
+}
+.input-bottom-left {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.input-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 14px;
+  border: none;
+  background: transparent;
   color: #605e5c;
   cursor: pointer;
-  transition: all 0.15s;
   font-family: inherit;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
+  white-space: nowrap;
+  transition:
+    color 0.15s,
+    background 0.15s;
 }
-.input-pill-btn:not(:disabled) {
-  color: #323130;
-}
-.input-pill-btn:hover:not(:disabled) {
+.input-action-btn:hover:not(:disabled) {
   background: #f3f2f1;
-  border-color: #0078d4;
   color: #0078d4;
 }
-.input-pill-btn--disabled {
-  opacity: 0.4;
+.input-action-btn:disabled {
+  opacity: 0.35;
   cursor: default;
 }
-.input-pill-label {
-  line-height: 1;
+.input-bottom-right {
+  display: flex;
+  align-items: center;
 }
 .action-btn {
   flex-shrink: 0;
@@ -4649,7 +4580,7 @@ async function send() {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 4px;
+  border-radius: 50%;
   border: none;
   cursor: pointer;
   transition: all 0.15s;
