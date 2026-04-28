@@ -936,7 +936,7 @@ app.MapPost("/api/chat", (Delegate)(async (HttpContext ctx, IHttpClientFactory h
     if (tokens.StorageToken is not null) connectedApis.Add("Azure Storage (ListCostExportBlobs, ReadCostExportBlob)");
     var connectionContext = connectedApis.Count > 0
         ? $"[CONTEXT: User IS connected to Azure. Available APIs: {string.Join(", ", connectedApis)}. Proceed with tool calls directly.]"
-        : "[CONTEXT: User is NOT connected to Azure. Tell them to click 'Connect Azure' in the sidebar.]";
+        : "[CONTEXT: User is NOT connected to Azure. You can still answer any question that does NOT require their tenant-specific data — including public Azure information (regions, datacenters, services, pricing via RetailPrices, service health, general FinOps guidance), rendering charts/maps with public data, and explaining concepts. Use your built-in knowledge and public tools (RenderChart, RenderAdvancedChart, RetailPricing, GetAzureServiceHealth, web fetch) freely. Only ask the user to click 'Connect Azure' when the question genuinely requires their subscription/tenant data (their costs, their resources, their usage). Do NOT refuse public questions.]";
     prompt = $"{connectionContext}\n{prompt}";
 
     // SSE headers
