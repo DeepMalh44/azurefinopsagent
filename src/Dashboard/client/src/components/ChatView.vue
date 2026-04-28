@@ -69,21 +69,6 @@
       <!-- Left sidebar -->
       <aside class="sidebar" :class="{ 'sidebar--collapsed': !sidebarOpen }">
         <div class="sidebar-scroll">
-          <!-- Wow shortcut: Azure Data Centers world map -->
-          <div
-            class="sidebar-category-label sidebar-category-label--toggle"
-            @click="
-              !streaming &&
-              sendQuestion(
-                'Show me all current Azure Data Center regions around the world AND all upcoming announced Azure regions on a single world map. Use one color for live regions and a different color for upcoming/announced regions. Render as an interactive world map.',
-              )
-            "
-          >
-            <div class="sidebar-category-left">
-              <span>Azure World Map</span>
-            </div>
-          </div>
-
           <!-- FinOps Maturity Categories (Crawl / Walk / Run + Pricing) -->
           <div
             v-for="cat in visibleCategories"
