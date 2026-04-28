@@ -24,11 +24,6 @@
           </svg>
         </button>
         <span class="portal-title">Azure FinOps Agent</span>
-        <span
-          class="portal-readonly-badge"
-          title="This agent can only read data — it cannot create, modify, or delete any Azure resources"
-          >Read-only</span
-        >
       </div>
       <div v-if="azureConnected && azureUserEmail" class="portal-header-right">
         <span class="portal-header-email">{{ azureUserEmail }}</span>
@@ -74,6 +69,21 @@
       <!-- Left sidebar -->
       <aside class="sidebar" :class="{ 'sidebar--collapsed': !sidebarOpen }">
         <div class="sidebar-scroll">
+          <!-- Wow shortcut: Azure Data Centers world map -->
+          <div
+            class="sidebar-category-label sidebar-category-label--toggle"
+            @click="
+              !streaming &&
+              sendQuestion(
+                'Show me all current Azure Data Center regions around the world AND all upcoming announced Azure regions on a single world map. Use one color for live regions and a different color for upcoming/announced regions. Render as an interactive world map.',
+              )
+            "
+          >
+            <div class="sidebar-category-left">
+              <span>Azure World Map</span>
+            </div>
+          </div>
+
           <!-- FinOps Maturity Categories (Crawl / Walk / Run + Pricing) -->
           <div
             v-for="cat in visibleCategories"
@@ -236,8 +246,8 @@
                 one manually.</span
               >
             </div>
-            <!-- Saved tenants — clickable buttons from previous connections -->
-            <div v-if="savedTenants.length" class="saved-tenants">
+            <!-- Saved tenants — hidden -->
+            <div v-if="false" class="saved-tenants">
               <span class="saved-tenants-label">Your tenants</span>
               <button
                 v-for="t in savedTenants"
@@ -276,18 +286,11 @@
                   'tenant-input--highlight':
                     tenantError && !savedTenants.length,
                 }"
-                :placeholder="
-                  savedTenants.length
-                    ? 'Sign in to a different tenant (ID or domain)…'
-                    : 'Tenant ID or domain (e.g. contoso.onmicrosoft.com)'
-                "
+                placeholder="Tenant ID…"
               />
               <span v-if="!savedTenants.length" class="tenant-hint"
                 >Leave empty to use your home tenant, or specify a different
                 one</span
-              >
-              <span v-else class="tenant-hint"
-                >Click a saved tenant above, or type another to sign in.</span
               >
             </div>
             <button
@@ -319,9 +322,6 @@
                     : "Connect Azure"
               }}
             </button>
-            <span class="azure-connect-hint"
-              >Read-only — cannot modify resources</span
-            >
           </div>
           <div v-else class="azure-status">
             <div class="azure-status-info">
@@ -499,10 +499,12 @@
             <div v-if="messages.length === 0" class="empty-state">
               <h1 class="es-headline">Azure FinOps Agent</h1>
               <p class="es-sub">
-                Analyze costs, forecast spend, optimize resources, and export
-                executive-ready PowerPoint decks — all from a single
-                conversation. <strong>Read-only access</strong> — this agent
-                cannot create, modify, or delete any Azure resources.
+                Compress weeks of FinOps analysis into a single conversation.
+                Ask, in plain language, where your money goes — and get
+                quantified savings, FinOps Foundation maturity scores, and a
+                CFO-ready PowerPoint in minutes.
+                <strong>Read-only by design</strong> — safe to point at any
+                tenant, from dev sandbox to global enterprise.
               </p>
 
               <div v-if="!azureConnected" class="es-connect-bar">
@@ -530,11 +532,8 @@
                     below or type one manually.</span
                   >
                 </div>
-                <!-- Saved tenants — clickable buttons from previous connections -->
-                <div
-                  v-if="savedTenants.length"
-                  class="saved-tenants es-saved-tenants"
-                >
+                <!-- Saved tenants — hidden -->
+                <div v-if="false" class="saved-tenants es-saved-tenants">
                   <span class="saved-tenants-label">Your tenants</span>
                   <div class="saved-tenants-list">
                     <button
@@ -576,11 +575,7 @@
                       'tenant-input--highlight':
                         tenantError && !savedTenants.length,
                     }"
-                    :placeholder="
-                      savedTenants.length
-                        ? 'Or type a different tenant…'
-                        : 'Tenant ID or domain (e.g. contoso.onmicrosoft.com)'
-                    "
+                    placeholder="Tenant ID…"
                   />
                 </div>
                 <button
@@ -632,63 +627,81 @@
               <div class="es-capabilities">
                 <div class="es-capabilities-grid">
                   <div class="es-cap-item">
+                    <div class="es-cap-title">FinOps maturity scoring</div>
+                    <div class="es-cap-desc">
+                      Grades your environment against the FinOps Foundation
+                      framework (Crawl / Walk / Run) and tells you exactly where
+                      to invest next — no consultant required.
+                    </div>
+                  </div>
+                  <div class="es-cap-item">
                     <div class="es-cap-title">
-                      Cost analysis across all scopes
+                      Reservations, savings plans &amp; AHUB
                     </div>
                     <div class="es-cap-desc">
-                      Break down spend by service, resource group, tag,
-                      subscription, and region — across all subscriptions and
-                      management groups at once
-                    </div>
-                  </div>
-                  <div class="es-cap-item">
-                    <div class="es-cap-title">20+ interactive chart types</div>
-                    <div class="es-cap-desc">
-                      Bar, line, pie, scatter, world maps, treemaps, heatmaps,
-                      radar, gauge, funnel, sankey — rendered inline, not static
-                      screenshots
+                      Surfaces RI / SP recommendations, utilization gaps, and
+                      Hybrid Benefit opportunities — the highest-$ levers in any
+                      FinOps engagement.
                     </div>
                   </div>
                   <div class="es-cap-item">
-                    <div class="es-cap-title">Python data processing</div>
+                    <div class="es-cap-title">
+                      Chargeback &amp; tag accountability
+                    </div>
                     <div class="es-cap-desc">
-                      Chains multiple API calls and runs Python with pandas and
-                      numpy for complex calculations and transformations
+                      Auto-generated showback by tag, owner, or business unit —
+                      and quantifies the untagged spend that breaks
+                      accountability.
                     </div>
                   </div>
                   <div class="es-cap-item">
-                    <div class="es-cap-title">PowerPoint export</div>
+                    <div class="es-cap-title">
+                      M365 license &amp; Copilot ROI
+                    </div>
                     <div class="es-cap-desc">
-                      Generates .pptx presentations with embedded charts and
-                      data tables — walk into a stakeholder meeting ready
+                      Microsoft Graph integration: unused licenses, Copilot seat
+                      utilization, and license waste — levers Cost Management
+                      can't see.
                     </div>
                   </div>
                   <div class="es-cap-item">
-                    <div class="es-cap-title">M365 license and Copilot ROI</div>
+                    <div class="es-cap-title">
+                      Every Azure service, every scope
+                    </div>
                     <div class="es-cap-desc">
-                      Queries Microsoft Graph for unused licenses, Copilot seat
-                      usage, and license waste across your tenant
+                      40+ services across all subscriptions and management
+                      groups in one query — compute, AKS, Databricks, Synapse,
+                      ML, Cosmos, networking, storage, carbon.
                     </div>
                   </div>
                   <div class="es-cap-item">
-                    <div class="es-cap-title">KQL on Log Analytics</div>
+                    <div class="es-cap-title">
+                      Anomaly &amp; cost-spike detection
+                    </div>
                     <div class="es-cap-desc">
-                      Runs queries for ingestion costs, VM performance,
-                      container insights, and activity audit telemetry
+                      Pinpoints unexpected cost increases by service, scope, or
+                      tag — and explains the root cause in plain language, not
+                      just a chart.
                     </div>
                   </div>
                   <div class="es-cap-item">
-                    <div class="es-cap-title">Every Azure resource type</div>
+                    <div class="es-cap-title">
+                      KQL, Python &amp; multi-step reasoning
+                    </div>
                     <div class="es-cap-desc">
-                      Reservations, savings plans, Cosmos DB, AKS, Databricks,
-                      Redis, Synapse, ML, Carbon, and 30+ more
+                      Chains live API calls, runs pandas / numpy in-process, and
+                      queries Log Analytics for unit economics no dashboard can
+                      express.
                     </div>
                   </div>
                   <div class="es-cap-item">
-                    <div class="es-cap-title">Chargeback and tag audit</div>
+                    <div class="es-cap-title">
+                      Inline charts + executive PowerPoint
+                    </div>
                     <div class="es-cap-desc">
-                      Auto-generates chargeback reports by tag or owner and
-                      quantifies untagged cost across your environment
+                      20+ ECharts types (treemaps, heatmaps, world maps, sankey)
+                      plus one-click .pptx export — walk into the CFO meeting
+                      ready.
                     </div>
                   </div>
                 </div>
@@ -1321,14 +1334,16 @@ const collapsedSections = reactive({
   crawl: true,
   walk: true,
   run: true,
-  pricing: false,
+  pricing: true,
 });
 function toggleSection(key) {
   collapsedSections[key] = !collapsedSections[key];
 }
 const buildSha = ref("");
 const buildNumber = ref("0");
-const sidebarOpen = ref(true);
+const sidebarOpen = ref(
+  typeof window !== "undefined" ? window.innerWidth > 768 : true,
+);
 const plusMenuOpen = ref(false);
 const availableModels = ref(["claude-sonnet-4.6"]);
 const selectedModel = ref("claude-sonnet-4.6");
@@ -5330,7 +5345,21 @@ async function send() {
 /* ── Responsive ── */
 @media (max-width: 768px) {
   .sidebar {
-    display: none;
+    position: fixed;
+    top: 48px;
+    left: 0;
+    bottom: 0;
+    width: 80vw;
+    max-width: 320px;
+    z-index: 150;
+    background: #fff;
+    box-shadow: 2px 0 12px rgba(0, 0, 0, 0.18);
+    transform: translateX(0);
+    transition: transform 0.2s ease;
+  }
+  .sidebar--collapsed {
+    transform: translateX(-100%);
+    box-shadow: none;
   }
   .tools-sidebar {
     display: none;
