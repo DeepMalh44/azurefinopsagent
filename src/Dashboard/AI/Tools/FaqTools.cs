@@ -16,6 +16,13 @@ public static class FaqTools
     private static readonly string FaqFile = Path.Combine(FaqDir, "dynamic-faqs.json");
     private static readonly ConcurrentDictionary<string, FaqEntry> DynamicFaqs = new(StringComparer.OrdinalIgnoreCase);
 
+    // Set FAQ_AUTO_APPROVE=true to publish + index FAQs without manual review (legacy behavior).
+    // Default: false — entries are saved as pending, NOT linked from sitemap or pinged to IndexNow.
+    private static readonly bool AutoApprove =
+        string.Equals(Environment.GetEnvironmentVariable("FAQ_AUTO_APPROVE"), "true", StringComparison.OrdinalIgnoreCase);
+    private static readonly string ApprovalKey = Environment.GetEnvironmentVariable("FAQ_APPROVAL_KEY") ?? "";
+    private static readonly string IndexNowKey = Environment.GetEnvironmentVariable("INDEXNOW_KEY") ?? "finopsagent2026";
+
     static FaqTools()
     {
         Directory.CreateDirectory(FaqDir);
@@ -37,6 +44,10 @@ public static class FaqTools
             return "Error: question, answer, and title are all required.";
 
         var slug = GenerateSlug(question);
+        // Avoid silent overwrite of existing distinct entries
+        if (DynamicFaqs.TryGetValue(slug, out var existing) && existing.Question != question)
+            slug = $"{slug}-{Guid.NewGuid().ToString("N")[..6]}";
+
         var entry = new FaqEntry
         {
             Slug = slug,
@@ -44,20 +55,52 @@ public static class FaqTools
             Question = question,
             Answer = answer,
             CreatedUtc = DateTime.UtcNow.ToString("yyyy-MM-dd"),
+            Approved = AutoApprove,
         };
 
         DynamicFaqs[slug] = entry;
         Save();
 
-        // Ping IndexNow asynchronously (fire-and-forget)
-        _ = PingIndexNowAsync(slug);
+        if (entry.Approved)
+            _ = PingIndexNowAsync(slug);
 
-        return JsonSerializer.Serialize(new { published = true, url = $"/faq/{slug}" });
+        return JsonSerializer.Serialize(new
+        {
+            published = entry.Approved,
+            pending_review = !entry.Approved,
+            url = $"/faq/{slug}",
+            note = entry.Approved ? null : "Saved as pending review — won't appear in sitemap or be indexed until an admin approves it."
+        });
     }
 
-    public static IReadOnlyDictionary<string, FaqEntry> GetAll() => DynamicFaqs;
+    /// <summary>Returns only approved entries — safe for public listings (sitemap, index page).</summary>
+    public static IReadOnlyDictionary<string, FaqEntry> GetAll() =>
+        (IReadOnlyDictionary<string, FaqEntry>)DynamicFaqs
+            .Where(kv => kv.Value.Approved)
+            .ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.OrdinalIgnoreCase);
 
-    public static bool TryGet(string slug, out FaqEntry entry) => DynamicFaqs.TryGetValue(slug, out entry!);
+    /// <summary>Returns ALL entries including pending — for admin/moderation use only.</summary>
+    public static IReadOnlyDictionary<string, FaqEntry> GetAllIncludingPending() => DynamicFaqs;
+
+    /// <summary>Approves a pending entry. Requires FAQ_APPROVAL_KEY env var to match the supplied key.</summary>
+    public static bool TryApprove(string slug, string key)
+    {
+        if (string.IsNullOrEmpty(ApprovalKey) || !string.Equals(key, ApprovalKey, StringComparison.Ordinal))
+            return false;
+        if (!DynamicFaqs.TryGetValue(slug, out var entry)) return false;
+        if (entry.Approved) return true;
+        entry.Approved = true;
+        Save();
+        _ = PingIndexNowAsync(slug);
+        return true;
+    }
+
+    public static bool TryGet(string slug, out FaqEntry entry)
+    {
+        if (DynamicFaqs.TryGetValue(slug, out entry!) && entry.Approved) return true;
+        entry = null!;
+        return false;
+    }
 
     private static string GenerateSlug(string text)
     {
@@ -104,7 +147,7 @@ public static class FaqTools
             {
                 host = "azure-finops-agent.com",
                 urlList = new[] { $"https://azure-finops-agent.com/faq/{slug}" },
-                key = "finopsagent2026"
+                key = IndexNowKey
             });
             await http.PostAsync("https://api.indexnow.org/indexnow",
                 new StringContent(body, System.Text.Encoding.UTF8, "application/json"));
@@ -119,5 +162,6 @@ public static class FaqTools
         public string Question { get; set; } = "";
         public string Answer { get; set; } = "";
         public string CreatedUtc { get; set; } = "";
+        public bool Approved { get; set; } = false;
     }
 }

@@ -278,13 +278,16 @@
                 }"
                 :placeholder="
                   savedTenants.length
-                    ? 'Or type a different tenant…'
+                    ? 'Sign in to a different tenant (ID or domain)…'
                     : 'Tenant ID or domain (e.g. contoso.onmicrosoft.com)'
                 "
               />
               <span v-if="!savedTenants.length" class="tenant-hint"
                 >Leave empty to use your home tenant, or specify a different
                 one</span
+              >
+              <span v-else class="tenant-hint"
+                >Click a saved tenant above, or type another to sign in.</span
               >
             </div>
             <button

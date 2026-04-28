@@ -37,10 +37,33 @@ public class AzureQueryTools
         "/pricesheets/download",               // CostManagement price sheet download
     };
 
+    // Mutating action verbs that must not appear as a path segment, even if the
+    // path superficially ends with an allowlisted suffix (defence-in-depth).
+    private static readonly HashSet<string> MutatingSegments = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "delete", "deallocate", "start", "stop", "restart", "poweroff", "powerbutton",
+        "redeploy", "reimage", "runcommand", "reset", "resetpassword", "revoke",
+        "regeneratekey", "regenerate", "approve", "reject", "create", "update",
+        "write", "patch", "put", "merge", "perform", "execute", "trigger",
+        "cancel", "return", "split", "merge", "renew", "purge", "failover",
+    };
+
     private static bool IsReadOnlyPost(string path)
     {
         var pathOnly = path.Split('?')[0].TrimEnd('/').ToLowerInvariant();
-        return SafePostSuffixes.Any(suffix => pathOnly.EndsWith(suffix));
+        if (string.IsNullOrEmpty(pathOnly)) return false;
+
+        // Defence: reject if any segment is a known mutating verb
+        var segments = pathOnly.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        if (segments.Any(seg => MutatingSegments.Contains(seg)))
+            return false;
+
+        // The final segment must exactly match an allowlisted suffix
+        // (e.g. ".../query" or ".../pricesheets/download"). Suffix matching uses
+        // a leading slash to ensure we match a full segment boundary, not a substring.
+        return SafePostSuffixes.Any(suffix =>
+            pathOnly.EndsWith(suffix) &&
+            (pathOnly.Length == suffix.Length || pathOnly[pathOnly.Length - suffix.Length - 1] == '/'));
     }
 
     public AzureQueryTools(UserTokens tokens) => _tokens = tokens;

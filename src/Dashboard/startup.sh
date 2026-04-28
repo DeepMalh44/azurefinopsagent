@@ -21,9 +21,12 @@ PIP_TARGET="/home/site/pip-packages"
 mkdir -p "$PIP_TARGET"
 export PYTHONPATH="$PIP_TARGET:$PYTHONPATH"
 
-# Package list — bump PKG_VERSION when adding/removing packages to force reinstall
-PACKAGES="requests pandas numpy openpyxl tabulate python-dateutil python-pptx matplotlib lxml"
-PKG_VERSION="4"
+# Package list — bump PKG_VERSION when adding/removing packages or changing versions to force reinstall
+# Pinned versions for reproducibility (latest stable as of 2026-04):
+#   python-pptx 1.0.2 (Aug 2024) — latest stable, drops py<3.8 support
+#   matplotlib 3.9.x, pandas 2.2.x, numpy 2.x
+PACKAGES="requests pandas numpy openpyxl tabulate python-dateutil python-pptx>=1.0.2 matplotlib>=3.9 lxml"
+PKG_VERSION="5"
 
 # Only install if marker version differs (forces reinstall on package list changes)
 if [ ! -f "$PIP_TARGET/.installed_v$PKG_VERSION" ]; then

@@ -501,6 +501,10 @@ async Task<(string Token, DateTimeOffset Expiry)?> ExchangeRefreshTokenForResour
     return (tokenProp.GetString()!, DateTimeOffset.UtcNow.AddSeconds(expiresIn - 60));
 }
 
+// Per-(session,tokenKey) refresh locks — prevents concurrent SSE/tool calls from
+// double-refreshing the same token. Locks are keyed by sessionId|tokenKey.
+var refreshLocks = new ConcurrentDictionary<string, SemaphoreSlim>();
+
 // Helper: get valid token from session, auto-refresh if expired
 async Task<string?> GetSessionTokenAsync(HttpContext ctx, IHttpClientFactory httpFactory,
     string tokenKey, string expiryKey, string refreshScope)
@@ -509,14 +513,28 @@ async Task<string?> GetSessionTokenAsync(HttpContext ctx, IHttpClientFactory htt
     if (token is null) return null;
 
     var expiryStr = ctx.Session.GetString(expiryKey);
-    if (expiryStr is not null && DateTimeOffset.TryParse(expiryStr, out var expiry) && expiry <= DateTimeOffset.UtcNow)
+    if (expiryStr is null || !DateTimeOffset.TryParse(expiryStr, out var expiry) || expiry > DateTimeOffset.UtcNow)
+        return token; // still valid
+
+    // Token expired — serialize refresh per session+token to avoid duplicate refreshes
+    var lockKey = $"{ctx.Session.Id}|{tokenKey}";
+    var sem = refreshLocks.GetOrAdd(lockKey, _ => new SemaphoreSlim(1, 1));
+    await sem.WaitAsync(ctx.RequestAborted);
+    try
     {
+        // Double-check: another request may have refreshed while we were waiting
+        var freshToken = ctx.Session.GetString(tokenKey);
+        var freshExpiryStr = ctx.Session.GetString(expiryKey);
+        if (freshToken is not null && freshExpiryStr is not null
+            && DateTimeOffset.TryParse(freshExpiryStr, out var freshExpiry)
+            && freshExpiry > DateTimeOffset.UtcNow)
+        {
+            return freshToken;
+        }
+
         var refreshToken = ctx.Session.GetString("azure_refresh_token");
         if (refreshToken is null)
         {
-            // No refresh token but we have an expired access token — return it anyway.
-            // Azure may still accept it within a short grace window, and if not,
-            // the tool will get a clear 401 from Azure (better than silent null).
             logger.LogWarning("Token {Key} expired but no refresh token available, returning expired token", tokenKey);
             return token;
         }
@@ -525,8 +543,6 @@ async Task<string?> GetSessionTokenAsync(HttpContext ctx, IHttpClientFactory htt
         var result = await ExchangeRefreshTokenForResource(http, refreshToken, refreshScope, sessionTenant);
         if (result is null)
         {
-            // Refresh failed (transient error) — return the expired token as fallback
-            // so the tool can attempt the call and get a proper API error.
             logger.LogWarning("Token refresh failed for {Key}, returning expired token as fallback", tokenKey);
             return token;
         }
@@ -534,7 +550,10 @@ async Task<string?> GetSessionTokenAsync(HttpContext ctx, IHttpClientFactory htt
         ctx.Session.SetString(expiryKey, result.Value.Expiry.ToString("o"));
         return result.Value.Token;
     }
-    return token;
+    finally
+    {
+        sem.Release();
+    }
 }
 
 Task<string?> GetAzureTokenAsync(HttpContext ctx, IHttpClientFactory httpFactory) =>
@@ -812,6 +831,7 @@ sharedTools.AddRange(FaqTools.Create());
 sharedTools.AddRange(ScoreTools.Create());
 sharedTools.AddRange(ScriptTools.Create());
 sharedTools.AddRange(ScheduleTools.Create());
+sharedTools.AddRange(RetailPricingTools.Create()); // public Azure Retail Prices API — no auth
 
 // Per-user token holders and tool lists — tools capture the UserTokens instance
 // via closure, so they always read the latest tokens regardless of thread.
@@ -826,6 +846,8 @@ List<AIFunction> GetOrCreateUserTools(long userId)
         tools.AddRange(new GraphQueryTools(tokens).Create());
         tools.AddRange(new LogAnalyticsQueryTools(tokens).Create());
         tools.AddRange(new StorageQueryTools(tokens).Create());
+        tools.AddRange(new AnomalyTools(tokens).Create());
+        tools.AddRange(new IdleResourceTools(tokens).Create());
         return tools;
     });
 }

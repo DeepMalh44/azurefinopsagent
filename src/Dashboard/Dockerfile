@@ -26,7 +26,7 @@ RUN apt-get update -qq && \
     ln -sf /usr/bin/python3 /usr/bin/python && \
     pip3 install --no-cache-dir --break-system-packages \
     requests pandas numpy openpyxl tabulate python-dateutil \
-    python-pptx matplotlib lxml && \
+    "python-pptx>=1.0.2" "matplotlib>=3.9" lxml && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /root/.cache
 
