@@ -618,7 +618,7 @@
                       ? "Connecting..."
                       : tenantId.trim()
                         ? "Connect to " + tenantId.trim()
-                        : "Connect Azure tenant for contextual FinOps"
+                        : "Connect Azure"
                   }}
                 </button>
               </div>
@@ -3624,8 +3624,9 @@ async function send() {
   border: 1px solid #e1dfdd;
   background: #fff;
   color: #323130;
+  font: inherit;
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.15s;
   justify-content: center;
@@ -4161,6 +4162,8 @@ async function send() {
 .es-step-btn--azure {
   background: #0078d4;
   color: #fff;
+  width: 100%;
+  max-width: 360px;
 }
 .es-step-btn--azure:hover {
   background: #106ebe;
