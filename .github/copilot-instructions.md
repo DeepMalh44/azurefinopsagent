@@ -280,57 +280,18 @@ Prompt shortcuts are available in `.github/prompts/`:
 
 ## Deploying to Azure
 
-### Docker Container Deployment (Recommended)
+> **Do not deploy from the developer's machine without explicit instruction.** Deployment is the repo owner's decision. The agent must never run `az acr build`, `az webapp restart`, `azd up`, `deploy.ps1`, or any equivalent command on its own initiative. If the user asks to deploy, point them at the manual checklist in `.github/prompts/deploy.prompt.md` and let them invoke it. Code changes ship via the user's own deploy step (or CI/CD), never via an agent push.
 
-The app is deployed as a Docker container to Azure App Service via Azure Container Registry (ACR).
-
-```powershell
-cd src/Dashboard
-
-# 1. Get build metadata from git
-$buildSha = git rev-parse --short HEAD
-$buildNumber = git rev-list --count HEAD
-
-# 2. Build & push image to ACR (cloud build — no local Docker needed)
-#    Uses --no-logs to avoid Azure CLI Unicode crash on Windows
-#    Passes BUILD_SHA and BUILD_NUMBER as build args baked into the image
-az acr build --registry crfinopsagent --image finops-agent:latest --platform linux/amd64 --no-logs --build-arg BUILD_SHA=$buildSha --build-arg BUILD_NUMBER=$buildNumber .
-
-# 3. Restart the container app to pull the new image
-az webapp restart --name finops-agent-container --resource-group rg-finops-agent
-```
-
-**Key points**:
+The production app runs as a Docker container on Azure App Service, fed from Azure Container Registry (`crfinopsagent.azurecr.io`). Reference setup:
 
 - Multi-stage Dockerfile: node:22 (frontend) → dotnet/sdk:10.0 (build) → dotnet/aspnet:10.0 (runtime + Python 3 + pip packages)
 - All Python dependencies (python-pptx, matplotlib, lxml, pandas, numpy) baked into the image
 - Build context is ~76 KB (clean `bin/`, `obj/`, `node_modules/` before building, or rely on `.dockerignore`)
-- Use `--no-logs` flag to avoid Azure CLI Unicode crash from vite’s `✓` character on Windows
 - ACR: `crfinopsagent.azurecr.io` (Basic SKU, admin enabled)
-- Container app: `finops-agent-container` on same `ASP-rgfinopsagent-b74f` P0v3 plan
+- Container app: `finops-agent-container` on `ASP-rgfinopsagent-b74f` P0v3 plan
 - Container startup timeout: `WEBSITES_CONTAINER_START_TIME_LIMIT=600`
 
-### Legacy Zip Deployment
-
-Still available for the original `finops-agent` app:
-
-```powershell
-# First deploy (creates infrastructure)
-cd src/Dashboard
-.\deploy.ps1 -ResourceGroup "rg-finops-agent" -AppName "finops-agent"
-
-# Subsequent deploys (skip infra)
-.\deploy.ps1 -ResourceGroup "rg-finops-agent" -AppName "finops-agent" -SkipInfra
-```
-
-The deploy script:
-
-1. Verifies `az login`
-2. Creates resource group + App Service plan (P0v3 Linux) + web app (.NET 10 runtime)
-3. Reads production secrets from `appsettings.Production.json` and sets as App Service settings (Microsoft OAuth + Azure OpenAI); configures `startup.sh` for Python/tools
-4. Builds Vue frontend via `npm ci && npm run build`
-5. Publishes .NET backend via `dotnet publish -r linux-x64 --self-contained false`
-6. Deploys via `az webapp deploy --type zip`
+Legacy zip deployment via [src/Dashboard/deploy.ps1](src/Dashboard/deploy.ps1) is still available for the original `finops-agent` app, but again — only the user runs it.
 
 ## Code Conventions
 

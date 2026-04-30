@@ -47,7 +47,7 @@ Invoke-RestMethod "https://azure-finops-agent.com/api/version"
 
 ### Rules
 
-- **Never ask for confirmation** — proceed with build and deploy immediately.
+- **Never deploy automatically.** This prompt is a manual checklist for the repo owner only. Always confirm with the user before running `az acr build` or `az webapp restart` — deployment is the user's decision, not the agent's.
 - **Always clean** `bin/`, `obj/`, `node_modules/` before building to keep context under 100 KB.
 - **Always use `--no-logs`** — the Azure CLI on Windows crashes on vite's `✓` Unicode character without it.
 - The ACR build output JSON includes `status: "Succeeded"` when the image is pushed successfully.
