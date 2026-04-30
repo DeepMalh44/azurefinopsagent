@@ -21,6 +21,7 @@ public class GraphQueryTools
     {
         yield return AIFunctionFactory.Create(QueryGraph, "QueryGraph", @"Calls Microsoft Graph API (https://graph.microsoft.com) using the signed-in user's token.
 Provide path starting with /. Returns raw JSON.
+Allowed methods: GET, POST, PUT, PATCH. DELETE is blocked at the code level. The user's Graph permissions (delegated scopes + Entra role) govern what they can actually do.
 DATA SCOPING: ALWAYS use $select to pick only needed fields, $top to limit rows, $filter to scope. Never fetch full user objects — use $select=displayName,department,userPrincipalName. For large tenants, use $top=50 and paginate via @odata.nextLink.
 
 === LICENSES (v1.0) ===
@@ -71,10 +72,14 @@ GET /v1.0/directoryRoles/{roleId}/members?$select=displayName,userPrincipalName 
     }
 
     private async Task<string> QueryGraph(
-        [Description("API path starting with /, e.g. /v1.0/subscribedSkus")] string path)
+        [Description("API path starting with /, e.g. /v1.0/subscribedSkus")] string path,
+        [Description("HTTP method: GET (default), POST, PUT, or PATCH. DELETE is blocked.")] string? method = "GET",
+        [Description("Optional JSON request body for POST/PUT/PATCH requests.")] string? body = null)
     {
         using var activity = HttpHelper.Telemetry.StartActivity("QueryGraph");
+        activity?.SetTag("graph.method", method);
         activity?.SetTag("graph.path", path);
+        activity?.SetTag("graph.has_body", !string.IsNullOrWhiteSpace(body));
 
         var token = _tokens.GraphToken;
         if (string.IsNullOrEmpty(token))
@@ -86,8 +91,14 @@ GET /v1.0/directoryRoles/{roleId}/members?$select=displayName,userPrincipalName 
             return $"HTTP 400 BadRequest\nInvalid path: '{path}'. Path must start with /.";
         }
 
+        var (httpMethod, methodError) = HttpHelper.ResolveMethod(method, activity, "graph");
+        if (methodError is not null) return methodError;
+
+        var hasBody = !string.IsNullOrWhiteSpace(body);
         return await HttpHelper.SendWithRetryAsync(
             $"https://graph.microsoft.com{path}",
-            token, activity, "graph");
+            token, activity, "graph",
+            method: httpMethod,
+            jsonBody: hasBody && httpMethod != HttpMethod.Get ? body : null);
     }
 }

@@ -11,68 +11,23 @@ namespace AzureFinOps.Dashboard.AI.Tools;
 /// Single tool for querying any Azure ARM API using the user's delegated access token.
 /// The LLM constructs the URL and optional body; this tool executes the HTTP request.
 /// All calls are traced via OpenTelemetry → Application Insights for analysis.
+///
+/// Security model: GET, POST, PUT, and PATCH are allowed. DELETE is blocked at the
+/// code level. Beyond that, the user's Entra RBAC role is the security boundary —
+/// assign Reader / Cost Management Reader for read-only access.
 /// </summary>
 public class AzureQueryTools
 {
     private readonly UserTokens _tokens;
 
-    // Allowlist of read-only POST path suffixes — blocks mutating ARM actions
-    // (deallocate, start, restart, powerOff, delete, write, etc.) at the code level.
-    // Only query/report/calculation POST endpoints are permitted.
-    private static readonly string[] SafePostSuffixes =
-    {
-        "/query",                              // Cost Management cost/forecast queries
-        "/forecast",                           // Cost Management forecast
-        "/generatecostdetailsreport",          // Cost Details report (replaces usageDetails)
-        "/generatedetailedcostreport",         // Detailed Cost Report (separate from Cost Details)
-        "/generatereservationdetailsreport",   // Reservation utilization line-item report
-        "/generatebenefitutilizationsummariesreport", // Benefit utilization summaries report
-        "/resources",                          // Resource Graph KQL queries
-        "/calculateprice",                     // Reservation/Savings Plan price simulation
-        "/calculateexchange",                  // Reservation exchange simulation
-        "/validatepurchase",                   // Savings Plan purchase validation
-        "/carbonemissionreports",              // Carbon emission reports
-        "/getentities",                        // Management Group entity listing
-        "/summarize",                          // Policy Insights summarization
-        "/pricesheets/download",               // CostManagement price sheet download
-    };
-
-    // Mutating action verbs that must not appear as a path segment, even if the
-    // path superficially ends with an allowlisted suffix (defence-in-depth).
-    private static readonly HashSet<string> MutatingSegments = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "delete", "deallocate", "start", "stop", "restart", "poweroff", "powerbutton",
-        "redeploy", "reimage", "runcommand", "reset", "resetpassword", "revoke",
-        "regeneratekey", "regenerate", "approve", "reject", "create", "update",
-        "write", "patch", "put", "merge", "perform", "execute", "trigger",
-        "cancel", "return", "split", "merge", "renew", "purge", "failover",
-    };
-
-    private static bool IsReadOnlyPost(string path)
-    {
-        var pathOnly = path.Split('?')[0].TrimEnd('/').ToLowerInvariant();
-        if (string.IsNullOrEmpty(pathOnly)) return false;
-
-        // Defence: reject if any segment is a known mutating verb
-        var segments = pathOnly.Split('/', StringSplitOptions.RemoveEmptyEntries);
-        if (segments.Any(seg => MutatingSegments.Contains(seg)))
-            return false;
-
-        // The final segment must exactly match an allowlisted suffix
-        // (e.g. ".../query" or ".../pricesheets/download"). Suffix matching uses
-        // a leading slash to ensure we match a full segment boundary, not a substring.
-        return SafePostSuffixes.Any(suffix =>
-            pathOnly.EndsWith(suffix) &&
-            (pathOnly.Length == suffix.Length || pathOnly[pathOnly.Length - suffix.Length - 1] == '/'));
-    }
-
     public AzureQueryTools(UserTokens tokens) => _tokens = tokens;
 
     public IEnumerable<AIFunction> Create()
     {
-        yield return AIFunctionFactory.Create(QueryAzure, "QueryAzure", @"READ-ONLY: Queries Azure ARM REST APIs using the signed-in user's token and returns raw JSON. This tool CANNOT create, update, or delete any Azure resources — all write operations are blocked at the code level.
+        yield return AIFunctionFactory.Create(QueryAzure, "QueryAzure", @"Queries Azure ARM REST APIs using the signed-in user's delegated token and returns raw JSON.
 Base: https://management.azure.com — provide path starting with /.
-Allowed methods: GET (any path) and POST (restricted to read-only query/report endpoints only — e.g. /query, /forecast, /resources, /generateCostDetailsReport, /calculatePrice, /carbonEmissionReports). POST to mutating endpoints (deallocate, start, restart, delete, etc.) will be rejected.
+Allowed methods: GET, POST, PUT, PATCH. DELETE is blocked at the code level — the agent never deletes resources. Beyond that, the user's Entra RBAC role governs what they can actually do (assign Reader / Cost Management Reader for read-only).
+Use POST freely for cost/query/report endpoints (/query, /forecast, /resources, /generateCostDetailsReport, /calculatePrice, /carbonEmissionReports, /getEntities, /pricesheets/download, etc.) — these are the canonical Cost Management and Resource Graph surfaces.
 DATA SCOPING: For Cost Management POST .../query, ALWAYS use grouping (ServiceName, ResourceGroup, MeterCategory) and date granularity (Daily/Monthly). Never request raw ungrouped cost data. For Resource Graph POST .../resources, use KQL 'project' and 'top 20' — never select all columns. For list APIs (VMs, storage, etc.), results are already scoped by subscription.
 
 === API VERSIONS REFERENCE (use these exact api-version values) ===
@@ -245,13 +200,13 @@ GET /subscriptions/{id}/providers/Microsoft.Support/supportTickets?api-version=2
 
 Scope = /subscriptions/{subId} or /subscriptions/{subId}/resourceGroups/{rg}.
 For retail pricing use the built-in fetch tool with https://prices.azure.com (no auth required). ALWAYS filter by armRegionName + serviceName + armSkuName and use $top=20 for comparisons.
-SECURITY: Only GET and read-only POST endpoints are allowed. PUT, PATCH, DELETE, and mutating POST actions are blocked at the HTTP client level.");
+SECURITY: GET, POST, PUT, PATCH allowed. DELETE blocked. The user's Entra RBAC role is the effective access boundary.");
     }
 
     private async Task<string> QueryAzure(
-        [Description("HTTP method: GET or POST")] string method,
+        [Description("HTTP method: GET, POST, PUT, or PATCH (DELETE is blocked)")] string method,
         [Description("API path starting with /, e.g. /subscriptions?api-version=2022-12-01")] string path,
-        [Description("Optional JSON request body for POST requests. Omit or leave empty for GET.")] string? body = null)
+        [Description("Optional JSON request body for POST/PUT/PATCH requests. Omit or leave empty for GET.")] string? body = null)
     {
         using var activity = HttpHelper.Telemetry.StartActivity("QueryAzure");
         activity?.SetTag("azure.method", method);
@@ -271,33 +226,15 @@ SECURITY: Only GET and read-only POST endpoints are allowed. PUT, PATCH, DELETE,
             return $"HTTP 400 BadRequest\nInvalid path: '{path}'. Path must start with /.";
         }
 
-        var httpMethod = method?.Trim().ToUpperInvariant() switch
-        {
-            "GET" => HttpMethod.Get,
-            "POST" => HttpMethod.Post,
-            _ => null
-        };
+        var (httpMethod, methodError) = HttpHelper.ResolveMethod(method, activity, "azure");
+        if (methodError is not null) return methodError;
 
-        if (httpMethod is null)
-        {
-            activity?.SetTag("azure.result", "invalid_method");
-            activity?.SetStatus(ActivityStatusCode.Error, "Invalid method");
-            return $"HTTP 400 BadRequest\nInvalid method: '{method}'. Only GET and POST are supported.";
-        }
-
-        // Enforce read-only: POST requests must target known query/report endpoints
-        if (httpMethod == HttpMethod.Post && !IsReadOnlyPost(path))
-        {
-            activity?.SetTag("azure.result", "blocked_mutating_post");
-            activity?.SetStatus(ActivityStatusCode.Error, "Mutating POST blocked");
-            return $"HTTP 403 Forbidden\nThis agent is read-only. POST is only allowed to query/report endpoints (e.g. /query, /forecast, /resources, /generateCostDetailsReport). The requested path '{path}' is not in the allowlist. Use GET to read data instead.";
-        }
-
+        var hasBody = !string.IsNullOrWhiteSpace(body);
         return await HttpHelper.SendWithRetryAsync(
             $"https://management.azure.com{path}",
             token, activity, "azure",
             method: httpMethod,
-            jsonBody: httpMethod == HttpMethod.Post && !string.IsNullOrWhiteSpace(body) ? body : null,
+            jsonBody: hasBody && httpMethod != HttpMethod.Get ? body : null,
             includeTimestamp: true);
     }
 }

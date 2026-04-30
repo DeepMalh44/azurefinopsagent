@@ -90,4 +90,44 @@ public static class HttpHelper
         activity?.SetStatus(ActivityStatusCode.Error, $"{tokenName} not connected");
         return $"HTTP 401 Unauthorized\n{tokenName} is null — the user must click 'Connect Azure' in the sidebar to authenticate, then retry.";
     }
+
+    /// <summary>
+    /// Centralised method-policy for all pass-through HTTP tools (Azure ARM, Microsoft Graph, etc.).
+    /// Allows GET/POST/PUT/PATCH. Blocks DELETE at the code level — the user's RBAC role is the
+    /// effective access boundary for everything else.
+    /// Returns the parsed <see cref="HttpMethod"/>, or a ready-to-return error string when the
+    /// method is rejected. Callers do: <c>var (m, err) = HttpHelper.ResolveMethod(...); if (err != null) return err;</c>
+    /// </summary>
+    public static (HttpMethod? Method, string? ErrorResponse) ResolveMethod(
+        string? method,
+        Activity? activity,
+        string telemetryPrefix)
+    {
+        var normalized = (method ?? "GET").Trim().ToUpperInvariant();
+
+        if (normalized == "DELETE")
+        {
+            activity?.SetTag($"{telemetryPrefix}.result", "blocked_delete");
+            activity?.SetStatus(ActivityStatusCode.Error, "DELETE blocked");
+            return (null, "HTTP 403 Forbidden\nThis agent does not perform DELETE operations. Generate a script via GenerateScript for the user to review and run themselves.");
+        }
+
+        var resolved = normalized switch
+        {
+            "GET" => HttpMethod.Get,
+            "POST" => HttpMethod.Post,
+            "PUT" => HttpMethod.Put,
+            "PATCH" => HttpMethod.Patch,
+            _ => null
+        };
+
+        if (resolved is null)
+        {
+            activity?.SetTag($"{telemetryPrefix}.result", "invalid_method");
+            activity?.SetStatus(ActivityStatusCode.Error, "Invalid method");
+            return (null, $"HTTP 400 BadRequest\nInvalid method: '{method}'. Allowed: GET, POST, PUT, PATCH.");
+        }
+
+        return (resolved, null);
+    }
 }
