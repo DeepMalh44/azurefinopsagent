@@ -411,12 +411,21 @@
                   <span class="addons-title">Add scopes</span>
                   <span class="addons-sub">· Delegated &amp; read-only</span>
                 </span>
-                <span
+                <svg
                   class="addons-heading-chevron"
                   :class="{ open: addonsOpen }"
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
                   aria-hidden="true"
-                  >⌄</span
                 >
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
               </button>
 
               <div class="addons-body-wrap" :class="{ open: addonsOpen }">
@@ -447,8 +456,20 @@
                         class="scope-row-chevron"
                         @click.stop="addonRowsOpen[0] = !addonRowsOpen[0]"
                         title="Show details"
-                        >⌄</span
                       >
+                        <svg
+                          width="14"
+                          height="14"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2.5"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        >
+                          <polyline points="6 9 12 15 18 9" />
+                        </svg>
+                      </span>
                     </button>
                     <div class="scope-row-detail-wrap">
                       <div class="scope-row-detail">
@@ -499,8 +520,20 @@
                         class="scope-row-chevron"
                         @click.stop="addonRowsOpen[1] = !addonRowsOpen[1]"
                         title="Show details"
-                        >⌄</span
                       >
+                        <svg
+                          width="14"
+                          height="14"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2.5"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        >
+                          <polyline points="6 9 12 15 18 9" />
+                        </svg>
+                      </span>
                     </button>
                     <div class="scope-row-detail-wrap">
                       <div class="scope-row-detail">
@@ -553,8 +586,20 @@
                         class="scope-row-chevron"
                         @click.stop="addonRowsOpen[2] = !addonRowsOpen[2]"
                         title="Show details"
-                        >⌄</span
                       >
+                        <svg
+                          width="14"
+                          height="14"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2.5"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        >
+                          <polyline points="6 9 12 15 18 9" />
+                        </svg>
+                      </span>
                     </button>
                     <div class="scope-row-detail-wrap">
                       <div class="scope-row-detail">
@@ -604,8 +649,20 @@
                         class="scope-row-chevron"
                         @click.stop="addonRowsOpen[3] = !addonRowsOpen[3]"
                         title="Show details"
-                        >⌄</span
                       >
+                        <svg
+                          width="14"
+                          height="14"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2.5"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        >
+                          <polyline points="6 9 12 15 18 9" />
+                        </svg>
+                      </span>
                     </button>
                     <div class="scope-row-detail-wrap">
                       <div class="scope-row-detail">
@@ -3999,7 +4056,7 @@ async function send() {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 6px 4px;
+  padding: 8px 12px;
   margin-bottom: 2px;
   background: none;
   border: none;
@@ -4020,10 +4077,10 @@ async function send() {
   flex-wrap: wrap;
 }
 .addons-heading-chevron {
-  font-size: 14px;
-  color: #8a8886;
-  transition: transform 0.2s;
   flex-shrink: 0;
+  color: #605e5c;
+  margin-left: 8px;
+  transition: transform 0.2s;
 }
 .addons-heading-chevron.open {
   transform: rotate(180deg);
@@ -4152,11 +4209,8 @@ async function send() {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
+  width: 40px;
   align-self: stretch;
-  font-size: 18px;
-  font-weight: 700;
-  line-height: 1;
   color: #605e5c;
   border-left: 1px solid #e1dfdd;
   background: #fafafa;
