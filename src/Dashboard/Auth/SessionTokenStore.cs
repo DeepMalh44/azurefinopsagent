@@ -1,0 +1,113 @@
+using System.Collections.Concurrent;
+using System.Text.Json;
+
+namespace AzureFinOps.Dashboard.Auth;
+
+/// <summary>
+/// Reads/refreshes the four resource tokens (ARM, Graph, Log Analytics, Storage)
+/// from the user's session, using the cached refresh token to mint new access
+/// tokens when the cached one is expired. Refreshes are serialised per
+/// session+token to avoid concurrent duplicate refreshes from parallel SSE/tool calls.
+/// </summary>
+public sealed class SessionTokenStore
+{
+    private readonly MicrosoftOAuthOptions _options;
+    private readonly ILogger<SessionTokenStore> _logger;
+    private readonly ConcurrentDictionary<string, SemaphoreSlim> _refreshLocks = new();
+
+    public SessionTokenStore(MicrosoftOAuthOptions options, ILogger<SessionTokenStore> logger)
+    {
+        _options = options;
+        _logger = logger;
+    }
+
+    public async Task<(string Token, DateTimeOffset Expiry)?> ExchangeRefreshTokenForResource(
+        HttpClient http, string refreshToken, string scope, string? tenantOverride = null)
+    {
+        var effectiveTenant = tenantOverride ?? _options.TenantId;
+        using var req = new HttpRequestMessage(HttpMethod.Post,
+            $"https://login.microsoftonline.com/{Uri.EscapeDataString(effectiveTenant)}/oauth2/v2.0/token");
+        req.Content = new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["client_id"] = _options.ClientId,
+            ["client_secret"] = _options.ClientSecret,
+            ["refresh_token"] = refreshToken,
+            ["grant_type"] = "refresh_token",
+            ["scope"] = scope
+        });
+
+        var res = await http.SendAsync(req);
+        if (!res.IsSuccessStatusCode) return null;
+
+        var body = await res.Content.ReadAsStringAsync();
+        var json = JsonSerializer.Deserialize<JsonElement>(body);
+        if (!json.TryGetProperty("access_token", out var tokenProp)) return null;
+
+        var expiresIn = json.TryGetProperty("expires_in", out var expProp) ? expProp.GetInt32() : 3600;
+        return (tokenProp.GetString()!, DateTimeOffset.UtcNow.AddSeconds(expiresIn - 60));
+    }
+
+    public async Task<string?> GetSessionTokenAsync(HttpContext ctx, IHttpClientFactory httpFactory,
+        string tokenKey, string expiryKey, string refreshScope)
+    {
+        var token = ctx.Session.GetString(tokenKey);
+        if (token is null) return null;
+
+        var expiryStr = ctx.Session.GetString(expiryKey);
+        if (expiryStr is null || !DateTimeOffset.TryParse(expiryStr, out var expiry) || expiry > DateTimeOffset.UtcNow)
+            return token;
+
+        var lockKey = $"{ctx.Session.Id}|{tokenKey}";
+        var sem = _refreshLocks.GetOrAdd(lockKey, _ => new SemaphoreSlim(1, 1));
+        await sem.WaitAsync(ctx.RequestAborted);
+        try
+        {
+            var freshToken = ctx.Session.GetString(tokenKey);
+            var freshExpiryStr = ctx.Session.GetString(expiryKey);
+            if (freshToken is not null && freshExpiryStr is not null
+                && DateTimeOffset.TryParse(freshExpiryStr, out var freshExpiry)
+                && freshExpiry > DateTimeOffset.UtcNow)
+            {
+                return freshToken;
+            }
+
+            var refreshToken = ctx.Session.GetString("azure_refresh_token");
+            if (refreshToken is null)
+            {
+                _logger.LogWarning("Token {Key} expired but no refresh token available, returning expired token", tokenKey);
+                return token;
+            }
+            var http = httpFactory.CreateClient();
+            var sessionTenant = ctx.Session.GetString("auth_tenant");
+            var result = await ExchangeRefreshTokenForResource(http, refreshToken, refreshScope, sessionTenant);
+            if (result is null)
+            {
+                _logger.LogWarning("Token refresh failed for {Key}, returning expired token as fallback", tokenKey);
+                return token;
+            }
+            ctx.Session.SetString(tokenKey, result.Value.Token);
+            ctx.Session.SetString(expiryKey, result.Value.Expiry.ToString("o"));
+            return result.Value.Token;
+        }
+        finally
+        {
+            sem.Release();
+        }
+    }
+
+    public Task<string?> GetAzureTokenAsync(HttpContext ctx, IHttpClientFactory httpFactory) =>
+        GetSessionTokenAsync(ctx, httpFactory, "azure_token", "azure_token_expiry",
+            "openid profile email https://management.azure.com/user_impersonation offline_access");
+
+    public Task<string?> GetGraphTokenAsync(HttpContext ctx, IHttpClientFactory httpFactory) =>
+        GetSessionTokenAsync(ctx, httpFactory, "graph_token", "graph_token_expiry",
+            "https://graph.microsoft.com/User.Read https://graph.microsoft.com/User.Read.All https://graph.microsoft.com/Organization.Read.All https://graph.microsoft.com/Group.Read.All https://graph.microsoft.com/Reports.Read.All offline_access");
+
+    public Task<string?> GetLogAnalyticsTokenAsync(HttpContext ctx, IHttpClientFactory httpFactory) =>
+        GetSessionTokenAsync(ctx, httpFactory, "loganalytics_token", "loganalytics_token_expiry",
+            "https://api.loganalytics.io/Data.Read offline_access");
+
+    public Task<string?> GetStorageTokenAsync(HttpContext ctx, IHttpClientFactory httpFactory) =>
+        GetSessionTokenAsync(ctx, httpFactory, "storage_token", "storage_token_expiry",
+            "https://storage.azure.com/user_impersonation offline_access");
+}

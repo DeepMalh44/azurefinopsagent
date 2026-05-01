@@ -8,14 +8,21 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Azure.Identity" Version="1.19.0" />
+    <PackageReference Include="Azure.Identity" Version="1.21.0" />
     <PackageReference Include="Azure.Monitor.OpenTelemetry.AspNetCore" Version="1.4.0" />
-    <PackageReference Include="GitHub.Copilot.SDK" Version="0.2.0" />
+    <PackageReference Include="GitHub.Copilot.SDK" Version="0.3.0" />
+    <PackageReference Include="OpenTelemetry" Version="1.15.3" />
+    <PackageReference Include="OpenTelemetry.Api" Version="1.15.3" />
   </ItemGroup>
 
   <!-- Include startup.sh in publish output for App Service custom startup -->
   <ItemGroup>
     <None Update="startup.sh" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!-- Embed Python script templates as resources (loaded at runtime by tools) -->
+  <ItemGroup>
+    <EmbeddedResource Include="AI\Tools\Resources\*.py" />
   </ItemGroup>
 
 </Project>

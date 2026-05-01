@@ -111,34 +111,47 @@ No login required for chat. Azure data via incremental OAuth consent:
 
 ```
 src/Dashboard/
-├── Program.cs                  # App startup, auth, SSE chat endpoint
+├── Program.cs                          # ~150-line composition root: DI wiring + middleware
 ├── Auth/
-│   └── TokenContext.cs         # Per-user token management
-├── AI/Tools/
-│   ├── AzureQueryTools.cs      # ARM REST APIs
-│   ├── GraphQueryTools.cs      # Microsoft Graph
-│   ├── LogAnalyticsQueryTools.cs
-│   ├── StorageQueryTools.cs    # Cost Management export blobs
-│   ├── RetailPricingTools.cs   # Public Azure Retail Prices (no auth)
-│   ├── IdleResourceTools.cs    # Idle / underutilized resource detection
-│   ├── AnomalyTools.cs         # Cost spike / anomaly detection
-│   ├── ScheduleTools.cs        # Dev/test start-stop schedules
-│   ├── ChartTools.cs           # ECharts rendering
-│   ├── PresentationTools.cs    # PowerPoint generation
-│   ├── ScoreTools.cs           # FinOps maturity scoring
-│   ├── ScriptTools.cs          # Remediation scripts
-│   ├── HealthTools.cs          # Azure Status RSS
-│   ├── FaqTools.cs             # SEO FAQ pages
-│   └── FollowUpTools.cs        # Follow-up suggestions
+│   ├── MicrosoftOAuthOptions.cs        # OAuth config + scopes/host helpers
+│   ├── SessionTokenStore.cs            # Refresh + lock pool for ARM/Graph/LA/Storage tokens
+│   ├── MicrosoftAuthEndpoints.cs       # Multi-tenant OAuth flow + chained admin consent
+│   ├── AzureSessionEndpoints.cs        # Azure status / tenants / disconnect / revoke
+│   └── UserTokens.cs                   # Per-user token holder (volatile fields)
+├── AI/
+│   ├── CopilotSessionFactory.cs        # CopilotClient + BYOK token cache + tool catalog
+│   ├── ChatEndpoints.cs                # SSE chat endpoint + structured marker dispatch
+│   └── Tools/                          # 15 AIFunction tools (one file each)
+│       ├── AzureQueryTools.cs          # ARM REST APIs
+│       ├── GraphQueryTools.cs          # Microsoft Graph
+│       ├── LogAnalyticsQueryTools.cs
+│       ├── StorageQueryTools.cs        # Cost Management export blobs
+│       ├── RetailPricingTools.cs       # Public Azure Retail Prices (no auth)
+│       ├── IdleResourceTools.cs / AnomalyTools.cs / ScheduleTools.cs
+│       ├── ChartTools.cs               # ECharts rendering
+│       ├── PresentationTools.cs        # PowerPoint generation (python-pptx)
+│       ├── ScoreTools.cs / ScriptTools.cs / HealthTools.cs
+│       ├── FaqTools.cs / FollowUpTools.cs
+│       └── Resources/pptx_generator.py # Embedded Python template
+├── Web/
+│   ├── MetaEndpoints.cs                # /api/version, /api/config, /api/models
+│   ├── DownloadEndpoints.cs            # PPTX + script downloads
+│   └── SeoEndpoints.cs                 # FAQ pages + sitemap.xml
+├── Observability/
+│   └── AiTelemetry.cs                  # ActivitySource + Meter + per-user state registry
 ├── Infrastructure/
-│   ├── HttpHelper.cs           # HTTP retry + formatting
-│   └── TempFileHelper.cs       # Temp file cleanup
-├── client/                     # Vue 3 + Vite SPA
-│   └── src/components/
-│       ├── ChatView.vue        # Chat UI, tool sidebar, ECharts
-│       └── Dashboard.vue       # Layout shell
-├── Dockerfile                  # Multi-stage (Node → .NET → runtime + Python)
-└── setup-entra-app.ps1         # Entra ID app registration
+│   ├── HttpHelper.cs                   # HTTP retry + read-only method guard (blocks DELETE)
+│   └── TempFileHelper.cs               # Temp file cleanup
+├── client/                             # Vue 3 + Vite 7 SPA
+│   └── src/
+│       ├── components/
+│       │   ├── ChatView.vue            # Chat UI, tool sidebar, ECharts
+│       │   └── Dashboard.vue           # Layout shell
+│       └── data/sidebarCategories.js   # FinOps maturity prompt catalog (Crawl/Walk/Run/Playbook/Pricing)
+├── Dockerfile                          # Multi-stage (Node 22 → .NET 10 SDK → runtime + Python 3)
+└── setup-entra-app.ps1                 # Entra ID app registration
+
+tests/Dashboard.Tests/                  # xUnit tests for the read-only security boundary
 ```
 
 ## Contributing
