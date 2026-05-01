@@ -219,7 +219,12 @@
         <!-- Bottom section -->
         <div class="sidebar-footer">
           <!-- Azure connect/status -->
-          <div v-if="!azureConnected" class="azure-connect">
+          <!-- Hide the sidebar Connect widget while the empty-state hero is showing
+               its own Connect Azure CTA, to avoid a duplicate button. -->
+          <div
+            v-if="!azureConnected && messages.length > 0"
+            class="azure-connect"
+          >
             <!-- Admin approval / consent error banner -->
             <div v-if="tenantError" class="tenant-error-banner">
               <svg
@@ -318,7 +323,7 @@
               }}
             </button>
           </div>
-          <div v-else class="azure-status">
+          <div v-else-if="azureConnected" class="azure-status">
             <div class="azure-status-info">
               <svg width="14" height="14" viewBox="0 0 21 21" fill="none">
                 <rect width="10" height="10" fill="#f25022" />
@@ -759,13 +764,18 @@
           <div class="messages-inner">
             <div v-if="messages.length === 0" class="empty-state">
               <h1 class="es-headline">Azure FinOps Agent</h1>
+              <p class="es-eyebrow">
+                Built for FinOps leads, CCoE teams, and the architects who serve
+                them.
+              </p>
               <p class="es-sub">
-                Compress weeks of FinOps analysis into a single conversation.
-                Ask, in plain language, where your money goes — and get
-                quantified savings, FinOps Foundation maturity scores, and a
-                CFO-ready PowerPoint in minutes.
-                <strong>Read-only by design</strong> — safe to point at any
-                tenant, from dev sandbox to global enterprise.
+                Replace a multi-week FinOps assessment with a single
+                conversation. Connect a tenant, ask in plain language, and walk
+                away with quantified savings, a FinOps Foundation maturity
+                score, and a CFO-ready deck — in minutes, not sprints.
+                <strong>Read-only by design</strong>, multi-tenant, and safe to
+                point at anything from a dev sandbox to a global enterprise
+                estate.
               </p>
 
               <div v-if="!azureConnected" class="es-connect-bar">
@@ -888,30 +898,46 @@
               <div class="es-capabilities">
                 <div class="es-capabilities-grid">
                   <div class="es-cap-item">
-                    <div class="es-cap-title">FinOps maturity scoring</div>
+                    <div class="es-cap-title">
+                      Quantified savings, ranked by $ impact
+                    </div>
                     <div class="es-cap-desc">
-                      Grades your environment against the FinOps Foundation
-                      framework (Crawl / Walk / Run) and tells you exactly where
-                      to invest next — no consultant required.
+                      Reservations, Savings Plans, Hybrid Benefit, rightsizing,
+                      idle and orphaned resources — surfaced with utilization
+                      evidence and an estimated annual saving, so you act on the
+                      biggest levers first.
                     </div>
                   </div>
                   <div class="es-cap-item">
                     <div class="es-cap-title">
-                      Reservations, savings plans &amp; AHUB
+                      FinOps Foundation maturity score
                     </div>
                     <div class="es-cap-desc">
-                      Surfaces RI / SP recommendations, utilization gaps, and
-                      Hybrid Benefit opportunities — the highest-$ levers in any
-                      FinOps engagement.
+                      Grades your tenant against the Crawl / Walk / Run
+                      framework with a 0–5 score per capability and a
+                      prioritized roadmap — the assessment a consultant bills
+                      weeks for, delivered in a chat.
                     </div>
                   </div>
                   <div class="es-cap-item">
                     <div class="es-cap-title">
-                      Chargeback &amp; tag accountability
+                      Agentic reasoning, not a dashboard
                     </div>
                     <div class="es-cap-desc">
-                      Auto-generated showback by tag, owner, or business unit —
-                      and quantifies the untagged spend that breaks
+                      Plans the investigation, picks the right ARM / Graph / Log
+                      Analytics calls, runs Python (pandas, numpy)
+                      mid-conversation, and revises when the data surprises it —
+                      autonomy a static report can't match.
+                    </div>
+                  </div>
+                  <div class="es-cap-item">
+                    <div class="es-cap-title">
+                      Anomalies, chargeback &amp; tag hygiene
+                    </div>
+                    <div class="es-cap-desc">
+                      Catches cost spikes and explains the <em>why</em> —
+                      resource, change, owner. Auto-generates showback by tag or
+                      business unit and quantifies the untagged spend breaking
                       accountability.
                     </div>
                   </div>
@@ -920,49 +946,20 @@
                       M365 license &amp; Copilot ROI
                     </div>
                     <div class="es-cap-desc">
-                      Microsoft Graph integration: unused licenses, Copilot seat
-                      utilization, and license waste — levers Cost Management
-                      can't see.
+                      Microsoft Graph integration surfaces unused licenses,
+                      Copilot seat utilization, and SKU mismatch — levers Azure
+                      Cost Management simply can't see, across 40+ Azure
+                      services and every subscription in one query.
                     </div>
                   </div>
                   <div class="es-cap-item">
                     <div class="es-cap-title">
-                      Every Azure service, every scope
+                      Inline charts + CFO-ready PowerPoint
                     </div>
                     <div class="es-cap-desc">
-                      40+ services across all subscriptions and management
-                      groups in one query — compute, AKS, Databricks, Synapse,
-                      ML, Cosmos, networking, storage, carbon.
-                    </div>
-                  </div>
-                  <div class="es-cap-item">
-                    <div class="es-cap-title">
-                      Anomaly &amp; cost-spike detection
-                    </div>
-                    <div class="es-cap-desc">
-                      Pinpoints unexpected cost increases by service, scope, or
-                      tag — and explains the root cause in plain language, not
-                      just a chart.
-                    </div>
-                  </div>
-                  <div class="es-cap-item">
-                    <div class="es-cap-title">
-                      KQL, Python &amp; multi-step reasoning
-                    </div>
-                    <div class="es-cap-desc">
-                      Chains live API calls, runs pandas / numpy in-process, and
-                      queries Log Analytics for unit economics no dashboard can
-                      express.
-                    </div>
-                  </div>
-                  <div class="es-cap-item">
-                    <div class="es-cap-title">
-                      Inline charts + executive PowerPoint
-                    </div>
-                    <div class="es-cap-desc">
-                      20+ ECharts types (treemaps, heatmaps, world maps, sankey)
-                      plus one-click .pptx export — walk into the CFO meeting
-                      ready.
+                      20+ ECharts visualizations (treemaps, heatmaps, world
+                      maps, sankey) plus a one-click branded .pptx export — walk
+                      into the steering committee with the deck already built.
                     </div>
                   </div>
                 </div>
@@ -3958,6 +3955,15 @@ async function send() {
   font-weight: 600;
   margin: 0 0 0.3rem;
   color: #323130;
+}
+.es-eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #0078d4;
+  margin: 0 0 0.6rem;
+  text-align: center;
 }
 .es-sub {
   font-size: 13px;

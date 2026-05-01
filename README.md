@@ -1,6 +1,8 @@
 # Azure FinOps Agent
 
-AI-powered conversational agent that turns Azure cost data into action. Connect your tenant, ask questions in natural language, and get live insights, interactive charts, executive-ready PowerPoint decks, and ready-to-run remediation scripts — what used to take months of FinOps work now takes days.
+Replace a multi-week FinOps assessment with a single conversation. Connect an Azure tenant, ask in plain language, and walk away with quantified savings, a FinOps Foundation maturity score, and a CFO-ready PowerPoint deck — in minutes, not sprints. **Read-only by design**, multi-tenant, safe to point at anything from a dev sandbox to a global enterprise estate.
+
+Built for FinOps leads, CCoE teams, and the architects who serve them.
 
 **[Try it live →](https://azure-finops-agent.com)**
 
@@ -18,14 +20,15 @@ AI-powered conversational agent that turns Azure cost data into action. Connect 
 
 ## What It Does
 
-- **Ask anything about your Azure spend** — cost breakdowns, trends, forecasts, anomalies, idle resources, right-sizing opportunities
-- **Interactive visualizations** — bar, line, pie, scatter, funnel, world maps, heatmaps, treemaps, radar, and gauge charts rendered inline
-- **Generate PowerPoint decks** — executive-ready FinOps presentations with embedded charts, exported as `.pptx`
-- **Generate remediation scripts** — downloadable Azure CLI or PowerShell scripts with dry-run mode, confirmation prompts, and `--what-if` safety flags
-- **FinOps maturity assessment (Crawl / Walk / Run)** — structured scoring framework aligned with the FinOps Foundation, evaluating tagging, orphaned resources, reservations, budgets, right-sizing, cost allocation, and more — each dimension scored 0–5 with actionable recommendations to level up
-- **License optimization** — surface unused M365 seats, Copilot adoption gaps, and license waste across Exchange, Teams, OneDrive, and SharePoint
-- **Chargeback & showback** — map costs to departments, teams, and business units using Microsoft Graph directory data
-- **Log Analytics deep dives** — KQL queries against workspaces and App Insights for VM metrics, container diagnostics, and ingestion cost analysis
+- **Quantified savings, ranked by $ impact** — Reservations, Savings Plans, Hybrid Benefit, rightsizing, idle / orphaned resources, with utilization evidence and an estimated annual saving
+- **FinOps Foundation maturity score** — Crawl / Walk / Run grading with 0–5 per capability and a prioritized roadmap; the assessment a consultant bills weeks for, delivered in a chat
+- **Agentic reasoning, not a dashboard** — plans the investigation, picks the right ARM / Graph / Log Analytics calls, runs Python (pandas, numpy) mid-conversation, and revises when the data surprises it
+- **Anomalies, chargeback & tag hygiene** — catches cost spikes and explains the _why_ (resource, change, owner); auto-generated showback by tag or business unit; quantifies untagged spend
+- **M365 license & Copilot ROI** — Microsoft Graph reveals unused licenses, Copilot seat utilization, and SKU mismatch across Exchange, Teams, OneDrive, SharePoint — levers Azure Cost Management can't see
+- **Inline charts + CFO-ready PowerPoint** — 20+ ECharts visualizations (bar, line, pie, scatter, funnel, world maps, heatmaps, treemaps, radar, gauge, sankey) plus a one-click branded `.pptx` export
+- **Every Azure service, every scope** — 40+ services across all subscriptions and management groups in a single query: compute, AKS, Databricks, Synapse, ML, Cosmos, networking, storage, carbon
+- **Generate remediation scripts** — downloadable Azure CLI / PowerShell with dry-run mode, confirmation prompts, and `--what-if` safety flags
+- **Log Analytics deep dives** — KQL against workspaces and App Insights for VM metrics, container diagnostics, and ingestion cost analysis
 
 ## Architecture
 
