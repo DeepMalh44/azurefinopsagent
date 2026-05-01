@@ -415,7 +415,7 @@
                 :disabled="licensesEnabled"
                 @click="
                   !licensesEnabled &&
-                    startAuth('azure', '/auth/microsoft?tier=licenses')
+                  startAuth('azure', '/auth/microsoft?tier=licenses')
                 "
                 :title="
                   licensesEnabled
@@ -449,7 +449,7 @@
                 :disabled="chargebackEnabled"
                 @click="
                   !chargebackEnabled &&
-                    startAuth('azure', '/auth/microsoft?tier=chargeback')
+                  startAuth('azure', '/auth/microsoft?tier=chargeback')
                 "
                 :title="
                   chargebackEnabled
@@ -485,7 +485,7 @@
                 :disabled="logAnalyticsEnabled"
                 @click="
                   !logAnalyticsEnabled &&
-                    startAuth('azure', '/auth/microsoft?tier=loganalytics')
+                  startAuth('azure', '/auth/microsoft?tier=loganalytics')
                 "
                 :title="
                   logAnalyticsEnabled
@@ -518,7 +518,7 @@
                 :disabled="storageEnabled"
                 @click="
                   !storageEnabled &&
-                    startAuth('azure', '/auth/microsoft?tier=storage')
+                  startAuth('azure', '/auth/microsoft?tier=storage')
                 "
                 :title="
                   storageEnabled
@@ -568,8 +568,8 @@
                   >
                   <span class="scope-grant-all-desc"
                     >Chains through each remaining consent automatically. Same
-                    delegated permissions, no clicking back into the app
-                    between each.</span
+                    delegated permissions, no clicking back into the app between
+                    each.</span
                   >
                 </span>
               </button>
@@ -1352,13 +1352,13 @@
 <script setup>
 import * as echarts from "echarts";
 import {
-  computed,
-  nextTick,
-  onBeforeUnmount,
-  onMounted,
-  reactive,
-  ref,
-  watch,
+    computed,
+    nextTick,
+    onBeforeUnmount,
+    onMounted,
+    reactive,
+    ref,
+    watch,
 } from "vue";
 
 const props = defineProps({
@@ -3331,9 +3331,9 @@ async function send() {
   gap: 8px;
 }
 .portal-header-email {
-  font-size: 12px;
+  font-size: 14px;
+  font-weight: 600;
   color: #fff;
-  opacity: 0.9;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -3979,7 +3979,7 @@ async function send() {
   color: #005a9e;
 }
 .scope-row-perms {
-  font-family: 'Cascadia Code', 'Consolas', monospace;
+  font-family: "Cascadia Code", "Consolas", monospace;
   font-size: 10px;
   color: #8a8886;
   margin-top: 2px;
