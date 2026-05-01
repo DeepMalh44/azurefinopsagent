@@ -401,178 +401,261 @@
             </div>
             <!-- Incremental consent: one row per scope, all delegated, separate Entra ID consent each -->
             <div class="addons-section">
-              <div class="addons-heading">
-                <span class="addons-title">Optional add-ons</span>
-                <span class="addons-sub"
-                  >Each is a separate Microsoft Entra consent. All
-                  <strong>delegated</strong> &amp; read-only.</span
+              <button
+                class="addons-heading"
+                type="button"
+                @click="addonsOpen = !addonsOpen"
+                :aria-expanded="addonsOpen"
+              >
+                <span class="addons-heading-text">
+                  <span class="addons-title">Add scopes</span>
+                  <span class="addons-sub">· Delegated &amp; read-only</span>
+                </span>
+                <span
+                  class="addons-heading-chevron"
+                  :class="{ open: addonsOpen }"
+                  aria-hidden="true"
+                  >⌄</span
                 >
+              </button>
+
+              <div class="addons-body-wrap" :class="{ open: addonsOpen }">
+                <div class="addons-body">
+                  <div
+                    class="scope-row"
+                    :class="{
+                      'scope-row--active': licensesEnabled,
+                      'scope-row--glow': glowingRow === 0,
+                      'scope-row--open': addonRowsOpen[0],
+                    }"
+                  >
+                    <button
+                      class="scope-row-summary"
+                      type="button"
+                      @click="clickScopeRow(0, 'licenses', licensesEnabled)"
+                      :title="
+                        licensesEnabled
+                          ? 'Click to view details'
+                          : 'Click to grant License Optimization scope'
+                      "
+                    >
+                      <span v-if="licensesEnabled" class="scope-row-mark"
+                        >✓</span
+                      >
+                      <span class="scope-row-title">License Optimization</span>
+                      <span
+                        class="scope-row-chevron"
+                        @click.stop="addonRowsOpen[0] = !addonRowsOpen[0]"
+                        title="Show details"
+                        >⌄</span
+                      >
+                    </button>
+                    <div class="scope-row-detail-wrap">
+                      <div class="scope-row-detail">
+                        <p class="scope-row-desc">
+                          Read M365 license inventory &amp; Copilot adoption
+                        </p>
+                        <div class="scope-row-meta">
+                          <span class="scope-badge scope-badge--delegated"
+                            >👤 Delegated</span
+                          >
+                          <span class="scope-badge">Microsoft Graph</span>
+                        </div>
+                        <p class="scope-row-perms">
+                          Organization.Read.All · Reports.Read.All
+                        </p>
+                        <span v-if="licensesEnabled" class="scope-row-status"
+                          >✓ Consented</span
+                        >
+                      </div>
+                    </div>
+                  </div>
+
+                  <div
+                    class="scope-row"
+                    :class="{
+                      'scope-row--active': chargebackEnabled,
+                      'scope-row--glow': glowingRow === 1,
+                      'scope-row--open': addonRowsOpen[1],
+                    }"
+                  >
+                    <button
+                      class="scope-row-summary"
+                      type="button"
+                      @click="clickScopeRow(1, 'chargeback', chargebackEnabled)"
+                      :title="
+                        chargebackEnabled
+                          ? 'Click to view details'
+                          : 'Click to grant Cost Allocation scope'
+                      "
+                    >
+                      <span v-if="chargebackEnabled" class="scope-row-mark"
+                        >✓</span
+                      >
+                      <span class="scope-row-title"
+                        >Cost Allocation &amp; Chargeback</span
+                      >
+                      <span
+                        class="scope-row-chevron"
+                        @click.stop="addonRowsOpen[1] = !addonRowsOpen[1]"
+                        title="Show details"
+                        >⌄</span
+                      >
+                    </button>
+                    <div class="scope-row-detail-wrap">
+                      <div class="scope-row-detail">
+                        <p class="scope-row-desc">
+                          Map Azure costs to users, teams &amp; cost centers
+                        </p>
+                        <div class="scope-row-meta">
+                          <span class="scope-badge scope-badge--delegated"
+                            >👤 Delegated</span
+                          >
+                          <span class="scope-badge">Microsoft Graph</span>
+                        </div>
+                        <p class="scope-row-perms">
+                          User.Read.All · Group.Read.All
+                        </p>
+                        <span v-if="chargebackEnabled" class="scope-row-status"
+                          >✓ Consented</span
+                        >
+                      </div>
+                    </div>
+                  </div>
+
+                  <div
+                    class="scope-row"
+                    :class="{
+                      'scope-row--active': logAnalyticsEnabled,
+                      'scope-row--glow': glowingRow === 2,
+                      'scope-row--open': addonRowsOpen[2],
+                    }"
+                  >
+                    <button
+                      class="scope-row-summary"
+                      type="button"
+                      @click="
+                        clickScopeRow(2, 'loganalytics', logAnalyticsEnabled)
+                      "
+                      :title="
+                        logAnalyticsEnabled
+                          ? 'Click to view details'
+                          : 'Click to grant Log Analytics scope'
+                      "
+                    >
+                      <span v-if="logAnalyticsEnabled" class="scope-row-mark"
+                        >✓</span
+                      >
+                      <span class="scope-row-title"
+                        >Log Analytics Deep Dives</span
+                      >
+                      <span
+                        class="scope-row-chevron"
+                        @click.stop="addonRowsOpen[2] = !addonRowsOpen[2]"
+                        title="Show details"
+                        >⌄</span
+                      >
+                    </button>
+                    <div class="scope-row-detail-wrap">
+                      <div class="scope-row-detail">
+                        <p class="scope-row-desc">
+                          Run KQL for unit economics &amp; ingestion cost
+                          analysis
+                        </p>
+                        <div class="scope-row-meta">
+                          <span class="scope-badge scope-badge--delegated"
+                            >👤 Delegated</span
+                          >
+                          <span class="scope-badge">Log Analytics API</span>
+                        </div>
+                        <p class="scope-row-perms">Data.Read</p>
+                        <span
+                          v-if="logAnalyticsEnabled"
+                          class="scope-row-status"
+                          >✓ Consented</span
+                        >
+                      </div>
+                    </div>
+                  </div>
+
+                  <div
+                    class="scope-row"
+                    :class="{
+                      'scope-row--active': storageEnabled,
+                      'scope-row--glow': glowingRow === 3,
+                      'scope-row--open': addonRowsOpen[3],
+                    }"
+                  >
+                    <button
+                      class="scope-row-summary"
+                      type="button"
+                      @click="clickScopeRow(3, 'storage', storageEnabled)"
+                      :title="
+                        storageEnabled
+                          ? 'Click to view details'
+                          : 'Click to grant Cost Exports scope'
+                      "
+                    >
+                      <span v-if="storageEnabled" class="scope-row-mark"
+                        >✓</span
+                      >
+                      <span class="scope-row-title">Cost Exports</span>
+                      <span
+                        class="scope-row-chevron"
+                        @click.stop="addonRowsOpen[3] = !addonRowsOpen[3]"
+                        title="Show details"
+                        >⌄</span
+                      >
+                    </button>
+                    <div class="scope-row-detail-wrap">
+                      <div class="scope-row-detail">
+                        <p class="scope-row-desc">
+                          Read Cost Management export files from your Storage
+                          Account
+                        </p>
+                        <div class="scope-row-meta">
+                          <span class="scope-badge scope-badge--delegated"
+                            >👤 Delegated</span
+                          >
+                          <span class="scope-badge">Azure Storage</span>
+                        </div>
+                        <p class="scope-row-perms">user_impersonation</p>
+                        <span v-if="storageEnabled" class="scope-row-status"
+                          >✓ Consented</span
+                        >
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="addons-divider"></div>
+
+                  <button
+                    v-if="
+                      !(
+                        licensesEnabled &&
+                        chargebackEnabled &&
+                        logAnalyticsEnabled &&
+                        storageEnabled
+                      )
+                    "
+                    class="scope-grant-all"
+                    @click="startAuth('azure', '/auth/microsoft?tier=all')"
+                    title="Walks you through every remaining add-on consent in sequence — one click here, approve each Microsoft Entra screen as it appears."
+                  >
+                    <span class="scope-grant-all-icon">🛡</span>
+                    <span class="scope-grant-all-body">
+                      <span class="scope-grant-all-title"
+                        >Grant all scopes
+                        <span class="scope-grant-all-tag">admin</span></span
+                      >
+                      <span class="scope-grant-all-desc"
+                        >Walks through each remaining consent
+                        automatically.</span
+                      >
+                    </span>
+                  </button>
+                </div>
               </div>
-
-              <button
-                class="scope-row"
-                :class="{ 'scope-row--active': licensesEnabled }"
-                :disabled="licensesEnabled"
-                @click="
-                  !licensesEnabled &&
-                  startAuth('azure', '/auth/microsoft?tier=licenses')
-                "
-                :title="
-                  licensesEnabled
-                    ? 'Consented'
-                    : 'Opens Microsoft consent: Organization.Read.All, Reports.Read.All'
-                "
-              >
-                <span class="scope-row-mark">{{
-                  licensesEnabled ? "✓" : "+"
-                }}</span>
-                <span class="scope-row-body">
-                  <span class="scope-row-title">License Optimization</span>
-                  <span class="scope-row-desc"
-                    >Read M365 license inventory &amp; Copilot adoption</span
-                  >
-                  <span class="scope-row-meta">
-                    <span class="scope-badge scope-badge--delegated"
-                      >👤 Delegated</span
-                    >
-                    <span class="scope-badge">Microsoft Graph</span>
-                  </span>
-                  <span class="scope-row-perms"
-                    >Organization.Read.All · Reports.Read.All</span
-                  >
-                </span>
-              </button>
-
-              <button
-                class="scope-row"
-                :class="{ 'scope-row--active': chargebackEnabled }"
-                :disabled="chargebackEnabled"
-                @click="
-                  !chargebackEnabled &&
-                  startAuth('azure', '/auth/microsoft?tier=chargeback')
-                "
-                :title="
-                  chargebackEnabled
-                    ? 'Consented'
-                    : 'Opens Microsoft consent: User.Read.All, Group.Read.All'
-                "
-              >
-                <span class="scope-row-mark">{{
-                  chargebackEnabled ? "✓" : "+"
-                }}</span>
-                <span class="scope-row-body">
-                  <span class="scope-row-title"
-                    >Cost Allocation &amp; Chargeback</span
-                  >
-                  <span class="scope-row-desc"
-                    >Map Azure costs to users, teams &amp; cost centers</span
-                  >
-                  <span class="scope-row-meta">
-                    <span class="scope-badge scope-badge--delegated"
-                      >👤 Delegated</span
-                    >
-                    <span class="scope-badge">Microsoft Graph</span>
-                  </span>
-                  <span class="scope-row-perms"
-                    >User.Read.All · Group.Read.All</span
-                  >
-                </span>
-              </button>
-
-              <button
-                class="scope-row"
-                :class="{ 'scope-row--active': logAnalyticsEnabled }"
-                :disabled="logAnalyticsEnabled"
-                @click="
-                  !logAnalyticsEnabled &&
-                  startAuth('azure', '/auth/microsoft?tier=loganalytics')
-                "
-                :title="
-                  logAnalyticsEnabled
-                    ? 'Consented'
-                    : 'Opens Microsoft consent: Log Analytics Data.Read'
-                "
-              >
-                <span class="scope-row-mark">{{
-                  logAnalyticsEnabled ? "✓" : "+"
-                }}</span>
-                <span class="scope-row-body">
-                  <span class="scope-row-title">Log Analytics Deep Dives</span>
-                  <span class="scope-row-desc"
-                    >Run KQL for unit economics &amp; ingestion cost
-                    analysis</span
-                  >
-                  <span class="scope-row-meta">
-                    <span class="scope-badge scope-badge--delegated"
-                      >👤 Delegated</span
-                    >
-                    <span class="scope-badge">Log Analytics API</span>
-                  </span>
-                  <span class="scope-row-perms">Data.Read</span>
-                </span>
-              </button>
-
-              <button
-                class="scope-row"
-                :class="{ 'scope-row--active': storageEnabled }"
-                :disabled="storageEnabled"
-                @click="
-                  !storageEnabled &&
-                  startAuth('azure', '/auth/microsoft?tier=storage')
-                "
-                :title="
-                  storageEnabled
-                    ? 'Consented'
-                    : 'Opens Microsoft consent: Azure Storage user_impersonation'
-                "
-              >
-                <span class="scope-row-mark">{{
-                  storageEnabled ? "✓" : "+"
-                }}</span>
-                <span class="scope-row-body">
-                  <span class="scope-row-title">Cost Exports</span>
-                  <span class="scope-row-desc"
-                    >Read Cost Management export files from your Storage
-                    Account</span
-                  >
-                  <span class="scope-row-meta">
-                    <span class="scope-badge scope-badge--delegated"
-                      >👤 Delegated</span
-                    >
-                    <span class="scope-badge">Azure Storage</span>
-                  </span>
-                  <span class="scope-row-perms">user_impersonation</span>
-                </span>
-              </button>
-
-              <div class="addons-divider"></div>
-
-              <button
-                v-if="
-                  !(
-                    licensesEnabled &&
-                    chargebackEnabled &&
-                    logAnalyticsEnabled &&
-                    storageEnabled
-                  )
-                "
-                class="scope-grant-all"
-                @click="startAuth('azure', '/auth/microsoft?tier=all')"
-                title="Walks you through every remaining add-on consent in sequence — one click here, approve each Microsoft Entra screen as it appears."
-              >
-                <span class="scope-grant-all-icon">🛡</span>
-                <span class="scope-grant-all-body">
-                  <span class="scope-grant-all-title"
-                    >Grant all remaining add-ons
-                    <span class="scope-grant-all-tag">admin</span></span
-                  >
-                  <span class="scope-grant-all-desc"
-                    >Chains through each remaining consent automatically. Same
-                    delegated permissions, no clicking back into the app between
-                    each.</span
-                  >
-                </span>
-              </button>
 
               <button
                 class="azure-revoke-btn"
@@ -1352,13 +1435,13 @@
 <script setup>
 import * as echarts from "echarts";
 import {
-    computed,
-    nextTick,
-    onBeforeUnmount,
-    onMounted,
-    reactive,
-    ref,
-    watch,
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  reactive,
+  ref,
+  watch,
 } from "vue";
 
 const props = defineProps({
@@ -1464,6 +1547,39 @@ const showTenantSwitcher = ref(false);
 const tenantError = ref(false);
 const clearing = ref(false);
 
+// Add-ons collapsible parent + per-row open state + onboarding glow tour
+const addonsOpen = ref(true);
+const addonRowsOpen = ref([false, false, false, false]);
+const glowingRow = ref(-1);
+
+// One-time onboarding tour: when user first connects, briefly open each
+// add-on row (with a glow) so they discover the click-to-expand UI, then
+// close everything back up.
+async function runAddonsTour() {
+  if (sessionStorage.getItem("addons-tour-shown")) return;
+  sessionStorage.setItem("addons-tour-shown", "1");
+  await new Promise((r) => setTimeout(r, 700));
+  addonsOpen.value = true;
+  for (let i = 0; i < 4; i++) {
+    glowingRow.value = i;
+    addonRowsOpen.value[i] = true;
+    await new Promise((r) => setTimeout(r, 750));
+    addonRowsOpen.value[i] = false;
+    glowingRow.value = -1;
+    await new Promise((r) => setTimeout(r, 180));
+  }
+}
+
+// Click on a scope row: if not yet consented, start auth.
+// If already consented, toggle the details panel.
+function clickScopeRow(idx, tier, enabled) {
+  if (!enabled) {
+    startAuth("azure", "/auth/microsoft?tier=" + tier);
+  } else {
+    addonRowsOpen.value[idx] = !addonRowsOpen.value[idx];
+  }
+}
+
 async function checkAzureStatus() {
   try {
     const r = await fetch("/auth/azure/status");
@@ -1483,6 +1599,8 @@ async function checkAzureStatus() {
         storageEnabled.value = data.storageEnabled || false;
         // Fetch tenant list after connecting
         fetchTenants();
+        // First-time onboarding: glow-tour the add-on rows
+        runAddonsTour();
       }
     }
   } catch {}
@@ -3878,9 +3996,54 @@ async function send() {
 }
 .addons-heading {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 4px;
   margin-bottom: 2px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+.addons-heading:hover {
+  background: #f3f2f1;
+}
+.addons-heading-text {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+.addons-heading-chevron {
+  font-size: 14px;
+  color: #8a8886;
+  transition: transform 0.2s;
+  flex-shrink: 0;
+}
+.addons-heading-chevron.open {
+  transform: rotate(180deg);
+}
+.addons-body-wrap {
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition:
+    max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.25s ease;
+}
+.addons-body-wrap.open {
+  max-height: 1200px;
+  opacity: 1;
+}
+.addons-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 .addons-title {
   font-size: 11px;
@@ -3899,30 +4062,64 @@ async function send() {
   font-weight: 600;
 }
 .scope-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 8px 9px;
   border-radius: 6px;
   border: 1px solid #e1dfdd;
   background: #fff;
-  text-align: left;
-  cursor: pointer;
-  transition: all 0.15s;
-  width: 100%;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+  overflow: hidden;
 }
-.scope-row:hover:not(:disabled) {
-  border-color: #0078d4;
-  background: #f5fbff;
-  box-shadow: 0 1px 3px rgba(0, 120, 212, 0.08);
+.scope-row--open {
+  border-color: #c7c6c4;
+  background: #fafafa;
 }
-.scope-row:disabled {
-  cursor: default;
+.scope-row--active {
   background: #f3faf3;
   border-color: #cce8cc;
 }
+/* Onboarding glow tour — pulses each row briefly so user sees it's expandable */
+.scope-row--glow {
+  animation: scope-glow 0.75s ease-in-out;
+}
+@keyframes scope-glow {
+  0% {
+    box-shadow: 0 0 0 0 rgba(0, 120, 212, 0);
+    border-color: #e1dfdd;
+  }
+  40% {
+    box-shadow: 0 0 0 4px rgba(0, 120, 212, 0.25);
+    border-color: #0078d4;
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(0, 120, 212, 0);
+    border-color: #e1dfdd;
+  }
+}
+.scope-row-summary {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  padding: 0 0 0 9px;
+  cursor: pointer;
+  width: 100%;
+  background: none;
+  border: none;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  transition: background 0.15s;
+  min-height: 36px;
+}
+.scope-row-summary:hover {
+  background: #f5fbff;
+}
+.scope-row--open .scope-row-summary:hover {
+  background: #f0f0f0;
+}
 .scope-row-mark {
   flex-shrink: 0;
+  align-self: center;
   width: 18px;
   height: 18px;
   border-radius: 50%;
@@ -3933,35 +4130,74 @@ async function send() {
   font-size: 12px;
   background: #f3f2f1;
   color: #605e5c;
-  margin-top: 1px;
 }
 .scope-row--active .scope-row-mark {
   background: #107c10;
   color: #fff;
-}
-.scope-row-body {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  min-width: 0;
-  flex: 1;
 }
 .scope-row-title {
   font-size: 13px;
   font-weight: 600;
   color: #201f1e;
   line-height: 1.25;
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  align-self: center;
+}
+.scope-row-chevron {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  align-self: stretch;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1;
+  color: #605e5c;
+  border-left: 1px solid #e1dfdd;
+  background: #fafafa;
+  transition:
+    transform 0.2s,
+    background 0.15s,
+    color 0.15s;
+  cursor: pointer;
+  margin-left: 4px;
+}
+.scope-row-chevron:hover {
+  background: #deecf9;
+  color: #0078d4;
+}
+.scope-row--open .scope-row-chevron {
+  transform: rotate(180deg);
+}
+.scope-row-detail-wrap {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.scope-row--open .scope-row-detail-wrap {
+  max-height: 280px;
+}
+.scope-row-detail {
+  padding: 4px 9px 9px 35px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 .scope-row-desc {
   font-size: 11.5px;
   color: #605e5c;
   line-height: 1.35;
+  margin: 0;
 }
 .scope-row-meta {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  margin-top: 2px;
 }
 .scope-badge {
   display: inline-flex;
@@ -3978,13 +4214,40 @@ async function send() {
   background: #e0f2ff;
   color: #005a9e;
 }
+/* Compact summary-only delegated chip — just the icon */
+.scope-row-summary > .scope-badge--delegated {
+  padding: 1px 4px;
+  font-size: 11px;
+}
 .scope-row-perms {
   font-family: "Cascadia Code", "Consolas", monospace;
   font-size: 10px;
   color: #8a8886;
-  margin-top: 2px;
   line-height: 1.4;
   word-break: break-word;
+  margin: 0;
+}
+.scope-row-connect {
+  align-self: flex-start;
+  margin-top: 2px;
+  padding: 4px 12px;
+  border-radius: 4px;
+  border: 1px solid #0078d4;
+  background: #0078d4;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.scope-row-connect:hover {
+  background: #106ebe;
+  border-color: #106ebe;
+}
+.scope-row-status {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #107c10;
 }
 .addons-divider {
   height: 1px;
