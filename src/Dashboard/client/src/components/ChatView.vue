@@ -441,12 +441,8 @@
                     <button
                       class="scope-row-summary"
                       type="button"
-                      @click="clickScopeRow(0, 'licenses', licensesEnabled)"
-                      :title="
-                        licensesEnabled
-                          ? 'Click to view details'
-                          : 'Click to grant License Optimization scope'
-                      "
+                      @click="clickScopeRow(0)"
+                      title="Show details"
                     >
                       <span v-if="licensesEnabled" class="scope-row-mark"
                         >✓</span
@@ -485,9 +481,16 @@
                         <p class="scope-row-perms">
                           Organization.Read.All · Reports.Read.All
                         </p>
-                        <span v-if="licensesEnabled" class="scope-row-status"
-                          >✓ Consented</span
+                        <button
+                          v-if="!licensesEnabled"
+                          class="scope-row-add"
+                          @click.stop="
+                            startAuth('azure', '/auth/microsoft?tier=licenses')
+                          "
                         >
+                          Add scope
+                        </button>
+                        <span v-else class="scope-row-status">✓ Consented</span>
                       </div>
                     </div>
                   </div>
@@ -503,12 +506,8 @@
                     <button
                       class="scope-row-summary"
                       type="button"
-                      @click="clickScopeRow(1, 'chargeback', chargebackEnabled)"
-                      :title="
-                        chargebackEnabled
-                          ? 'Click to view details'
-                          : 'Click to grant Cost Allocation scope'
-                      "
+                      @click="clickScopeRow(1)"
+                      title="Show details"
                     >
                       <span v-if="chargebackEnabled" class="scope-row-mark"
                         >✓</span
@@ -549,9 +548,19 @@
                         <p class="scope-row-perms">
                           User.Read.All · Group.Read.All
                         </p>
-                        <span v-if="chargebackEnabled" class="scope-row-status"
-                          >✓ Consented</span
+                        <button
+                          v-if="!chargebackEnabled"
+                          class="scope-row-add"
+                          @click.stop="
+                            startAuth(
+                              'azure',
+                              '/auth/microsoft?tier=chargeback',
+                            )
+                          "
                         >
+                          Add scope
+                        </button>
+                        <span v-else class="scope-row-status">✓ Consented</span>
                       </div>
                     </div>
                   </div>
@@ -567,14 +576,8 @@
                     <button
                       class="scope-row-summary"
                       type="button"
-                      @click="
-                        clickScopeRow(2, 'loganalytics', logAnalyticsEnabled)
-                      "
-                      :title="
-                        logAnalyticsEnabled
-                          ? 'Click to view details'
-                          : 'Click to grant Log Analytics scope'
-                      "
+                      @click="clickScopeRow(2)"
+                      title="Show details"
                     >
                       <span v-if="logAnalyticsEnabled" class="scope-row-mark"
                         >✓</span
@@ -614,11 +617,19 @@
                           <span class="scope-badge">Log Analytics API</span>
                         </div>
                         <p class="scope-row-perms">Data.Read</p>
-                        <span
-                          v-if="logAnalyticsEnabled"
-                          class="scope-row-status"
-                          >✓ Consented</span
+                        <button
+                          v-if="!logAnalyticsEnabled"
+                          class="scope-row-add"
+                          @click.stop="
+                            startAuth(
+                              'azure',
+                              '/auth/microsoft?tier=loganalytics',
+                            )
+                          "
                         >
+                          Add scope
+                        </button>
+                        <span v-else class="scope-row-status">✓ Consented</span>
                       </div>
                     </div>
                   </div>
@@ -634,12 +645,8 @@
                     <button
                       class="scope-row-summary"
                       type="button"
-                      @click="clickScopeRow(3, 'storage', storageEnabled)"
-                      :title="
-                        storageEnabled
-                          ? 'Click to view details'
-                          : 'Click to grant Cost Exports scope'
-                      "
+                      @click="clickScopeRow(3)"
+                      title="Show details"
                     >
                       <span v-if="storageEnabled" class="scope-row-mark"
                         >✓</span
@@ -677,6 +684,15 @@
                           <span class="scope-badge">Azure Storage</span>
                         </div>
                         <p class="scope-row-perms">user_impersonation</p>
+                        <button
+                          v-if="!storageEnabled"
+                          class="scope-row-add"
+                          @click.stop="
+                            startAuth('azure', '/auth/microsoft?tier=storage')
+                          "
+                        >
+                          Add scope
+                        </button>
                         <span v-if="storageEnabled" class="scope-row-status"
                           >✓ Consented</span
                         >
@@ -1627,14 +1643,10 @@ async function runAddonsTour() {
   }
 }
 
-// Click on a scope row: if not yet consented, start auth.
-// If already consented, toggle the details panel.
-function clickScopeRow(idx, tier, enabled) {
-  if (!enabled) {
-    startAuth("azure", "/auth/microsoft?tier=" + tier);
-  } else {
-    addonRowsOpen.value[idx] = !addonRowsOpen.value[idx];
-  }
+// Click on a scope row: just toggle the details panel.
+// Adding the scope is done via the explicit "Add scope" button inside.
+function clickScopeRow(idx) {
+  addonRowsOpen.value[idx] = !addonRowsOpen.value[idx];
 }
 
 async function checkAzureStatus() {
@@ -4080,7 +4092,7 @@ async function send() {
   flex-shrink: 0;
   color: #605e5c;
   margin-left: 8px;
-  transition: transform 0.2s;
+  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .addons-heading-chevron.open {
   transform: rotate(180deg);
@@ -4090,8 +4102,8 @@ async function send() {
   overflow: hidden;
   opacity: 0;
   transition:
-    max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1),
-    opacity 0.25s ease;
+    max-height 0.6s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.45s ease;
 }
 .addons-body-wrap.open {
   max-height: 1200px;
@@ -4209,21 +4221,11 @@ async function send() {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
+  width: 32px;
   align-self: stretch;
-  color: #605e5c;
-  border-left: 1px solid #e1dfdd;
-  background: #fafafa;
-  transition:
-    transform 0.2s,
-    background 0.15s,
-    color 0.15s;
-  cursor: pointer;
-  margin-left: 4px;
-}
-.scope-row-chevron:hover {
-  background: #deecf9;
-  color: #0078d4;
+  color: #8a8886;
+  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
 }
 .scope-row--open .scope-row-chevron {
   transform: rotate(180deg);
@@ -4231,7 +4233,7 @@ async function send() {
 .scope-row-detail-wrap {
   max-height: 0;
   overflow: hidden;
-  transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: max-height 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .scope-row--open .scope-row-detail-wrap {
   max-height: 280px;
@@ -4302,6 +4304,25 @@ async function send() {
   font-size: 11.5px;
   font-weight: 600;
   color: #107c10;
+}
+.scope-row-add {
+  align-self: flex-start;
+  margin-top: 4px;
+  padding: 4px 12px;
+  border-radius: 4px;
+  border: 1px solid #0078d4;
+  background: #0078d4;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+.scope-row-add:hover {
+  background: #106ebe;
+  border-color: #106ebe;
 }
 .addons-divider {
   height: 1px;
