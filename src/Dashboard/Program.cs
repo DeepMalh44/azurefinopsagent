@@ -345,6 +345,23 @@ app.MapGet("/auth/microsoft", (HttpContext ctx) =>
               $"&response_mode=query" +
               $"&prompt={promptType}";
 
+    // For prompt=none silent flows, add login_hint to disambiguate the user
+    // (otherwise AADSTS16000 interaction_required when multiple identities exist).
+    if (promptType == "none")
+    {
+        var azureUserJson = ctx.Session.GetString("azure_user");
+        if (!string.IsNullOrEmpty(azureUserJson))
+        {
+            try
+            {
+                var u = JsonSerializer.Deserialize<JsonElement>(azureUserJson);
+                if (u.TryGetProperty("email", out var emailProp) && emailProp.ValueKind == JsonValueKind.String)
+                    url += $"&login_hint={Uri.EscapeDataString(emailProp.GetString()!)}";
+            }
+            catch { }
+        }
+    }
+
     logger.LogInformation("Microsoft OAuth redirect: tier={Tier} prompt={Prompt} tenant={Tenant} from {Host}", tier, promptType, effectiveTenant, ctx.Request.Host);
     return Results.Redirect(url);
 });
@@ -409,6 +426,11 @@ app.MapGet("/auth/microsoft/adminconsent/callback", (HttpContext ctx) =>
 
     var grantedTenant = ctx.Request.Query["tenant"].ToString();
     logger.LogInformation("Admin consent granted for tenant={Tenant}", grantedTenant);
+    // Pin auth_tenant to the just-consented tenant so the silent chain that
+    // follows uses the correct tenant authority (prompt=none on /common will
+    // fail with AADSTS16000 interaction_required).
+    if (!string.IsNullOrEmpty(grantedTenant))
+        ctx.Session.SetString("auth_tenant", grantedTenant);
     return Results.Redirect("/?admin_consent=ok&tenant=" + Uri.EscapeDataString(grantedTenant));
 });
 
