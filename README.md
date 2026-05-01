@@ -4,11 +4,17 @@ AI-powered conversational agent that turns Azure cost data into action. Connect 
 
 **[Live demo →](https://azure-finops-agent.com)**
 
-![Azure FinOps Agent — world map of current vs upcoming Azure regions](assets/screenshot-worldmap.png)
+![Azure FinOps Agent home — connect any Azure tenant in one click](assets/screenshot-home.png)
 
-> _Example: "Show me all current Azure data centers in one color and upcoming data centers in another color on a world map" — answered in seconds, no Azure login required for public-data queries._
+> _Landing page: read-only by design. Drop in a Tenant ID (or leave it blank for your home tenant) and click **Connect Azure** to start a session — incremental consent means no admin sign-off needed for the base ARM scope._
 
-![Azure FinOps Agent home](assets/screenshot-home.png)
+![Azure FinOps Agent — signed in with all add-on scopes consented](assets/screenshot-loggedin.png)
+
+> _Signed-in view: the sidebar reveals the **Crawl / Walk / Run / Playbook** maturity categories plus the **Subscriptions** browser. The **Add Scopes** panel shows incremental consent — License Optimization, Cost Allocation & Chargeback, Log Analytics Deep Dives, and Cost Exports each granted as a separate delegated, read-only Microsoft Entra consent (✅ green). Revoke any scope at any time._
+
+![Azure FinOps Agent — world map of current vs upcoming Azure regions, rendered in the chat with live tool calls](assets/screenshot-worldmap.png)
+
+> _Example session: "Show me all current Azure data centers in one color and upcoming data centers in another color on a world map" — answered in seconds with an interactive ECharts world map. The right-hand **Tools** panel streams every tool call live (`RenderAdvancedChart`, `web_fetch`, `report_intent`) so you can see exactly what the agent did. No Azure login required for public-data queries like this one._
 
 ## What It Does
 
