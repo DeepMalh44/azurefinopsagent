@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using System.Text.Json;
 using AzureFinOps.Dashboard.Observability;
 using GitHub.Copilot.SDK;
@@ -11,6 +12,16 @@ namespace AzureFinOps.Dashboard.Auth;
 /// </summary>
 public static class MicrosoftAuthEndpoints
 {
+    /// <summary>Generates a cryptographically random hex string for OAuth `state` and PKCE values.</summary>
+    private static string CryptoRandomHex(int byteLen) =>
+        Convert.ToHexString(RandomNumberGenerator.GetBytes(byteLen)).ToLowerInvariant();
+
+    /// <summary>RFC 7636 PKCE code_challenge from a code_verifier (SHA-256, base64url).</summary>
+    private static string PkceChallenge(string verifier)
+    {
+        var hash = SHA256.HashData(System.Text.Encoding.ASCII.GetBytes(verifier));
+        return Convert.ToBase64String(hash).TrimEnd('=').Replace('+', '-').Replace('/', '_');
+    }
     public static void MapMicrosoftAuthEndpoints(
         this IEndpointRouteBuilder app,
         MicrosoftOAuthOptions options,
@@ -68,8 +79,14 @@ public static class MicrosoftAuthEndpoints
             if (!options.IsConfigured)
                 return Results.Problem("Microsoft OAuth is not configured");
 
-            var state = Guid.NewGuid().ToString("N");
+            var state = CryptoRandomHex(16);
             ctx.Session.SetString("ms_oauth_state", state);
+
+            // PKCE — defends against authorization-code interception even though
+            // we're a confidential client. Microsoft now recommends it for web apps too.
+            var codeVerifier = CryptoRandomHex(48);
+            ctx.Session.SetString("pkce_verifier", codeVerifier);
+            var codeChallenge = PkceChallenge(codeVerifier);
 
             var tier = ctx.Request.Query["tier"].ToString().ToLowerInvariant();
             if (string.IsNullOrEmpty(tier)) tier = "base";
@@ -106,7 +123,9 @@ public static class MicrosoftAuthEndpoints
                       $"&scope={Uri.EscapeDataString(scope)}" +
                       $"&state={state}" +
                       $"&response_mode=query" +
-                      $"&prompt={promptType}";
+                      $"&prompt={promptType}" +
+                      $"&code_challenge={codeChallenge}" +
+                      $"&code_challenge_method=S256";
 
             if (promptType == "none")
             {
@@ -133,7 +152,7 @@ public static class MicrosoftAuthEndpoints
             if (!options.IsConfigured)
                 return Results.Problem("Microsoft OAuth is not configured");
 
-            var state = Guid.NewGuid().ToString("N");
+            var state = CryptoRandomHex(16);
             ctx.Session.SetString("ms_oauth_state", state);
             ctx.Session.SetString("auth_tier", "adminconsent");
 
@@ -212,7 +231,10 @@ public static class MicrosoftAuthEndpoints
                 var authTier = ctx.Session.GetString("auth_tier") ?? "base";
                 var tokenExchangeScope = string.Join(" ", ["openid", "profile", "email", "offline_access", .. MicrosoftOAuthOptions.GetScopesForTier(authTier)]);
 
-                tokenReq.Content = new FormUrlEncodedContent(new Dictionary<string, string>
+                var pkceVerifier = ctx.Session.GetString("pkce_verifier");
+                ctx.Session.Remove("pkce_verifier");
+
+                var tokenForm = new Dictionary<string, string>
                 {
                     ["client_id"] = options.ClientId,
                     ["client_secret"] = options.ClientSecret,
@@ -220,7 +242,11 @@ public static class MicrosoftAuthEndpoints
                     ["redirect_uri"] = redirectUri,
                     ["grant_type"] = "authorization_code",
                     ["scope"] = tokenExchangeScope
-                });
+                };
+                if (!string.IsNullOrEmpty(pkceVerifier))
+                    tokenForm["code_verifier"] = pkceVerifier;
+
+                tokenReq.Content = new FormUrlEncodedContent(tokenForm);
 
                 var tokenRes = await http.SendAsync(tokenReq);
                 var tokenBody = await tokenRes.Content.ReadAsStringAsync();

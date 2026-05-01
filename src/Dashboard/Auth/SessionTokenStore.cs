@@ -74,16 +74,20 @@ public sealed class SessionTokenStore
             var refreshToken = ctx.Session.GetString("azure_refresh_token");
             if (refreshToken is null)
             {
-                _logger.LogWarning("Token {Key} expired but no refresh token available, returning expired token", tokenKey);
-                return token;
+                _logger.LogWarning("Token {Key} expired and no refresh token available; user must re-authenticate", tokenKey);
+                ctx.Session.Remove(tokenKey);
+                ctx.Session.Remove(expiryKey);
+                return null;
             }
             var http = httpFactory.CreateClient();
             var sessionTenant = ctx.Session.GetString("auth_tenant");
             var result = await ExchangeRefreshTokenForResource(http, refreshToken, refreshScope, sessionTenant);
             if (result is null)
             {
-                _logger.LogWarning("Token refresh failed for {Key}, returning expired token as fallback", tokenKey);
-                return token;
+                _logger.LogWarning("Token {Key} refresh failed; user must re-authenticate", tokenKey);
+                ctx.Session.Remove(tokenKey);
+                ctx.Session.Remove(expiryKey);
+                return null;
             }
             ctx.Session.SetString(tokenKey, result.Value.Token);
             ctx.Session.SetString(expiryKey, result.Value.Expiry.ToString("o"));

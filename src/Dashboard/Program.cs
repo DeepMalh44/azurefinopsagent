@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using System.Text.Json;
 using Azure.Monitor.OpenTelemetry.AspNetCore;
 using AzureFinOps.Dashboard.AI;
@@ -36,7 +37,8 @@ builder.Services.AddDataProtection()
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
 {
-    options.IdleTimeout = TimeSpan.FromHours(24);
+    // Idle timeout: 60 min of inactivity. Absolute cap (8h) is enforced by middleware below.
+    options.IdleTimeout = TimeSpan.FromHours(1);
     options.Cookie.HttpOnly = true;
     options.Cookie.IsEssential = true;
     options.Cookie.SameSite = SameSiteMode.Lax;
@@ -59,6 +61,7 @@ var telemetry = new AiTelemetry();
 builder.Services.AddSingleton(telemetry);
 builder.Services.AddSingleton(oauthOptions);
 builder.Services.AddSingleton<SessionTokenStore>();
+builder.Services.AddHostedService<UserStateJanitor>();
 
 var app = builder.Build();
 var loggerFactory = app.Services.GetRequiredService<ILoggerFactory>();
@@ -122,12 +125,66 @@ app.UseSession();
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
+// Absolute session lifetime — even if the user is active, force re-auth after 8h.
+// Limits the blast radius of a stolen session cookie.
+const int AbsoluteSessionMaxHours = 8;
+app.Use(async (ctx, next) =>
+{
+    var startStr = ctx.Session.GetString("session_started_utc");
+    if (startStr is null)
+    {
+        ctx.Session.SetString("session_started_utc", DateTimeOffset.UtcNow.ToString("o"));
+    }
+    else if (DateTimeOffset.TryParse(startStr, out var started)
+             && DateTimeOffset.UtcNow - started > TimeSpan.FromHours(AbsoluteSessionMaxHours))
+    {
+        ctx.Session.Clear();
+        ctx.Session.SetString("session_started_utc", DateTimeOffset.UtcNow.ToString("o"));
+    }
+    await next();
+});
+
+// CSRF defense — for state-changing requests, require Origin/Referer to match this host.
+// Combined with SameSite=Lax cookies this defeats the standard CSRF surface.
+var allowedOriginHosts = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+{
+    "azure-finops-agent.com",
+    "www.azure-finops-agent.com",
+    "finops-agent-container.azurewebsites.net",
+    "localhost:5000",
+    "localhost:5173",
+};
+app.Use(async (ctx, next) =>
+{
+    var method = ctx.Request.Method;
+    if (method == "POST" || method == "PUT" || method == "PATCH" || method == "DELETE")
+    {
+        // Allow OAuth callback POSTs from Microsoft (none today, but defensive).
+        // Allow non-mutating endpoints (none of ours are POST without state change).
+        var origin = ctx.Request.Headers.Origin.ToString();
+        var referer = ctx.Request.Headers.Referer.ToString();
+        var sourceHost = "";
+        if (Uri.TryCreate(origin, UriKind.Absolute, out var oUri)) sourceHost = oUri.Authority;
+        else if (Uri.TryCreate(referer, UriKind.Absolute, out var rUri)) sourceHost = rUri.Authority;
+
+        if (string.IsNullOrEmpty(sourceHost) || !allowedOriginHosts.Contains(sourceHost))
+        {
+            ctx.Response.StatusCode = 403;
+            await ctx.Response.WriteAsync("Forbidden: cross-origin write blocked");
+            return;
+        }
+    }
+    await next();
+});
+
 // Auto-assign anonymous session user on first request (no login required for chat)
 app.Use(async (ctx, next) =>
 {
     if (ctx.Session.GetString("user") is null)
     {
-        var sessionUserId = Random.Shared.NextInt64(1_000_000, long.MaxValue);
+        // Crypto-random user ID — used as the key for per-user session/token state.
+        var sessionUserId = (long)(RandomNumberGenerator.GetInt32(1_000_000, int.MaxValue)) << 24
+                             | (long)RandomNumberGenerator.GetInt32(0, 1 << 24);
         ctx.Session.SetString("user", JsonSerializer.Serialize(new
         {
             id = sessionUserId,

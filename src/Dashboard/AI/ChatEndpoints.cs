@@ -45,6 +45,9 @@ public static class ChatEndpoints
             var userId = user.GetProperty("id").GetInt64();
             var userLogin = user.TryGetProperty("login", out var loginProp) ? loginProp.GetString() : userId.ToString();
 
+            // Track activity for the janitor's idle eviction.
+            UserStateJanitor.LastSeenUtc[userId] = DateTimeOffset.UtcNow;
+
             var chatSw = Stopwatch.StartNew();
             telemetry.ChatRequests.Add(1,
                 new KeyValuePair<string, object?>("model", copilotFactory.Deployment),
