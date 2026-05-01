@@ -2,15 +2,19 @@
 
 AI-powered conversational agent that turns Azure cost data into action. Connect your tenant, ask questions in natural language, and get live insights, interactive charts, executive-ready PowerPoint decks, and ready-to-run remediation scripts — what used to take months of FinOps work now takes days.
 
-**[Live demo →](https://azure-finops-agent.com)**
+**[Try it live →](https://azure-finops-agent.com)**
+
+![Azure FinOps Agent — concise FinOps insight on demand](assets/screenshot-finops-shortq.png)
+
+> _Real Q&A from a live tenant: "What's my single biggest cost-saving opportunity in Azure right now?" → in ~30 seconds the agent ran `QueryAzure` + `FindIdleResources`, identified a `Standard_FX8ms_v2` VM in `swedencentral`, and quantified **~$538/month** savings via 3-year Reserved Instance (or **~$434/month** via Savings Plan). Sidebar shows the Crawl maturity score (★★★★★), all four add-on scopes consented (✅), and the Tools panel streams every tool call live._
 
 ![Azure FinOps Agent — signed in with all add-on scopes consented](assets/screenshot-loggedin.png)
 
-> _Signed-in view: the sidebar reveals the **Crawl / Walk / Run / Playbook** maturity categories plus the **Subscriptions** browser. The **Add Scopes** panel shows incremental consent — License Optimization, Cost Allocation & Chargeback, Log Analytics Deep Dives, and Cost Exports each granted as a separate delegated, read-only Microsoft Entra consent (✅ green). Revoke any scope at any time._
+> _Signed-in shell: the left sidebar exposes the **Crawl / Walk / Run / Playbook** FinOps Foundation maturity categories and a **Subscriptions** browser. The **Add Scopes** panel demonstrates incremental consent — License Optimization, Cost Allocation & Chargeback, Log Analytics Deep Dives, and Cost Exports are each granted as separate delegated, read-only Microsoft Entra consents. Revoke any scope at any time._
 
-![Azure FinOps Agent — world map of current vs upcoming Azure regions, rendered in the chat with live tool calls](assets/screenshot-worldmap.png)
+![Azure FinOps Agent — world map of current vs upcoming Azure regions](assets/screenshot-worldmap.png)
 
-> _Example session: "Show me all current Azure data centers in one color and upcoming data centers in another color on a world map" — answered in seconds with an interactive ECharts world map. The right-hand **Tools** panel streams every tool call live (`RenderAdvancedChart`, `web_fetch`, `report_intent`) so you can see exactly what the agent did. No Azure login required for public-data queries like this one._
+> _Public-data example (no Azure login required): "Show me all current Azure data centers in one color and upcoming data centers in another color on a world map" — answered with an interactive ECharts world map. The right-hand **Tools** panel streams every tool call (`RenderAdvancedChart`, `web_fetch`, `report_intent`) so you can see exactly what the agent did._
 
 ## What It Does
 
@@ -36,12 +40,12 @@ AI-powered conversational agent that turns Azure cost data into action. Connect 
 │  └────────────────────┘               └───────────────┬────────────────┘  │
 │                                                       │ orchestrates       │
 │                                             ┌─────────┴──────────┐        │
-│                                             │    11 Agent Tools   │        │
+│                                             │   15 Agent Tools    │        │
 │                                             └─────────┬──────────┘        │
 │                                                       │                    │
 │  ┌─ Auth ──────────────────────────────────────────────┤                   │
 │  │  Entra ID OAuth (multi-tenant, incremental consent) │                   │
-│  │  4 tiers: ARM · Graph (2×) · Log Analytics          │                   │
+│  │  5 tiers: ARM · Graph (2×) · Log Analytics · Storage│                   │
 │  └─────────────────────────────────────────────────────┘                   │
 │                                                                            │
 │  ┌─ Observability ─────────────────────────────────────┐                   │
@@ -70,30 +74,36 @@ AI-powered conversational agent that turns Azure cost data into action. Connect 
 
 ### Tools
 
-| Tool                    | What it does                                                                                                                 |
-| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `QueryAzure`            | ARM REST (GET + read-only POST) — Cost Mgmt, Billing, Advisor, Resource Graph, Monitor, VMs, AKS, Storage, SQL, 30+ services |
-| `QueryGraph`            | Graph GET — license inventory, M365 usage, directory, org chargebacks                                                        |
-| `QueryLogAnalytics`     | KQL against Log Analytics / App Insights                                                                                     |
-| `RenderChart`           | Inline ECharts (bar, line, pie, scatter, funnel, maps, heatmaps, treemaps, radar, gauge)                                     |
-| `GeneratePresentation`  | FinOps PowerPoint decks (python-pptx + matplotlib)                                                                           |
-| `GenerateScript`        | Downloadable Azure CLI / PowerShell remediation scripts                                                                      |
-| `ReportMaturityScore`   | FinOps maturity scoring (Crawl / Walk / Run, 0–5 per dimension)                                                              |
-| `GetAzureServiceHealth` | Azure Status RSS (no auth)                                                                                                   |
-| `PublishFAQ`            | Dynamic SEO pages + IndexNow                                                                                                 |
-| `SuggestFollowUp`       | Clickable follow-up actions                                                                                                  |
-| _Built-in (SDK)_        | bash, Python 3, file ops, web fetch, grep, glob, memory                                                                      |
+| Tool                                  | What it does                                                                                                                 |
+| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `QueryAzure`                          | ARM REST (GET + read-only POST) — Cost Mgmt, Billing, Advisor, Resource Graph, Monitor, VMs, AKS, Storage, SQL, 30+ services |
+| `QueryGraph`                          | Graph GET — license inventory, M365 usage, directory, org chargebacks                                                        |
+| `QueryLogAnalytics`                   | KQL against Log Analytics / App Insights                                                                                     |
+| `QueryStorage`                        | Read Cost Management export blobs from customer Storage Accounts                                                             |
+| `QueryRetailPricing`                  | Public Azure Retail Prices API (no auth) — pricing comparisons & estimates                                                   |
+| `FindIdleResources`                   | Detect idle / underutilized VMs, disks, IPs, App Service plans                                                               |
+| `DetectCostAnomalies`                 | Spike & anomaly detection across services, scopes, tags                                                                      |
+| `SuggestSchedules`                    | Start/stop schedules for dev/test workloads                                                                                  |
+| `RenderChart` / `RenderAdvancedChart` | Inline ECharts (bar, line, pie, scatter, funnel, world maps, heatmaps, treemaps, radar, gauge, sankey)                       |
+| `GeneratePresentation`                | FinOps PowerPoint decks (python-pptx + matplotlib)                                                                           |
+| `GenerateScript`                      | Downloadable Azure CLI / PowerShell remediation scripts                                                                      |
+| `ReportMaturityScore`                 | FinOps maturity scoring (Crawl / Walk / Run, 0–5 per dimension)                                                              |
+| `GetAzureServiceHealth`               | Azure Status RSS (no auth)                                                                                                   |
+| `PublishFAQ`                          | Dynamic SEO pages + IndexNow                                                                                                 |
+| `SuggestFollowUp`                     | Clickable follow-up actions                                                                                                  |
+| _Built-in (SDK)_                      | bash, Python 3, file ops, web fetch, grep, glob, memory                                                                      |
 
 ### Auth & Security
 
 No login required for chat. Azure data via incremental OAuth consent:
 
-| Tier                   | Scopes                                      |
-| ---------------------- | ------------------------------------------- |
-| Connect Azure          | `user_impersonation` (ARM)                  |
-| + License Optimization | `Organization.Read.All`, `Reports.Read.All` |
-| + Cost Allocation      | `User.Read.All`, `Group.Read.All`           |
-| + Log Analytics        | `Data.Read`                                 |
+| Tier                   | Scopes                                      | Resource          |
+| ---------------------- | ------------------------------------------- | ----------------- |
+| Connect Azure          | `user_impersonation`                        | Azure ARM         |
+| + License Optimization | `Organization.Read.All`, `Reports.Read.All` | Microsoft Graph   |
+| + Cost Allocation      | `User.Read.All`, `Group.Read.All`           | Microsoft Graph   |
+| + Log Analytics        | `Data.Read`                                 | Log Analytics API |
+| + Cost Exports         | `user_impersonation`                        | Azure Storage     |
 
 **Strictly read-only** — PUT/PATCH/DELETE blocked at code level. POST restricted to allowlisted read-only endpoints. Recommended RBAC: `Reader` or `Cost Management Reader`.
 
@@ -108,6 +118,11 @@ src/Dashboard/
 │   ├── AzureQueryTools.cs      # ARM REST APIs
 │   ├── GraphQueryTools.cs      # Microsoft Graph
 │   ├── LogAnalyticsQueryTools.cs
+│   ├── StorageQueryTools.cs    # Cost Management export blobs
+│   ├── RetailPricingTools.cs   # Public Azure Retail Prices (no auth)
+│   ├── IdleResourceTools.cs    # Idle / underutilized resource detection
+│   ├── AnomalyTools.cs         # Cost spike / anomaly detection
+│   ├── ScheduleTools.cs        # Dev/test start-stop schedules
 │   ├── ChartTools.cs           # ECharts rendering
 │   ├── PresentationTools.cs    # PowerPoint generation
 │   ├── ScoreTools.cs           # FinOps maturity scoring
