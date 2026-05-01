@@ -639,7 +639,8 @@ app.MapGet("/auth/azure/status", async (HttpContext ctx, IHttpClientFactory http
                 {
                     id = sub.GetProperty("subscriptionId").GetString(),
                     name = sub.GetProperty("displayName").GetString(),
-                    state = sub.GetProperty("state").GetString()
+                    state = sub.GetProperty("state").GetString(),
+                    tenantId = sub.TryGetProperty("tenantId", out var tid) ? tid.GetString() : null
                 });
             }
         }

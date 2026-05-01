@@ -196,10 +196,20 @@
                 v-for="sub in azureSubscriptions"
                 :key="sub.id"
                 class="sidebar-sub"
+                :title="
+                  sub.name +
+                  '\n' +
+                  sub.id +
+                  (sub.tenantId ? '\nTenant: ' + sub.tenantId : '')
+                "
               >
                 <span class="sidebar-sub-name">{{ sub.name }}</span>
-                <span class="sidebar-sub-id"
-                  >{{ sub.id.substring(0, 8) }}...</span
+                <span class="sidebar-sub-id" :title="sub.id">{{ sub.id }}</span>
+                <span
+                  v-if="tenantNameFor(sub.tenantId)"
+                  class="sidebar-sub-tenant"
+                  :title="sub.tenantId"
+                  >Tenant: {{ tenantNameFor(sub.tenantId) }}</span
                 >
               </div>
             </div>
@@ -1647,6 +1657,13 @@ async function runAddonsTour() {
 // Adding the scope is done via the explicit "Add scope" button inside.
 function clickScopeRow(idx) {
   addonRowsOpen.value[idx] = !addonRowsOpen.value[idx];
+}
+
+// Resolve a tenant GUID to a friendly display name from availableTenants.
+function tenantNameFor(tenantId) {
+  if (!tenantId) return "";
+  const t = availableTenants.value.find((x) => x.tenantId === tenantId);
+  return t ? t.displayName || t.defaultDomain || "" : "";
 }
 
 async function checkAzureStatus() {
@@ -3805,20 +3822,32 @@ async function send() {
 .sidebar-sub {
   display: flex;
   flex-direction: column;
-  padding: 4px 16px;
-  gap: 1px;
+  padding: 8px 16px;
+  gap: 2px;
+  border-bottom: 1px solid #f3f2f1;
+}
+.sidebar-sub:last-child {
+  border-bottom: none;
 }
 .sidebar-sub-name {
   font-size: 13px;
-  color: #323130;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-weight: 600;
+  color: #201f1e;
+  line-height: 1.3;
+  word-break: break-word;
 }
 .sidebar-sub-id {
   font-size: 11px;
   color: #605e5c;
   font-family: "Cascadia Code", "Fira Code", Consolas, monospace;
+  word-break: break-all;
+  line-height: 1.35;
+}
+.sidebar-sub-tenant {
+  font-size: 11px;
+  color: #8a8886;
+  line-height: 1.3;
+  word-break: break-word;
 }
 .sidebar-footer {
   flex-shrink: 0;
