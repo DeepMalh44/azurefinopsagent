@@ -297,6 +297,27 @@ app.MapGet("/auth/microsoft", (HttpContext ctx) =>
 
     var tier = ctx.Request.Query["tier"].ToString().ToLowerInvariant();
     if (string.IsNullOrEmpty(tier)) tier = "base";
+
+    // "all" tier = chain through every add-on the user hasn't consented to yet.
+    // Entra v2 won't combine scopes across different resources in a single consent,
+    // so we redirect through each tier in sequence (one consent screen per tier).
+    if (tier == "all")
+    {
+        var graphTier = ctx.Session.GetString("graph_tier") ?? "";
+        var chain = new List<string>();
+        if (!graphTier.Contains("licenses")) chain.Add("licenses");
+        if (!graphTier.Contains("chargeback")) chain.Add("chargeback");
+        if (string.IsNullOrEmpty(ctx.Session.GetString("loganalytics_token"))) chain.Add("loganalytics");
+        if (string.IsNullOrEmpty(ctx.Session.GetString("storage_token"))) chain.Add("storage");
+
+        if (chain.Count == 0)
+            return Results.Redirect("/");
+
+        // First tier of the chain runs now; the rest are stored for sequential continuation.
+        tier = chain[0];
+        ctx.Session.SetString("auth_chain", string.Join(",", chain.Skip(1)));
+    }
+
     ctx.Session.SetString("auth_tier", tier);
 
     // Allow user to specify a tenant (GUID or domain) — useful for guest users
@@ -465,6 +486,21 @@ app.MapGet("/auth/microsoft/callback", async (HttpContext ctx, IHttpClientFactor
         }
 
         logger.LogInformation("Microsoft OAuth login successful, tier={Tier}", authTier);
+
+        // If we're in a "Grant all" chain, continue with the next tier.
+        var pendingChain = ctx.Session.GetString("auth_chain");
+        if (!string.IsNullOrEmpty(pendingChain))
+        {
+            var parts = pendingChain.Split(',', StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length > 0)
+            {
+                var next = parts[0];
+                var rest = string.Join(",", parts.Skip(1));
+                ctx.Session.SetString("auth_chain", rest);
+                return Results.Redirect($"/auth/microsoft?tier={Uri.EscapeDataString(next)}");
+            }
+            ctx.Session.Remove("auth_chain");
+        }
 
         return Results.Redirect("/");
     }

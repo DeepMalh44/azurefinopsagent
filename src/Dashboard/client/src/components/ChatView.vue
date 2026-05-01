@@ -399,79 +399,189 @@
                 </button>
               </div>
             </div>
-            <!-- Incremental consent: each button navigates to Microsoft Entra ID consent screen -->
-            <div class="azure-addons">
-              <button
-                v-if="!licensesEnabled"
-                class="azure-addon-btn"
-                @click="startAuth('azure', '/auth/microsoft?tier=licenses')"
-                title="Opens Microsoft consent screen for: Read organization info, Read usage reports"
-              >
-                <span class="azure-addon-icon">+</span>
-                License Optimization
-              </button>
-              <span
-                v-else
-                class="azure-addon-active"
-                title="M365 license inventory + usage reports — consented in Entra ID"
-                >✓ Licenses</span
-              >
+            <!-- Incremental consent: one row per scope, all delegated, separate Entra ID consent each -->
+            <div class="addons-section">
+              <div class="addons-heading">
+                <span class="addons-title">Optional add-ons</span>
+                <span class="addons-sub"
+                  >Each is a separate Microsoft Entra consent. All
+                  <strong>delegated</strong> &amp; read-only.</span
+                >
+              </div>
 
               <button
-                v-if="!chargebackEnabled"
-                class="azure-addon-btn"
-                @click="startAuth('azure', '/auth/microsoft?tier=chargeback')"
-                title="Opens Microsoft consent screen for: Read all users' profiles, Read all groups"
+                class="scope-row"
+                :class="{ 'scope-row--active': licensesEnabled }"
+                :disabled="licensesEnabled"
+                @click="
+                  !licensesEnabled &&
+                    startAuth('azure', '/auth/microsoft?tier=licenses')
+                "
+                :title="
+                  licensesEnabled
+                    ? 'Consented'
+                    : 'Opens Microsoft consent: Organization.Read.All, Reports.Read.All'
+                "
               >
-                <span class="azure-addon-icon">+</span>
-                Cost Allocation
+                <span class="scope-row-mark">{{
+                  licensesEnabled ? "✓" : "+"
+                }}</span>
+                <span class="scope-row-body">
+                  <span class="scope-row-title">License Optimization</span>
+                  <span class="scope-row-desc"
+                    >Read M365 license inventory &amp; Copilot adoption</span
+                  >
+                  <span class="scope-row-meta">
+                    <span class="scope-badge scope-badge--delegated"
+                      >👤 Delegated</span
+                    >
+                    <span class="scope-badge">Microsoft Graph</span>
+                  </span>
+                  <span class="scope-row-perms"
+                    >Organization.Read.All · Reports.Read.All</span
+                  >
+                </span>
               </button>
-              <span
-                v-else
-                class="azure-addon-active"
-                title="User profiles + groups for department chargeback — consented in Entra ID"
-                >✓ Chargeback</span
-              >
 
               <button
-                v-if="!logAnalyticsEnabled"
-                class="azure-addon-btn"
-                @click="startAuth('azure', '/auth/microsoft?tier=loganalytics')"
-                title="Opens Microsoft consent screen for: Read Log Analytics data"
+                class="scope-row"
+                :class="{ 'scope-row--active': chargebackEnabled }"
+                :disabled="chargebackEnabled"
+                @click="
+                  !chargebackEnabled &&
+                    startAuth('azure', '/auth/microsoft?tier=chargeback')
+                "
+                :title="
+                  chargebackEnabled
+                    ? 'Consented'
+                    : 'Opens Microsoft consent: User.Read.All, Group.Read.All'
+                "
               >
-                <span class="azure-addon-icon">+</span>
-                Log Analytics
+                <span class="scope-row-mark">{{
+                  chargebackEnabled ? "✓" : "+"
+                }}</span>
+                <span class="scope-row-body">
+                  <span class="scope-row-title"
+                    >Cost Allocation &amp; Chargeback</span
+                  >
+                  <span class="scope-row-desc"
+                    >Map Azure costs to users, teams &amp; cost centers</span
+                  >
+                  <span class="scope-row-meta">
+                    <span class="scope-badge scope-badge--delegated"
+                      >👤 Delegated</span
+                    >
+                    <span class="scope-badge">Microsoft Graph</span>
+                  </span>
+                  <span class="scope-row-perms"
+                    >User.Read.All · Group.Read.All</span
+                  >
+                </span>
               </button>
-              <span
-                v-else
-                class="azure-addon-active"
-                title="Log Analytics & App Insights KQL — consented in Entra ID"
-                >✓ KQL</span
-              >
 
               <button
-                v-if="!storageEnabled"
-                class="azure-addon-btn"
-                @click="startAuth('azure', '/auth/microsoft?tier=storage')"
-                title="Opens Microsoft consent screen for: Read Azure Storage data (cost exports)"
+                class="scope-row"
+                :class="{ 'scope-row--active': logAnalyticsEnabled }"
+                :disabled="logAnalyticsEnabled"
+                @click="
+                  !logAnalyticsEnabled &&
+                    startAuth('azure', '/auth/microsoft?tier=loganalytics')
+                "
+                :title="
+                  logAnalyticsEnabled
+                    ? 'Consented'
+                    : 'Opens Microsoft consent: Log Analytics Data.Read'
+                "
               >
-                <span class="azure-addon-icon">+</span>
-                Cost Exports
+                <span class="scope-row-mark">{{
+                  logAnalyticsEnabled ? "✓" : "+"
+                }}</span>
+                <span class="scope-row-body">
+                  <span class="scope-row-title">Log Analytics Deep Dives</span>
+                  <span class="scope-row-desc"
+                    >Run KQL for unit economics &amp; ingestion cost
+                    analysis</span
+                  >
+                  <span class="scope-row-meta">
+                    <span class="scope-badge scope-badge--delegated"
+                      >👤 Delegated</span
+                    >
+                    <span class="scope-badge">Log Analytics API</span>
+                  </span>
+                  <span class="scope-row-perms">Data.Read</span>
+                </span>
               </button>
-              <span
-                v-else
-                class="azure-addon-active"
-                title="Azure Storage access for cost export data — consented in Entra ID"
-                >✓ Exports</span
+
+              <button
+                class="scope-row"
+                :class="{ 'scope-row--active': storageEnabled }"
+                :disabled="storageEnabled"
+                @click="
+                  !storageEnabled &&
+                    startAuth('azure', '/auth/microsoft?tier=storage')
+                "
+                :title="
+                  storageEnabled
+                    ? 'Consented'
+                    : 'Opens Microsoft consent: Azure Storage user_impersonation'
+                "
               >
+                <span class="scope-row-mark">{{
+                  storageEnabled ? "✓" : "+"
+                }}</span>
+                <span class="scope-row-body">
+                  <span class="scope-row-title">Cost Exports</span>
+                  <span class="scope-row-desc"
+                    >Read Cost Management export files from your Storage
+                    Account</span
+                  >
+                  <span class="scope-row-meta">
+                    <span class="scope-badge scope-badge--delegated"
+                      >👤 Delegated</span
+                    >
+                    <span class="scope-badge">Azure Storage</span>
+                  </span>
+                  <span class="scope-row-perms">user_impersonation</span>
+                </span>
+              </button>
+
+              <div class="addons-divider"></div>
+
+              <button
+                v-if="
+                  !(
+                    licensesEnabled &&
+                    chargebackEnabled &&
+                    logAnalyticsEnabled &&
+                    storageEnabled
+                  )
+                "
+                class="scope-grant-all"
+                @click="startAuth('azure', '/auth/microsoft?tier=all')"
+                title="Walks you through every remaining add-on consent in sequence — one click here, approve each Microsoft Entra screen as it appears."
+              >
+                <span class="scope-grant-all-icon">🛡</span>
+                <span class="scope-grant-all-body">
+                  <span class="scope-grant-all-title"
+                    >Grant all remaining add-ons
+                    <span class="scope-grant-all-tag">admin</span></span
+                  >
+                  <span class="scope-grant-all-desc"
+                    >Chains through each remaining consent automatically. Same
+                    delegated permissions, no clicking back into the app
+                    between each.</span
+                  >
+                </span>
+              </button>
+
+              <button
+                class="azure-revoke-btn"
+                @click="revokeAllPermissions"
+                title="Disconnect and revoke all Entra ID permissions for this app"
+              >
+                Revoke all permissions
+              </button>
             </div>
-            <button
-              class="azure-revoke-btn"
-              @click="revokeAllPermissions"
-              title="Disconnect and revoke all Entra ID permissions for this app"
-            >
-              Revoke all permissions
-            </button>
           </div>
         </div>
       </aside>
@@ -3300,7 +3410,7 @@ async function send() {
 
 /* ── Left sidebar ── */
 .sidebar {
-  width: 230px;
+  width: 290px;
   flex-shrink: 0;
   border-right: 1px solid #e1dfdd;
   background: #fff;
@@ -3759,55 +3869,192 @@ async function send() {
   color: #8a8886;
   flex-shrink: 0;
 }
-.azure-addons {
+/* ── Add-on scopes (delegated, incremental consent) ── */
+.addons-section {
   display: flex;
+  flex-direction: column;
   gap: 6px;
-  margin-top: 6px;
-  flex-wrap: wrap;
+  margin-top: 10px;
 }
-.azure-addon-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 5px 10px;
-  border-radius: 4px;
-  border: 1px dashed #e1dfdd;
-  background: transparent;
+.addons-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 2px;
+}
+.addons-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
   color: #605e5c;
-  font-size: 13px;
-  font-weight: 500;
+}
+.addons-sub {
+  font-size: 11px;
+  color: #8a8886;
+  line-height: 1.35;
+}
+.addons-sub strong {
+  color: #323130;
+  font-weight: 600;
+}
+.scope-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 9px;
+  border-radius: 6px;
+  border: 1px solid #e1dfdd;
+  background: #fff;
+  text-align: left;
   cursor: pointer;
   transition: all 0.15s;
+  width: 100%;
 }
-.azure-addon-btn:hover {
+.scope-row:hover:not(:disabled) {
   border-color: #0078d4;
-  border-style: solid;
-  color: #0078d4;
-  background: #f3f2f1;
+  background: #f5fbff;
+  box-shadow: 0 1px 3px rgba(0, 120, 212, 0.08);
 }
-.azure-addon-icon {
-  font-weight: 700;
-  font-size: 13px;
+.scope-row:disabled {
+  cursor: default;
+  background: #f3faf3;
+  border-color: #cce8cc;
 }
-.azure-addon-active {
+.scope-row-mark {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
   display: inline-flex;
   align-items: center;
-  padding: 5px 10px;
-  border-radius: 4px;
-  background: #deecf9;
-  color: #0078d4;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 12px;
+  background: #f3f2f1;
+  color: #605e5c;
+  margin-top: 1px;
+}
+.scope-row--active .scope-row-mark {
+  background: #107c10;
+  color: #fff;
+}
+.scope-row-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  flex: 1;
+}
+.scope-row-title {
   font-size: 13px;
+  font-weight: 600;
+  color: #201f1e;
+  line-height: 1.25;
+}
+.scope-row-desc {
+  font-size: 11.5px;
+  color: #605e5c;
+  line-height: 1.35;
+}
+.scope-row-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 2px;
+}
+.scope-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: #f3f2f1;
+  color: #605e5c;
+  font-size: 10px;
   font-weight: 500;
+  line-height: 1.5;
+}
+.scope-badge--delegated {
+  background: #e0f2ff;
+  color: #005a9e;
+}
+.scope-row-perms {
+  font-family: 'Cascadia Code', 'Consolas', monospace;
+  font-size: 10px;
+  color: #8a8886;
+  margin-top: 2px;
+  line-height: 1.4;
+  word-break: break-word;
+}
+.addons-divider {
+  height: 1px;
+  background: #edebe9;
+  margin: 4px 0 2px;
+}
+.scope-grant-all {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 9px;
+  border-radius: 6px;
+  border: 1px dashed #b3b0ad;
+  background: #fafafa;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.15s;
+  width: 100%;
+}
+.scope-grant-all:hover {
+  border-color: #605e5c;
+  border-style: solid;
+  background: #f3f2f1;
+}
+.scope-grant-all-icon {
+  flex-shrink: 0;
+  font-size: 14px;
+  margin-top: 1px;
+}
+.scope-grant-all-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.scope-grant-all-title {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #323130;
+  line-height: 1.3;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.scope-grant-all-tag {
+  font-size: 9.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: #fff4ce;
+  color: #8a6914;
+}
+.scope-grant-all-desc {
+  font-size: 11px;
+  color: #605e5c;
+  line-height: 1.35;
 }
 .azure-revoke-btn {
   width: 100%;
   padding: 6px 8px;
-  margin-top: 6px;
+  margin-top: 4px;
   border-radius: 4px;
   border: none;
   background: transparent;
-  color: #605e5c;
-  font-size: 13px;
+  color: #8a8886;
+  font-size: 11.5px;
   cursor: pointer;
   transition: color 0.15s;
   text-decoration: underline;

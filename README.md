@@ -4,7 +4,11 @@ AI-powered conversational agent that turns Azure cost data into action. Connect 
 
 **[Live demo →](https://azure-finops-agent.com)**
 
-![Azure FinOps Agent](assets/screenshot.png)
+![Azure FinOps Agent — world map of current vs upcoming Azure regions](assets/screenshot-worldmap.png)
+
+> _Example: "Show me all current Azure data centers in one color and upcoming data centers in another color on a world map" — answered in seconds, no Azure login required for public-data queries._
+
+![Azure FinOps Agent home](assets/screenshot-home.png)
 
 ## What It Does
 

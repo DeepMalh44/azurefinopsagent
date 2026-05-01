@@ -146,6 +146,7 @@ This agent is **strictly read-only** — it cannot create, modify, or delete any
 | License Optimization | `Organization.Read.All`, `Reports.Read.All` | Read-only by scope definition    | Cannot modify org or report data                                                          |
 | Cost Allocation      | `User.Read.All`, `Group.Read.All`           | Read-only by scope definition    | Cannot modify users or groups                                                             |
 | Log Analytics        | `Data.Read`                                 | Read-only by scope definition    | Cannot modify workspace data                                                              |
+| Cost Exports         | `user_impersonation` (Azure Storage)        | Delegated — inherits user's RBAC | Customer storage account; read-only enforced via SDK calls (Get blob only)                |
 
 **Note on `user_impersonation`**: Azure ARM's only delegated scope is `user_impersonation`, which theoretically allows writes if the user has write RBAC roles. Since ARM does not offer a read-only delegated scope, **the code-level POST allowlist is the primary security boundary**. Customers deploying this agent can further restrict access by assigning the connected user a read-only RBAC role (e.g., `Reader` or `Cost Management Reader`).
 
@@ -203,30 +204,36 @@ No login is required to use the chat. Users are auto-assigned an anonymous sessi
 
 ## Microsoft Entra ID OAuth Setup
 
-A single **multi-tenant** Microsoft Entra ID app registration (`Azure FinOps Agent`) is shared between local development and production — both use the same ClientId/ClientSecret. The OAuth flow exchanges tokens for three separate resources:
+A single **multi-tenant** Microsoft Entra ID app registration (`Azure FinOps Agent`) is shared between local development and production — both use the same ClientId/ClientSecret. The OAuth flow exchanges tokens for four separate resources:
 
 - **Azure ARM token** (`https://management.azure.com/user_impersonation`) — for Cost Management, Billing, Advisor, Resource Graph, Monitor, etc.
 - **Microsoft Graph token** (explicit granular scopes via incremental consent) — for license inventory, M365 usage reports, directory objects, org structure for chargeback
 - **Log Analytics token** (`https://api.loganalytics.io/Data.Read`) — for KQL queries against Log Analytics and App Insights
+- **Azure Storage token** (`https://storage.azure.com/user_impersonation`) — for reading Cost Management export blobs from the customer's Storage Account
 
 **Security**: Incremental consent — the app requests minimal permissions upfront (ARM only) and adds Graph/Log Analytics scopes only when the user explicitly opts in via separate consent flows. Each addon tier shows a dedicated Microsoft Entra ID consent screen. All token exchanges use explicit scopes (not `.default`) to prevent silent permission creep.
 
-**Consent Tiers** (each triggers a separate Microsoft Entra ID consent screen):
+**Consent Tiers** (each triggers a separate Microsoft Entra ID consent screen — all delegated, read-only):
 
-| Tier                     | Scopes                                      | What admin sees                              |
-| ------------------------ | ------------------------------------------- | -------------------------------------------- |
-| **Base** (Connect Azure) | `user_impersonation`                        | "Access Azure Service Management as you"     |
-| **License Optimization** | `Organization.Read.All`, `Reports.Read.All` | "Read organization info, Read usage reports" |
-| **Cost Allocation**      | `User.Read.All`, `Group.Read.All`           | "Read all users' profiles, Read all groups"  |
-| **Log Analytics**        | `Data.Read`                                 | "Read Log Analytics data"                    |
+| Tier value         | Button                          | Scopes                                                      | Resource          |
+| ------------------ | ------------------------------- | ----------------------------------------------------------- | ----------------- |
+| `base` (default)   | **Connect Azure**               | `user_impersonation`                                        | Azure ARM         |
+| `licenses`         | **+ License Optimization**      | `User.Read`, `Organization.Read.All`, `Reports.Read.All`    | Microsoft Graph   |
+| `chargeback`       | **+ Cost Allocation**           | `User.Read`, `User.Read.All`, `Group.Read.All`              | Microsoft Graph   |
+| `loganalytics`     | **+ Log Analytics**             | `Data.Read`                                                 | Log Analytics API |
+| `storage`          | **+ Cost Exports**              | `user_impersonation`                                        | Azure Storage     |
+| `all` (chain)      | **🛡 Grant all remaining add-ons** | _Walks the user through every not-yet-consented add-on tier in sequence._ Each remaining tier's consent screen appears one after another; the callback redirects to the next pending tier until done. Entra v2 will not combine cross-resource scopes into one consent for a non-admin delegated flow, so sequential is the correct pattern. | (chain)           |
+
+The single source of truth for tier → scopes mapping is `GetScopesForTier()` in `Program.cs`. The `tier=all` chain logic lives in the `/auth/microsoft` handler (builds `auth_chain` session list) and the callback (consumes one chain entry per redirect).
 
 The flow:
 
 1. User clicks "Connect Azure" → `/auth/microsoft?tier=base` → Microsoft login → ARM token
-2. After connecting, sidebar shows opt-in buttons: "+ License Optimization", "+ Cost Allocation", "+ Log Analytics"
-3. Each button redirects to `/auth/microsoft?tier=<tier>` → Microsoft consent screen (only for that tier's scopes)
-4. Callback exchanges the auth code for tier-specific tokens and stores in session
-5. Per-request, tokens are refreshed and set on the user's `UserTokens` instance before tool execution
+2. After connecting, sidebar shows 4 opt-in scope rows + a secondary "Grant all remaining add-ons" admin shortcut
+3. Single-tier buttons redirect to `/auth/microsoft?tier=<tier>` → Microsoft consent screen (only for that tier's scopes)
+4. "Grant all" button redirects to `/auth/microsoft?tier=all` → chains through every remaining tier automatically
+5. Callback exchanges the auth code for tier-specific tokens and stores in session
+6. Per-request, tokens are refreshed and set on the user's `UserTokens` instance before tool execution
 
 Config in `appsettings.json`:
 
