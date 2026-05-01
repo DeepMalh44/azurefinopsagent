@@ -4,10 +4,6 @@ AI-powered conversational agent that turns Azure cost data into action. Connect 
 
 **[Live demo →](https://azure-finops-agent.com)**
 
-![Azure FinOps Agent home — connect any Azure tenant in one click](assets/screenshot-home.png)
-
-> _Landing page: read-only by design. Drop in a Tenant ID (or leave it blank for your home tenant) and click **Connect Azure** to start a session — incremental consent means no admin sign-off needed for the base ARM scope._
-
 ![Azure FinOps Agent — signed in with all add-on scopes consented](assets/screenshot-loggedin.png)
 
 > _Signed-in view: the sidebar reveals the **Crawl / Walk / Run / Playbook** maturity categories plus the **Subscriptions** browser. The **Add Scopes** panel shows incremental consent — License Optimization, Cost Allocation & Chargeback, Log Analytics Deep Dives, and Cost Exports each granted as a separate delegated, read-only Microsoft Entra consent (✅ green). Revoke any scope at any time._
