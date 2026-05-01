@@ -722,18 +722,18 @@
                       )
                     "
                     class="scope-grant-all"
-                    @click="startAuth('azure', '/auth/microsoft?tier=all')"
-                    title="Walks you through every remaining add-on consent in sequence — one click here, approve each Microsoft Entra screen as it appears."
+                    @click="startAuth('azure', '/auth/microsoft/adminconsent')"
+                    title="Tenant admins (Global Admin / Privileged Role Admin): one click consents all 4 scopes for every user in your tenant. Non-admins will see a 'You need admin approval' message — use the individual scope buttons above instead."
                   >
                     <span class="scope-grant-all-icon">🛡</span>
                     <span class="scope-grant-all-body">
                       <span class="scope-grant-all-title"
-                        >Grant all scopes
+                        >Grant for whole tenant
                         <span class="scope-grant-all-tag">admin</span></span
                       >
                       <span class="scope-grant-all-desc"
-                        >Walks through each remaining consent
-                        automatically.</span
+                        >Requires Global Admin · 1 click consents all 4 scopes
+                        for every user.</span
                       >
                     </span>
                   </button>
@@ -1875,6 +1875,21 @@ onMounted(async () => {
     // Show tenant picker with error banner — the user's home tenant likely blocked the app
     tenantError.value = true;
     window.history.replaceState({}, "", window.location.pathname);
+  }
+  // Handle admin consent success — chain through each tier silently to populate
+  // session tokens. Each redirect is silent because admin pre-approved everything.
+  const adminConsentOk = params.get("admin_consent");
+  if (adminConsentOk === "ok") {
+    window.history.replaceState({}, "", window.location.pathname);
+    sessionStorage.setItem("authLoading", "azure");
+    authLoading.value = "azure";
+    // Kick off silent token acquisition for the first add-on tier — the
+    // existing tier-based flow handles the rest as the user clicks each.
+    // Fastest UX: redirect to licenses tier first; user will see brief loading then refresh
+    setTimeout(() => {
+      window.location.href = "/auth/microsoft?tier=licenses&postadmin=1";
+    }, 400);
+    return;
   }
   try {
     const r = await fetch("/api/version");

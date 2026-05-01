@@ -298,24 +298,15 @@ app.MapGet("/auth/microsoft", (HttpContext ctx) =>
     var tier = ctx.Request.Query["tier"].ToString().ToLowerInvariant();
     if (string.IsNullOrEmpty(tier)) tier = "base";
 
-    // "all" tier = chain through every add-on the user hasn't consented to yet.
-    // Entra v2 won't combine scopes across different resources in a single consent,
-    // so we redirect through each tier in sequence (one consent screen per tier).
-    if (tier == "all")
+    // After admin consent succeeds, the frontend redirects here with tier=licenses.
+    // Silent-chain through every remaining add-on tier so the user's session
+    // accumulates all four tokens in one go (no consent screens — admin already
+    // pre-approved). Triggered only when ?postadmin=1 is present.
+    if (ctx.Request.Query["postadmin"].ToString() == "1")
     {
-        var graphTier = ctx.Session.GetString("graph_tier") ?? "";
-        var chain = new List<string>();
-        if (!graphTier.Contains("licenses")) chain.Add("licenses");
-        if (!graphTier.Contains("chargeback")) chain.Add("chargeback");
-        if (string.IsNullOrEmpty(ctx.Session.GetString("loganalytics_token"))) chain.Add("loganalytics");
-        if (string.IsNullOrEmpty(ctx.Session.GetString("storage_token"))) chain.Add("storage");
-
-        if (chain.Count == 0)
-            return Results.Redirect("/");
-
-        // First tier of the chain runs now; the rest are stored for sequential continuation.
-        tier = chain[0];
-        ctx.Session.SetString("auth_chain", string.Join(",", chain.Skip(1)));
+        var chain = new List<string> { "chargeback", "loganalytics", "storage" };
+        ctx.Session.SetString("auth_chain", string.Join(",", chain));
+        ctx.Session.SetString("auth_silent", "1");
     }
 
     ctx.Session.SetString("auth_tier", tier);
@@ -331,13 +322,19 @@ app.MapGet("/auth/microsoft", (HttpContext ctx) =>
 
     // Build scopes: base OIDC + tier-specific resource scopes
     var scope = string.Join(" ", ["openid", "profile", "email", "offline_access", .. GetScopesForTier(tier)]);
-    // Base tier: select_account (just pick account)
-    // Add-on tiers: consent (always show what new permissions are being granted)
     // Base tier: select_account unless force_consent was set (from revoke)
-    // Add-on tiers: always consent to show the new permissions
+    // Add-on tiers: 'consent' to show new permissions, unless we're in the
+    // silent post-admin chain (prompt=none means "reuse existing session, no UI").
     var forceConsent = ctx.Session.GetString("force_consent") == "1";
     ctx.Session.Remove("force_consent");
-    var promptType = (tier != "base" || forceConsent) ? "consent" : "select_account";
+    var silentChain = ctx.Session.GetString("auth_silent") == "1";
+    string promptType;
+    if (silentChain)
+        promptType = "none";
+    else if (tier != "base" || forceConsent)
+        promptType = "consent";
+    else
+        promptType = "select_account";
 
     var url = $"https://login.microsoftonline.com/{Uri.EscapeDataString(effectiveTenant)}/oauth2/v2.0/authorize" +
               $"?client_id={Uri.EscapeDataString(msClientId)}" +
@@ -350,6 +347,69 @@ app.MapGet("/auth/microsoft", (HttpContext ctx) =>
 
     logger.LogInformation("Microsoft OAuth redirect: tier={Tier} prompt={Prompt} tenant={Tenant} from {Host}", tier, promptType, effectiveTenant, ctx.Request.Host);
     return Results.Redirect(url);
+});
+
+// Tenant-wide admin consent — one click grants every required permission across
+// all four resources (ARM, Microsoft Graph, Log Analytics, Azure Storage) for
+// every user in the tenant. Only Global Admins / Privileged Role Admins can
+// approve. Non-admin users will see "You need admin approval" from Entra and
+// should fall back to per-scope individual buttons.
+app.MapGet("/auth/microsoft/adminconsent", (HttpContext ctx) =>
+{
+    if (string.IsNullOrEmpty(msClientId))
+        return Results.Problem("Microsoft OAuth is not configured");
+
+    var state = Guid.NewGuid().ToString("N");
+    ctx.Session.SetString("ms_oauth_state", state);
+    ctx.Session.SetString("auth_tier", "adminconsent");
+
+    // Allow user to specify a tenant — admin consent must target a specific tenant
+    // (cannot use /common). Default to user's home tenant if previously known.
+    var tenantParam = ctx.Request.Query["tenant"].ToString().Trim();
+    if (!string.IsNullOrEmpty(tenantParam))
+        ctx.Session.SetString("auth_tenant", tenantParam);
+    var effectiveTenant = ctx.Session.GetString("auth_tenant") ?? msTenantId;
+    // /common does not work for /adminconsent — fall back to /organizations
+    // which lets the admin pick which tenant to consent for.
+    if (effectiveTenant == "common") effectiveTenant = "organizations";
+
+    var redirectUri = $"{NormalizeCallbackHost(ctx)}/auth/microsoft/adminconsent/callback";
+
+    var url = $"https://login.microsoftonline.com/{Uri.EscapeDataString(effectiveTenant)}/v2.0/adminconsent" +
+              $"?client_id={Uri.EscapeDataString(msClientId)}" +
+              $"&redirect_uri={Uri.EscapeDataString(redirectUri)}" +
+              $"&state={state}" +
+              $"&scope=https://graph.microsoft.com/.default";
+
+    logger.LogInformation("Admin consent redirect: tenant={Tenant} from {Host}", effectiveTenant, ctx.Request.Host);
+    return Results.Redirect(url);
+});
+
+// Admin consent callback — Entra returns ?admin_consent=True&tenant={id} on
+// success or ?error=...&error_description=... on failure. No tokens; users
+// must still individually sign in via /auth/microsoft to get their own tokens
+// (which will now be silent — no consent screen — because admin pre-approved).
+app.MapGet("/auth/microsoft/adminconsent/callback", (HttpContext ctx) =>
+{
+    var state = ctx.Request.Query["state"].ToString();
+    if (state != ctx.Session.GetString("ms_oauth_state"))
+    {
+        logger.LogWarning("Admin consent state mismatch — possible CSRF");
+        return Results.StatusCode(403);
+    }
+    ctx.Session.Remove("ms_oauth_state");
+
+    var error = ctx.Request.Query["error"].ToString();
+    if (!string.IsNullOrEmpty(error))
+    {
+        var desc = ctx.Request.Query["error_description"].ToString();
+        logger.LogWarning("Admin consent failed: {Error} — {Desc}", error, desc);
+        return Results.Redirect("/?azure_error=" + Uri.EscapeDataString(error));
+    }
+
+    var grantedTenant = ctx.Request.Query["tenant"].ToString();
+    logger.LogInformation("Admin consent granted for tenant={Tenant}", grantedTenant);
+    return Results.Redirect("/?admin_consent=ok&tenant=" + Uri.EscapeDataString(grantedTenant));
 });
 
 // Microsoft OAuth callback
@@ -487,7 +547,7 @@ app.MapGet("/auth/microsoft/callback", async (HttpContext ctx, IHttpClientFactor
 
         logger.LogInformation("Microsoft OAuth login successful, tier={Tier}", authTier);
 
-        // If we're in a "Grant all" chain, continue with the next tier.
+        // If a chain is pending (post-admin-consent silent acquisition), continue with the next tier.
         var pendingChain = ctx.Session.GetString("auth_chain");
         if (!string.IsNullOrEmpty(pendingChain))
         {
@@ -501,6 +561,9 @@ app.MapGet("/auth/microsoft/callback", async (HttpContext ctx, IHttpClientFactor
             }
             ctx.Session.Remove("auth_chain");
         }
+
+        // Clear silent-chain flag once the chain (or single tier) is fully done.
+        ctx.Session.Remove("auth_silent");
 
         return Results.Redirect("/");
     }
