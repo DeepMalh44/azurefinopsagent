@@ -772,8 +772,13 @@
                 Replace a multi-week FinOps assessment with a single
                 conversation. Connect a tenant, ask in plain language, and walk
                 away with quantified savings, a FinOps Foundation maturity
-                score, and a CFO-ready deck — in minutes, not sprints.
-                <strong>Read-only by design</strong>, multi-tenant, and safe to
+                score, a CFO-ready deck, and
+                <strong>ready-to-run remediation scripts</strong> — in minutes,
+                not sprints. The agent can also apply fixes for you via
+                <code>GET</code> / <code>POST</code> / <code>PUT</code> /
+                <code>PATCH</code> —
+                <strong><code>DELETE</code> is blocked</strong>, so destructive
+                cleanup always stays in your hands. Multi-tenant, and safe to
                 point at anything from a dev sandbox to a global enterprise
                 estate.
               </p>
@@ -1515,17 +1520,17 @@
 <script setup>
 import * as echarts from "echarts";
 import {
-  computed,
-  nextTick,
-  onBeforeUnmount,
-  onMounted,
-  reactive,
-  ref,
-  watch,
+    computed,
+    nextTick,
+    onBeforeUnmount,
+    onMounted,
+    reactive,
+    ref,
+    watch,
 } from "vue";
 import {
-  maturityCategories,
-  pricingCategory,
+    maturityCategories,
+    pricingCategory,
 } from "../data/sidebarCategories.js";
 
 const props = defineProps({

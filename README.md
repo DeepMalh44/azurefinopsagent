@@ -1,6 +1,8 @@
 # Azure FinOps Agent
 
-Replace a multi-week FinOps assessment with a single conversation. Connect an Azure tenant, ask in plain language, and walk away with quantified savings, a FinOps Foundation maturity score, and a CFO-ready PowerPoint deck — in minutes, not sprints. **Read-only by design**, multi-tenant, safe to point at anything from a dev sandbox to a global enterprise estate.
+Replace a multi-week FinOps assessment with a single conversation. Connect an Azure tenant, ask in plain language, and walk away with quantified savings, a FinOps Foundation maturity score, a CFO-ready PowerPoint deck, **and ready-to-run remediation scripts** — in minutes, not sprints.
+
+Findings ship as downloadable Azure CLI / PowerShell scripts so your team stays in control of every change — and when you want the agent to _do_ the work, it can apply fixes directly via `GET`, `POST`, `PUT`, and `PATCH`. **`DELETE` is blocked at the code level**, so destructive cleanup always stays in human hands. Multi-tenant, and safe to point at anything from a dev sandbox to a global enterprise estate.
 
 Built for FinOps leads, CCoE teams, and the architects who serve them.
 
@@ -77,24 +79,24 @@ Built for FinOps leads, CCoE teams, and the architects who serve them.
 
 ### Tools
 
-| Tool                                  | What it does                                                                                                                 |
-| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `QueryAzure`                          | ARM REST (GET + read-only POST) — Cost Mgmt, Billing, Advisor, Resource Graph, Monitor, VMs, AKS, Storage, SQL, 30+ services |
-| `QueryGraph`                          | Graph GET — license inventory, M365 usage, directory, org chargebacks                                                        |
-| `QueryLogAnalytics`                   | KQL against Log Analytics / App Insights                                                                                     |
-| `QueryStorage`                        | Read Cost Management export blobs from customer Storage Accounts                                                             |
-| `QueryRetailPricing`                  | Public Azure Retail Prices API (no auth) — pricing comparisons & estimates                                                   |
-| `FindIdleResources`                   | Detect idle / underutilized VMs, disks, IPs, App Service plans                                                               |
-| `DetectCostAnomalies`                 | Spike & anomaly detection across services, scopes, tags                                                                      |
-| `SuggestSchedules`                    | Start/stop schedules for dev/test workloads                                                                                  |
-| `RenderChart` / `RenderAdvancedChart` | Inline ECharts (bar, line, pie, scatter, funnel, world maps, heatmaps, treemaps, radar, gauge, sankey)                       |
-| `GeneratePresentation`                | FinOps PowerPoint decks (python-pptx + matplotlib)                                                                           |
-| `GenerateScript`                      | Downloadable Azure CLI / PowerShell remediation scripts                                                                      |
-| `ReportMaturityScore`                 | FinOps maturity scoring (Crawl / Walk / Run, 0–5 per dimension)                                                              |
-| `GetAzureServiceHealth`               | Azure Status RSS (no auth)                                                                                                   |
-| `PublishFAQ`                          | Dynamic SEO pages + IndexNow                                                                                                 |
-| `SuggestFollowUp`                     | Clickable follow-up actions                                                                                                  |
-| _Built-in (SDK)_                      | bash, Python 3, file ops, web fetch, grep, glob, memory                                                                      |
+| Tool                                  | What it does                                                                                                                               |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `QueryAzure`                          | ARM REST (GET/POST/PUT/PATCH; DELETE blocked) — Cost Mgmt, Billing, Advisor, Resource Graph, Monitor, VMs, AKS, Storage, SQL, 30+ services |
+| `QueryGraph`                          | Graph GET — license inventory, M365 usage, directory, org chargebacks                                                                      |
+| `QueryLogAnalytics`                   | KQL against Log Analytics / App Insights                                                                                                   |
+| `QueryStorage`                        | Read Cost Management export blobs from customer Storage Accounts                                                                           |
+| `QueryRetailPricing`                  | Public Azure Retail Prices API (no auth) — pricing comparisons & estimates                                                                 |
+| `FindIdleResources`                   | Detect idle / underutilized VMs, disks, IPs, App Service plans                                                                             |
+| `DetectCostAnomalies`                 | Spike & anomaly detection across services, scopes, tags                                                                                    |
+| `SuggestSchedules`                    | Start/stop schedules for dev/test workloads                                                                                                |
+| `RenderChart` / `RenderAdvancedChart` | Inline ECharts (bar, line, pie, scatter, funnel, world maps, heatmaps, treemaps, radar, gauge, sankey)                                     |
+| `GeneratePresentation`                | FinOps PowerPoint decks (python-pptx + matplotlib)                                                                                         |
+| `GenerateScript`                      | Downloadable Azure CLI / PowerShell remediation scripts                                                                                    |
+| `ReportMaturityScore`                 | FinOps maturity scoring (Crawl / Walk / Run, 0–5 per dimension)                                                                            |
+| `GetAzureServiceHealth`               | Azure Status RSS (no auth)                                                                                                                 |
+| `PublishFAQ`                          | Dynamic SEO pages + IndexNow                                                                                                               |
+| `SuggestFollowUp`                     | Clickable follow-up actions                                                                                                                |
+| _Built-in (SDK)_                      | bash, Python 3, file ops, web fetch, grep, glob, memory                                                                                    |
 
 ### Auth & Security
 
@@ -108,7 +110,7 @@ No login required for chat. Azure data via incremental OAuth consent:
 | + Log Analytics        | `Data.Read`                                 | Log Analytics API |
 | + Cost Exports         | `user_impersonation`                        | Azure Storage     |
 
-**Strictly read-only** — PUT/PATCH/DELETE blocked at code level. POST restricted to allowlisted read-only endpoints. Recommended RBAC: `Reader` or `Cost Management Reader`.
+**Read + write, never delete.** `GET`/`POST`/`PUT`/`PATCH` are allowed so the agent can apply fixes (tags, budgets, anomaly alerts, scheduled actions, autoshutdown, exports). `DELETE` is blocked at the code level — destructive cleanup is delivered as a downloadable script for the user to review and run. The user's Entra RBAC role is the ultimate boundary: assign `Reader` / `Cost Management Reader` for read-only, or `Contributor` / `Cost Management Contributor` to let the agent apply changes.
 
 ## Project Structure
 
@@ -154,7 +156,7 @@ src/Dashboard/
 ├── Dockerfile                          # Multi-stage (Node 22 → .NET 10 SDK → runtime + Python 3)
 └── setup-entra-app.ps1                 # Entra ID app registration
 
-tests/Dashboard.Tests/                  # xUnit tests for the read-only security boundary
+tests/Dashboard.Tests/                  # xUnit tests for the no-DELETE security boundary
 ```
 
 ## Contributing

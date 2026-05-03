@@ -127,36 +127,35 @@ src/Dashboard/
 - **Exception handling**: Tools do NOT use try/catch internally. The Copilot CLI handles tool errors and returns them to the LLM. `UseAzureMonitor()` auto-instruments all `HttpClient` calls as dependency telemetry in App Insights.
 - The solution is designed for **customer deployment** — customers deploy it in their own Azure subscription.
 
-## Read-Only Security Model
+## Security Model (Read + Write, Never Delete)
 
-This agent is **strictly read-only** — it cannot create, modify, or delete any Azure resources. This is enforced at multiple layers:
+This agent allows reads and writes but **cannot delete** Azure resources. This is enforced at multiple layers:
 
-### Code-Level Enforcement (AzureQueryTools.cs)
+### Code-Level Enforcement (AzureQueryTools.cs / HttpHelper.cs)
 
-- **HTTP method whitelist**: Only `GET` and `POST` are accepted. `PUT`, `PATCH`, and `DELETE` are rejected with HTTP 400.
-- **POST path allowlist**: POST requests are restricted to a static allowlist of known read-only endpoints (`/query`, `/forecast`, `/resources`, `/generateCostDetailsReport`, `/calculatePrice`, etc.). Mutating POST actions (e.g., `/deallocate`, `/start`, `/restart`, `/return`) are blocked with HTTP 403.
+- **HTTP method whitelist**: `GET`, `POST`, `PUT`, and `PATCH` are accepted. `DELETE` is rejected at the `HttpHelper` layer — the agent never deletes resources.
+- **Destructive cleanup pattern**: For removals (idle disks, orphaned IPs, expired snapshots), the agent calls `GenerateScript` instead, so the user reviews and runs the deletion themselves.
 - **GraphQueryTools**: GET only — no write methods.
 - **LogAnalyticsQueryTools**: POST to query APIs only — KQL read operations.
 
 ### OAuth Scopes (Minimal Permissions)
 
-| Tier                 | Scope                                       | Access Level                     | Notes                                                                                     |
-| -------------------- | ------------------------------------------- | -------------------------------- | ----------------------------------------------------------------------------------------- |
-| Base (ARM)           | `user_impersonation`                        | Delegated — inherits user's RBAC | ARM only offers this scope; read-only is enforced at code level via method/path allowlist |
-| License Optimization | `Organization.Read.All`, `Reports.Read.All` | Read-only by scope definition    | Cannot modify org or report data                                                          |
-| Cost Allocation      | `User.Read.All`, `Group.Read.All`           | Read-only by scope definition    | Cannot modify users or groups                                                             |
-| Log Analytics        | `Data.Read`                                 | Read-only by scope definition    | Cannot modify workspace data                                                              |
-| Cost Exports         | `user_impersonation` (Azure Storage)        | Delegated — inherits user's RBAC | Customer storage account; read-only enforced via SDK calls (Get blob only)                |
+| Tier                 | Scope                                       | Access Level                     | Notes                                                                       |
+| -------------------- | ------------------------------------------- | -------------------------------- | --------------------------------------------------------------------------- |
+| Base (ARM)           | `user_impersonation`                        | Delegated — inherits user's RBAC | Writes/deletes governed by user's RBAC; DELETE additionally blocked in code |
+| License Optimization | `Organization.Read.All`, `Reports.Read.All` | Read-only by scope definition    | Cannot modify org or report data                                            |
+| Cost Allocation      | `User.Read.All`, `Group.Read.All`           | Read-only by scope definition    | Cannot modify users or groups                                               |
+| Log Analytics        | `Data.Read`                                 | Read-only by scope definition    | Cannot modify workspace data                                                |
+| Cost Exports         | `user_impersonation` (Azure Storage)        | Delegated — inherits user's RBAC | Customer storage account; read-only enforced via SDK calls (Get blob only)  |
 
-**Note on `user_impersonation`**: Azure ARM's only delegated scope is `user_impersonation`, which theoretically allows writes if the user has write RBAC roles. Since ARM does not offer a read-only delegated scope, **the code-level POST allowlist is the primary security boundary**. Customers deploying this agent can further restrict access by assigning the connected user a read-only RBAC role (e.g., `Reader` or `Cost Management Reader`).
+**Note on `user_impersonation`**: ARM's only delegated scope is `user_impersonation`, so the user's RBAC role is the ultimate boundary. The code-level DELETE block is a hard guarantee on top of that.
 
 ### Recommended RBAC for Connected Users
 
-For maximum security, assign one of these roles to users connecting to the agent:
+Pick the RBAC role that matches how much you want the agent to do:
 
-- **Reader** — read-only across all resource types
-- **Cost Management Reader** — read-only for cost/billing data specifically
-- **Billing Reader** — read-only for billing accounts and invoices
+- **Reader** / **Cost Management Reader** / **Billing Reader** — read-only; agent can analyze and generate scripts but cannot apply changes.
+- **Contributor** / **Cost Management Contributor** — agent can apply tags, create budgets, set anomaly alerts, configure scheduled actions, autoshutdown, exports, etc. (DELETE is still blocked in code.)
 
 ## Tool Development Patterns (Critical Learnings)
 
