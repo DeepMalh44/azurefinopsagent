@@ -29,7 +29,13 @@ import math
 import os
 import sys
 import traceback
+import warnings
 from typing import Any
+
+# stdout MUST be pure JSON — route every warning to stderr so a stray
+# pandas/pyarrow DeprecationWarning can't corrupt the response.
+warnings.simplefilter("ignore")
+warnings.showwarning = lambda *a, **kw: None
 
 # Hard caps — these protect the LLM context window
 MAX_ROWS_PER_CALL = 200

@@ -76,7 +76,9 @@ public static class UploadEndpoints
             }
 
             return Results.Ok(new { files = results });
-        }).DisableAntiforgery();
+        })
+        .DisableAntiforgery()
+        .WithMetadata(new Microsoft.AspNetCore.Mvc.RequestSizeLimitAttribute(MaxBytes + 10L * 1024 * 1024)); // file cap + multipart overhead
 
         app.MapGet("/api/uploads", (HttpContext ctx) =>
         {
