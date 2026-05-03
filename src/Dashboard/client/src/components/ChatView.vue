@@ -1648,10 +1648,17 @@ async function uploadFiles(files) {
 }
 
 function removeAttachment(att) {
-  // Soft remove on the client only — keep the file alive server-side so
-  // prior tool-call results in chat history stay valid for follow-ups.
-  // Actual disposal happens on /api/chat/reset or 30-min TTL.
+  // Drop from the client list immediately, and tell the server to remove it
+  // from the per-user listing so the next chat turn no longer surfaces this
+  // fileId in the [UPLOADED FILES…] context block. The temp file is kept
+  // on disk so prior tool-call results in chat history remain valid; full
+  // disposal happens on /api/chat/reset or via the 30-min TTL.
   attachments.value = attachments.value.filter((a) => a !== att);
+  if (att.fileId) {
+    fetch(`/api/uploads/${encodeURIComponent(att.fileId)}`, {
+      method: "DELETE",
+    }).catch(() => {});
+  }
 }
 
 function formatBytes(n) {

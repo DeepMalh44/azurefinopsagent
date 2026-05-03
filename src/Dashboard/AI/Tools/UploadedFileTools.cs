@@ -35,10 +35,21 @@ public sealed class UploadedFileTools
     private const int TimeoutSeconds = 30;
     private const long MaxBytes = 100L * 1024 * 1024; // 100 MB
 
+    // .xls intentionally omitted — pandas needs the (uninstalled) xlrd package for legacy xls.
     private static readonly HashSet<string> SupportedExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
-        ".csv", ".tsv", ".json", ".txt", ".log", ".md", ".xlsx", ".xls", ".pdf", ".parquet"
+        ".csv", ".tsv", ".json", ".txt", ".log", ".md", ".xlsx", ".pdf", ".parquet"
     };
+
+    static UploadedFileTools()
+    {
+        // Background TTL sweep — without this, expired temp files only get evicted
+        // when a new upload happens. Fires every 5 min, ignores its own exceptions.
+        _cleanupTimer = new Timer(_ => { try { Cleanup(); } catch { } },
+            null, TimeSpan.FromMinutes(5), TimeSpan.FromMinutes(5));
+    }
+
+    private static readonly Timer _cleanupTimer;
 
     private readonly UserTokens _tokens; // not used today, kept for symmetry with other per-user tools
 
@@ -219,10 +230,11 @@ Examples:
 
     public static bool RemoveForUser(long userId, string fileId)
     {
-        // Soft remove: keep the entry + temp file alive so prior tool-call results in the
-        // chat history remain valid for follow-ups. The 30-min TTL (Cleanup) and
-        // /api/chat/reset (ClearForUser) handle actual disposal.
-        return UserFiles.TryGetValue(userId, out var bucket) && bucket.ContainsKey(fileId);
+        // Remove from the user's listing so the LLM context block no longer shows it,
+        // but keep the temp file on disk so any prior tool-call results in the chat
+        // history remain valid for replay. Actual file disposal happens on
+        // /api/chat/reset (ClearForUser) or via the 30-min TTL sweep.
+        return UserFiles.TryGetValue(userId, out var bucket) && bucket.TryRemove(fileId, out _);
     }
 
     public static void ClearForUser(long userId)
