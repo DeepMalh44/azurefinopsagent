@@ -89,6 +89,7 @@ src/Dashboard/
 │   ├── PresentationTools.cs # GeneratePresentation — generates FinOps PowerPoint (.pptx) using python-pptx + matplotlib
 │   ├── ScoreTools.cs       # ReportMaturityScore — LLM reports FinOps maturity scores (0-5) per Crawl/Walk/Run level
 │   ├── ScriptTools.cs      # GenerateScript — generates downloadable Azure CLI/PowerShell scripts from FinOps recommendations
+│   └── UploadedFileTools.cs # QueryUploadedFile — inspect/query files (CSV/TSV/JSON/TXT/XLSX/PDF/Parquet) the user dropped into chat (no Azure consent needed). Backed by AI/Tools/Resources/file_inspect.py (pandas/openpyxl/pyarrow/pdfminer).
 │   └── TokenContext.cs     # UserTokens — per-user mutable token holder with volatile fields for concurrent access
 ├── Dockerfile              # Multi-stage Docker build (node:22 + dotnet/sdk:10.0 + dotnet/aspnet:10.0 + Python 3)
 ├── .dockerignore           # Excludes bin/, obj/, node_modules/, wwwroot/ from Docker context

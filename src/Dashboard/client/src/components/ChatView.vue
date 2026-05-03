@@ -218,13 +218,8 @@
 
         <!-- Bottom section -->
         <div class="sidebar-footer">
-          <!-- Azure connect/status -->
-          <!-- Hide the sidebar Connect widget while the empty-state hero is showing
-               its own Connect Azure CTA, to avoid a duplicate button. -->
-          <div
-            v-if="!azureConnected && messages.length > 0"
-            class="azure-connect"
-          >
+          <!-- Azure connect/status — always shown when not connected -->
+          <div v-if="!azureConnected" class="azure-connect">
             <!-- Admin approval / consent error banner -->
             <div v-if="tenantError" class="tenant-error-banner">
               <svg
@@ -758,146 +753,27 @@
       </aside>
 
       <!-- Center: chat area -->
-      <div class="chat-main">
+      <div
+        class="chat-main"
+        @dragenter="onDragEnter"
+        @dragover="onDragOver"
+        @dragleave="onDragLeave"
+        @drop="onDrop"
+      >
         <!-- Messages -->
         <div class="messages" ref="messagesEl">
           <div class="messages-inner">
             <div v-if="messages.length === 0" class="empty-state">
               <h1 class="es-headline">Azure FinOps Agent</h1>
-              <p class="es-eyebrow">
-                Built for FinOps leads, CCoE teams, and the architects who serve
-                them.
-              </p>
               <p class="es-sub">
-                Replace a multi-week FinOps assessment with a single
-                conversation. Connect a tenant, ask in plain language, and walk
-                away with quantified savings, a FinOps Foundation maturity
-                score, a CFO-ready deck, and
-                <strong>ready-to-run remediation scripts</strong> — in minutes,
-                not sprints. The agent can also apply fixes for you via
-                <code>GET</code> / <code>POST</code> / <code>PUT</code> /
-                <code>PATCH</code> —
-                <strong><code>DELETE</code> is blocked</strong>, so destructive
-                cleanup always stays in your hands. Multi-tenant, and safe to
-                point at anything from a dev sandbox to a global enterprise
-                estate.
+                The most sophisticated FinOps agent for Azure. Connect a tenant
+                or drop a cost export — and turn weeks of analysis into action
+                in minutes. The agent can
+                <strong>fix things directly</strong> for you (tags, budgets,
+                anomaly alerts, autoshutdown) or hand you a
+                <strong>ready-to-run script and a CFO-ready deck</strong>
+                if you'd rather review first.
               </p>
-
-              <div v-if="!azureConnected" class="es-connect-bar">
-                <!-- Admin approval / consent error banner -->
-                <div
-                  v-if="tenantError"
-                  class="tenant-error-banner es-tenant-error"
-                >
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="#d13438"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <circle cx="12" cy="12" r="10" />
-                    <line x1="12" y1="8" x2="12" y2="12" />
-                    <line x1="12" y1="16" x2="12.01" y2="16" />
-                  </svg>
-                  <span
-                    >Your home tenant requires admin approval. Pick a tenant
-                    below or type one manually.</span
-                  >
-                </div>
-                <!-- Saved tenants — hidden -->
-                <div v-if="false" class="saved-tenants es-saved-tenants">
-                  <span class="saved-tenants-label">Your tenants</span>
-                  <div class="saved-tenants-list">
-                    <button
-                      v-for="t in savedTenants"
-                      :key="t.tenantId"
-                      class="saved-tenant-btn"
-                      @click="switchTenant(t.tenantId)"
-                      :title="t.tenantId"
-                    >
-                      <svg
-                        width="12"
-                        height="12"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                      >
-                        <path
-                          d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"
-                        />
-                        <polyline points="9 22 9 12 15 12 15 22" />
-                      </svg>
-                      {{
-                        t.displayName ||
-                        t.defaultDomain ||
-                        t.tenantId.slice(0, 8) + "…"
-                      }}
-                    </button>
-                  </div>
-                </div>
-                <div class="es-tenant-input-row">
-                  <input
-                    v-model="tenantId"
-                    type="text"
-                    class="tenant-input es-tenant-input"
-                    :class="{
-                      'tenant-input--highlight':
-                        tenantError && !savedTenants.length,
-                    }"
-                    placeholder="Tenant ID…"
-                  />
-                </div>
-                <button
-                  class="es-step-btn es-step-btn--azure"
-                  :disabled="authLoading === 'azure'"
-                  @click="startAuth('azure', '/auth/microsoft')"
-                >
-                  <svg width="14" height="14" viewBox="0 0 21 21" fill="none">
-                    <rect
-                      width="10"
-                      height="10"
-                      fill="#fff"
-                      fill-opacity="0.9"
-                    />
-                    <rect
-                      x="11"
-                      width="10"
-                      height="10"
-                      fill="#fff"
-                      fill-opacity="0.7"
-                    />
-                    <rect
-                      y="11"
-                      width="10"
-                      height="10"
-                      fill="#fff"
-                      fill-opacity="0.7"
-                    />
-                    <rect
-                      x="11"
-                      y="11"
-                      width="10"
-                      height="10"
-                      fill="#fff"
-                      fill-opacity="0.5"
-                    />
-                  </svg>
-                  {{
-                    authLoading === "azure"
-                      ? "Connecting..."
-                      : tenantId.trim()
-                        ? "Connect to " + tenantId.trim()
-                        : "Connect Azure"
-                  }}
-                </button>
-              </div>
 
               <!-- Capabilities -->
               <div class="es-capabilities">
@@ -1000,10 +876,15 @@
                   ></div>
                   <div v-if="msg.followUp" class="follow-up-buttons">
                     <button
+                      v-for="(a, ai) in msg.followUp.actions &&
+                      msg.followUp.actions.length
+                        ? msg.followUp.actions
+                        : [msg.followUp]"
+                      :key="ai"
                       class="follow-up-btn"
-                      @click="sendQuestion(msg.followUp.prompt)"
+                      @click="sendQuestion(a.prompt)"
                     >
-                      {{ msg.followUp.label }}
+                      {{ a.label }}
                     </button>
                   </div>
                   <div v-if="msg.pptx" class="pptx-inline-download">
@@ -1270,12 +1151,113 @@
         <!-- Mobile auth bar (hidden on desktop, shown on mobile) -->
         <div class="mobile-auth-bar"></div>
 
+        <!-- Drag-drop overlay -->
+        <div
+          v-if="dragActive"
+          class="drop-overlay"
+          @dragenter.prevent
+          @dragover.prevent
+          @dragleave.prevent="onDragLeave"
+          @drop.prevent.stop="onDrop"
+        >
+          <div class="drop-overlay-card">
+            <svg
+              width="48"
+              height="48"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="17 8 12 3 7 8" />
+              <line x1="12" y1="3" x2="12" y2="15" />
+            </svg>
+            <div class="drop-overlay-title">Drop to attach</div>
+            <div class="drop-overlay-sub">
+              CSV · TSV · JSON · TXT · XLSX · PDF · Parquet (≤ 100 MB)
+            </div>
+          </div>
+        </div>
+
         <!-- Input bar -->
         <div class="input-area">
+          <!-- One-click Analyze when files are attached (above the input wrapper) -->
+          <div
+            v-if="readyAttachments.length && messages.length === 0"
+            class="attach-analyze-row"
+          >
+            <button
+              class="attach-analyze-btn"
+              :disabled="streaming"
+              @click="sendQuestion(analyzePrompt)"
+              :title="`Inspect ${readyAttachments.length} attached file${readyAttachments.length > 1 ? 's' : ''} and surface FinOps insights`"
+            >
+              <span
+                >Analyze {{ readyAttachments.length }} file{{
+                  readyAttachments.length > 1 ? "s" : ""
+                }}</span
+              >
+            </button>
+          </div>
+
           <div
             class="input-wrapper"
             :class="{ 'input-wrapper--disabled': false }"
           >
+            <!-- Attachment chips -->
+            <div v-if="attachments.length" class="attachment-chips">
+              <div
+                v-for="att in attachments"
+                :key="att.uid"
+                class="attachment-chip"
+                :class="{
+                  'attachment-chip--err': att.error,
+                  'attachment-chip--up': att.uploading,
+                }"
+                :title="
+                  att.error || `${att.kind} · ${formatBytes(att.sizeBytes)}`
+                "
+              >
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path
+                    d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+                  />
+                  <polyline points="14 2 14 8 20 8" />
+                </svg>
+                <span class="attachment-chip-name">{{ att.fileName }}</span>
+                <span v-if="att.uploading" class="attachment-chip-meta"
+                  >uploading…</span
+                >
+                <span v-else-if="att.error" class="attachment-chip-meta"
+                  >failed</span
+                >
+                <span v-else class="attachment-chip-meta">{{
+                  formatBytes(att.sizeBytes)
+                }}</span>
+                <button
+                  class="attachment-chip-x"
+                  @click="removeAttachment(att)"
+                  title="Remove"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            <!-- One-click Analyze removed from here — now sits above input wrapper -->
+
             <textarea
               ref="inputEl"
               v-model="input"
@@ -1288,6 +1270,36 @@
             ></textarea>
             <div class="input-bottom-bar">
               <div class="input-bottom-left">
+                <input
+                  ref="fileInputEl"
+                  type="file"
+                  multiple
+                  accept=".csv,.tsv,.json,.txt,.log,.md,.xlsx,.xls,.pdf,.parquet"
+                  style="display: none"
+                  @change="onFilePicked"
+                />
+                <button
+                  class="input-action-btn"
+                  :disabled="streaming"
+                  @click="openFilePicker"
+                  title="Attach file (CSV, JSON, TXT, XLSX, PDF, Parquet)"
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path
+                      d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"
+                    />
+                  </svg>
+                  <span>Attach</span>
+                </button>
                 <button
                   class="input-action-btn"
                   :disabled="messages.length === 0 || streaming"
@@ -1520,17 +1532,17 @@
 <script setup>
 import * as echarts from "echarts";
 import {
-    computed,
-    nextTick,
-    onBeforeUnmount,
-    onMounted,
-    reactive,
-    ref,
-    watch,
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  reactive,
+  ref,
+  watch,
 } from "vue";
 import {
-    maturityCategories,
-    pricingCategory,
+  maturityCategories,
+  pricingCategory,
 } from "../data/sidebarCategories.js";
 
 const props = defineProps({
@@ -1554,6 +1566,187 @@ const messagesEl = ref(null);
 const inputEl = ref(null);
 const chartInstances = [];
 let intentAnimTimer = null;
+
+// ── Uploaded attachments ────────────────────────────────────────────
+const attachments = ref([]); // [{ fileId, fileName, kind, sizeBytes, uploading?, error? }]
+const dragActive = ref(false);
+const fileInputEl = ref(null);
+let dragCounter = 0;
+
+function openFilePicker() {
+  fileInputEl.value?.click();
+}
+
+async function onFilePicked(ev) {
+  const files = Array.from(ev.target.files || []);
+  await uploadFiles(files);
+  if (fileInputEl.value) fileInputEl.value.value = "";
+}
+
+function onDragEnter(ev) {
+  ev.preventDefault();
+  if (!ev.dataTransfer?.types?.includes("Files")) return;
+  dragCounter++;
+  dragActive.value = true;
+}
+function onDragLeave(ev) {
+  ev.preventDefault();
+  dragCounter = Math.max(0, dragCounter - 1);
+  if (dragCounter === 0) dragActive.value = false;
+}
+function onDragOver(ev) {
+  if (ev.dataTransfer?.types?.includes("Files")) ev.preventDefault();
+}
+async function onDrop(ev) {
+  ev.preventDefault();
+  dragCounter = 0;
+  dragActive.value = false;
+  const files = Array.from(ev.dataTransfer?.files || []);
+  if (files.length) await uploadFiles(files);
+}
+
+async function uploadFiles(files) {
+  for (const file of files) {
+    const placeholder = {
+      uid: `att-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      fileId: null,
+      fileName: file.name,
+      kind: (file.name.split(".").pop() || "").toLowerCase(),
+      sizeBytes: file.size,
+      uploading: true,
+      error: null,
+      preview: null,
+    };
+    attachments.value.push(placeholder);
+    const idx = attachments.value.length - 1;
+    try {
+      const fd = new FormData();
+      fd.append("file", file, file.name);
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      if (!res.ok) throw new Error(`upload failed (${res.status})`);
+      const data = await res.json();
+      const result = data.files?.[0];
+      if (!result?.ok) throw new Error(result?.error || "upload rejected");
+      // Replace via proxy so Vue picks up the change
+      attachments.value[idx] = {
+        ...placeholder,
+        fileId: result.fileId,
+        kind: result.kind,
+        sizeBytes: result.sizeBytes,
+        preview: result.preview || null,
+        uploading: false,
+        error: null,
+      };
+    } catch (e) {
+      attachments.value[idx] = {
+        ...placeholder,
+        uploading: false,
+        error: e.message || String(e),
+      };
+    }
+  }
+}
+
+function removeAttachment(att) {
+  // Soft remove on the client only — keep the file alive server-side so
+  // prior tool-call results in chat history stay valid for follow-ups.
+  // Actual disposal happens on /api/chat/reset or 30-min TTL.
+  attachments.value = attachments.value.filter((a) => a !== att);
+}
+
+function formatBytes(n) {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${(n / 1024 / 1024).toFixed(1)} MB`;
+}
+
+// ── File classifier ────────────────────────────────────────────────────────────
+// Inspects filename + preview to label each upload (e.g. "Cost / billing data",
+// "Advisor recommendations") so the Analyze prompt can tell the LLM what kind
+// of files it's getting. Purely descriptive — no per-purpose prompt menus.
+const PURPOSE_LABELS = {
+  cost_data: "Cost / billing data",
+  resource_inventory: "Resource inventory",
+  advisor_recs: "Advisor recommendations",
+  cost_summary: "Cost summary / report data",
+  audit_log: "Log / audit trail",
+  notes_md: "Notes / markdown",
+  finops_report_pdf: "FinOps report (PDF)",
+  spreadsheet_inventory: "Multi-sheet workbook",
+};
+
+function classifyAttachment(att) {
+  const name = (att.fileName || "").toLowerCase();
+  const kind = att.kind;
+  const preview = att.preview || {};
+  const cols = (preview.columns || []).map((c) => String(c).toLowerCase());
+  const any = (...needles) => needles.some((n) => cols.includes(n));
+
+  if (["csv", "tsv", "parquet"].includes(kind)) {
+    if (
+      any("pretaxcost", "cost", "unitprice") &&
+      any("servicename", "meterid", "meter", "metercategory")
+    )
+      return PURPOSE_LABELS.cost_data;
+    if (
+      any("id", "resourceid") &&
+      any("type", "sku", "skuname", "resourcetype")
+    )
+      return PURPOSE_LABELS.resource_inventory;
+    if (/cost|spend|billing|usage/.test(name)) return PURPOSE_LABELS.cost_data;
+    if (/inventory|resource|asset/.test(name))
+      return PURPOSE_LABELS.resource_inventory;
+  }
+  if (kind === "xlsx") return PURPOSE_LABELS.spreadsheet_inventory;
+  if (kind === "json") {
+    if (preview.shape === "array") {
+      const sample = preview.first_items?.[0] || {};
+      const keys = Object.keys(sample).map((k) => k.toLowerCase());
+      if (
+        keys.includes("category") &&
+        (keys.includes("impact") || keys.includes("shortdescription"))
+      )
+        return PURPOSE_LABELS.advisor_recs;
+      if (/advisor|recommend/.test(name)) return PURPOSE_LABELS.advisor_recs;
+    } else if (preview.shape === "object") {
+      const schemaKeys = Object.keys(preview.schema || {}).map((k) =>
+        k.toLowerCase(),
+      );
+      if (
+        schemaKeys.some((k) =>
+          /total|byservice|bysubscription|anomal|tagbreakdown|forecast/.test(k),
+        )
+      )
+        return PURPOSE_LABELS.cost_summary;
+    }
+    if (/cost|export|summary|report/.test(name))
+      return PURPOSE_LABELS.cost_summary;
+  }
+  if (kind === "pdf") return PURPOSE_LABELS.finops_report_pdf;
+  if (kind === "txt") {
+    if (/\.log$/.test(name) || /audit|access|trace/.test(name))
+      return PURPOSE_LABELS.audit_log;
+    if (/\.md$/.test(name) || /note|playbook|finding|review/.test(name))
+      return PURPOSE_LABELS.notes_md;
+  }
+  return `${kind.toUpperCase()} file`;
+}
+
+const readyAttachments = computed(() =>
+  attachments.value.filter((a) => a.fileId && !a.error),
+);
+
+const analyzePrompt = computed(() => {
+  const list = readyAttachments.value;
+  if (!list.length) return "";
+  if (list.length === 1) {
+    const a = list[0];
+    const label = classifyAttachment(a);
+    return `Analyze the uploaded file '${a.fileName}' (${label}). The schema is already in your context — go straight to the most useful aggregate/filter calls (no preview round-trip). Produce: (1) one-paragraph summary of what the data is, (2) 3-5 key numbers, (3) the top 3 FinOps insights or anomalies, (4) **call SuggestFollowUp with 3 distinct next actions** (label/prompt, label2/prompt2, label3/prompt3) — e.g. drill into the top finding, generate a remediation script for the top issue, build a CFO summary deck.`;
+  }
+  const labels = [...new Set(list.map(classifyAttachment))];
+  return `Analyze the ${list.length} uploaded files (${labels.join(", ")}). The schema for each is already in your context — pick the right QueryUploadedFile calls (filter / aggregate / json_path / text_range) instead of dumping rows. Produce a one-page assessment: (1) what each file contains in one line, (2) cross-file insights where they relate (e.g. join cost data with inventory, match Advisor recs to actual cost), (3) the top 5 FinOps opportunities ranked by $ impact, (4) **call SuggestFollowUp with 3 distinct next actions** (label/prompt, label2/prompt2, label3/prompt3) — each must reference a concrete entity from the analysis. Suggested mix: deep-dive into the #1 opportunity, generate a remediation script, build a CFO deck.`;
+});
 
 function autoGrowInput() {
   const el = inputEl.value;
@@ -1946,6 +2139,7 @@ async function clearMessages() {
   pptxReady.value = null;
   pptxDownloads.value = [];
   scriptReady.value = null;
+  attachments.value = [];
   activeTools.value = [];
   hoveredTool.value = null;
   input.value = "";
@@ -3327,7 +3521,6 @@ async function send() {
 .sidebar-footer {
   flex-shrink: 0;
   padding: 10px 14px;
-  border-top: 1px solid #e1dfdd;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -3914,7 +4107,142 @@ async function send() {
   min-width: 0;
   min-height: 0;
   overflow: hidden;
+  position: relative;
 }
+
+/* ── Drag-drop overlay ── */
+.drop-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(4px);
+  pointer-events: all;
+}
+.drop-overlay-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 2rem 3rem;
+  border: 2px dashed rgba(255, 255, 255, 0.65);
+  border-radius: 16px;
+  color: #fff;
+  background: rgba(30, 41, 59, 0.85);
+}
+.drop-overlay-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+.drop-overlay-sub {
+  font-size: 0.85rem;
+  opacity: 0.8;
+}
+
+/* ── Attachment chips ── */
+.attachment-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding: 0.5rem 0.75rem 0;
+}
+.attachment-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.55rem;
+  background: var(--bg-elev, #f1f5f9);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 999px;
+  font-size: 0.78rem;
+  color: var(--fg, #1e293b);
+  max-width: 280px;
+}
+.attachment-chip--up {
+  opacity: 0.7;
+}
+.attachment-chip--err {
+  border-color: #f87171;
+  color: #b91c1c;
+  background: #fee2e2;
+}
+.attachment-chip-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 160px;
+}
+.attachment-chip-meta {
+  opacity: 0.65;
+  font-size: 0.72rem;
+}
+.attachment-chip-x {
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  font-size: 0.85rem;
+  line-height: 1;
+  padding: 0 0.15rem;
+  color: inherit;
+  opacity: 0.6;
+}
+.attachment-chip-x:hover {
+  opacity: 1;
+}
+
+/* ── Inline Analyze CTA above input ── */
+.attach-analyze-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.6rem;
+  padding: 0 0 0.25rem;
+}
+.attach-analyze-btn {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 1rem;
+  background: #0078d4;
+  color: #fff;
+  border: 0;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  box-shadow: 0 0 0 0 rgba(0, 120, 212, 0.55);
+  animation: attach-analyze-glow 2.2s ease-in-out infinite;
+  transition:
+    background 0.15s,
+    transform 0.05s;
+}
+.attach-analyze-btn:hover {
+  background: #1184dc;
+}
+.attach-analyze-btn:active {
+  transform: translateY(1px);
+}
+.attach-analyze-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  animation: none;
+  box-shadow: none;
+}
+@keyframes attach-analyze-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(0, 120, 212, 0.55);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(0, 120, 212, 0);
+  }
+}
+
 .messages {
   flex: 1;
   overflow-y: auto;
@@ -4592,7 +4920,8 @@ async function send() {
   width: 100%;
   padding-bottom: max(12px, env(safe-area-inset-bottom));
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: stretch;
   gap: 6px;
 }
 .input-wrapper {

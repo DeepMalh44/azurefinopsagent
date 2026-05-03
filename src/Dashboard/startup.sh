@@ -25,8 +25,8 @@ export PYTHONPATH="$PIP_TARGET:$PYTHONPATH"
 # Pinned versions for reproducibility (latest stable as of 2026-04):
 #   python-pptx 1.0.2 (Aug 2024) — latest stable, drops py<3.8 support
 #   matplotlib 3.9.x, pandas 2.2.x, numpy 2.x
-PACKAGES="requests pandas numpy openpyxl tabulate python-dateutil python-pptx>=1.0.2 matplotlib>=3.9 lxml"
-PKG_VERSION="5"
+PACKAGES="requests pandas numpy openpyxl tabulate python-dateutil python-pptx>=1.0.2 matplotlib>=3.9 lxml pdfminer.six>=20240706 pyarrow>=17.0"
+PKG_VERSION="6"
 
 # Only install if marker version differs (forces reinstall on package list changes)
 if [ ! -f "$PIP_TARGET/.installed_v$PKG_VERSION" ]; then

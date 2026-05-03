@@ -1,8 +1,8 @@
 # Azure FinOps Agent
 
-Replace a multi-week FinOps assessment with a single conversation. Connect an Azure tenant, ask in plain language, and walk away with quantified savings, a FinOps Foundation maturity score, a CFO-ready PowerPoint deck, **and ready-to-run remediation scripts** — in minutes, not sprints.
+Replace a multi-week FinOps assessment with a single conversation. Connect a tenant or drop a cost export, ask in plain language, and walk away with quantified savings, a FinOps Foundation maturity score, a CFO-ready PowerPoint deck, and ready-to-run remediation scripts — in minutes, not sprints.
 
-Findings ship as downloadable Azure CLI / PowerShell scripts so your team stays in control of every change — and when you want the agent to _do_ the work, it can apply fixes directly via `GET`, `POST`, `PUT`, and `PATCH`. **`DELETE` is blocked at the code level**, so destructive cleanup always stays in human hands. Multi-tenant, and safe to point at anything from a dev sandbox to a global enterprise estate.
+The agent can apply fixes directly (`GET` / `POST` / `PUT` / `PATCH` — e.g. tags, budgets, anomaly alerts, autoshutdown) or hand you a downloadable script if you'd rather review first. **`DELETE` is blocked at the code level**, so destructive cleanup always stays in human hands. Multi-tenant, safe to point at anything from a dev sandbox to a global enterprise estate.
 
 Built for FinOps leads, CCoE teams, and the architects who serve them.
 
@@ -29,6 +29,7 @@ Built for FinOps leads, CCoE teams, and the architects who serve them.
 - **M365 license & Copilot ROI** — Microsoft Graph reveals unused licenses, Copilot seat utilization, and SKU mismatch across Exchange, Teams, OneDrive, SharePoint — levers Azure Cost Management can't see
 - **Inline charts + CFO-ready PowerPoint** — 20+ ECharts visualizations (bar, line, pie, scatter, funnel, world maps, heatmaps, treemaps, radar, gauge, sankey) plus a one-click branded `.pptx` export
 - **Every Azure service, every scope** — 40+ services across all subscriptions and management groups in a single query: compute, AKS, Databricks, Synapse, ML, Cosmos, networking, storage, carbon
+- **Drop-in file analysis (no Azure consent required)** — drag any CSV, TSV, JSON, TXT, log, Markdown, XLSX, PDF or Parquet into the chat and click **Analyze**. The agent learns the schema, runs targeted aggregates/filters server-side (pandas/openpyxl/pyarrow/pdfminer), and answers without ever loading the raw payload into the LLM context. Perfect for ad-hoc cost exports, Advisor JSON, audit logs, or executive PDFs. See [`samples/uploads/`](samples/uploads/) for a generator (`generate.py`) and a catalog of realistic test files (~14 MB across 9 file types) you can drop in to try it.
 - **Generate remediation scripts** — downloadable Azure CLI / PowerShell with dry-run mode, confirmation prompts, and `--what-if` safety flags
 - **Log Analytics deep dives** — KQL against workspaces and App Insights for VM metrics, container diagnostics, and ingestion cost analysis
 
@@ -45,7 +46,7 @@ Built for FinOps leads, CCoE teams, and the architects who serve them.
 │  └────────────────────┘               └───────────────┬────────────────┘  │
 │                                                       │ orchestrates       │
 │                                             ┌─────────┴──────────┐        │
-│                                             │   15 Agent Tools    │        │
+│                                             │   17 Agent Tools    │        │
 │                                             └─────────┬──────────┘        │
 │                                                       │                    │
 │  ┌─ Auth ──────────────────────────────────────────────┤                   │
@@ -79,24 +80,25 @@ Built for FinOps leads, CCoE teams, and the architects who serve them.
 
 ### Tools
 
-| Tool                                  | What it does                                                                                                                               |
-| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `QueryAzure`                          | ARM REST (GET/POST/PUT/PATCH; DELETE blocked) — Cost Mgmt, Billing, Advisor, Resource Graph, Monitor, VMs, AKS, Storage, SQL, 30+ services |
-| `QueryGraph`                          | Graph GET — license inventory, M365 usage, directory, org chargebacks                                                                      |
-| `QueryLogAnalytics`                   | KQL against Log Analytics / App Insights                                                                                                   |
-| `QueryStorage`                        | Read Cost Management export blobs from customer Storage Accounts                                                                           |
-| `QueryRetailPricing`                  | Public Azure Retail Prices API (no auth) — pricing comparisons & estimates                                                                 |
-| `FindIdleResources`                   | Detect idle / underutilized VMs, disks, IPs, App Service plans                                                                             |
-| `DetectCostAnomalies`                 | Spike & anomaly detection across services, scopes, tags                                                                                    |
-| `SuggestSchedules`                    | Start/stop schedules for dev/test workloads                                                                                                |
-| `RenderChart` / `RenderAdvancedChart` | Inline ECharts (bar, line, pie, scatter, funnel, world maps, heatmaps, treemaps, radar, gauge, sankey)                                     |
-| `GeneratePresentation`                | FinOps PowerPoint decks (python-pptx + matplotlib)                                                                                         |
-| `GenerateScript`                      | Downloadable Azure CLI / PowerShell remediation scripts                                                                                    |
-| `ReportMaturityScore`                 | FinOps maturity scoring (Crawl / Walk / Run, 0–5 per dimension)                                                                            |
-| `GetAzureServiceHealth`               | Azure Status RSS (no auth)                                                                                                                 |
-| `PublishFAQ`                          | Dynamic SEO pages + IndexNow                                                                                                               |
-| `SuggestFollowUp`                     | Clickable follow-up actions                                                                                                                |
-| _Built-in (SDK)_                      | bash, Python 3, file ops, web fetch, grep, glob, memory                                                                                    |
+| Tool                                  | What it does                                                                                                                                                                                             |
+| ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `QueryAzure`                          | ARM REST (GET/POST/PUT/PATCH; DELETE blocked) — Cost Mgmt, Billing, Advisor, Resource Graph, Monitor, VMs, AKS, Storage, SQL, 30+ services                                                               |
+| `QueryGraph`                          | Graph GET — license inventory, M365 usage, directory, org chargebacks                                                                                                                                    |
+| `QueryLogAnalytics`                   | KQL against Log Analytics / App Insights                                                                                                                                                                 |
+| `QueryStorage`                        | Read Cost Management export blobs from customer Storage Accounts                                                                                                                                         |
+| `QueryRetailPricing`                  | Public Azure Retail Prices API (no auth) — pricing comparisons & estimates                                                                                                                               |
+| `FindIdleResources`                   | Detect idle / underutilized VMs, disks, IPs, App Service plans                                                                                                                                           |
+| `DetectCostAnomalies`                 | Spike & anomaly detection across services, scopes, tags                                                                                                                                                  |
+| `SuggestSchedules`                    | Start/stop schedules for dev/test workloads                                                                                                                                                              |
+| `QueryUploadedFile`                   | Inspect files dropped into the chat (CSV/TSV/JSON/TXT/XLSX/PDF/Parquet) — schema, head/slice, filter, aggregate, text_range, json_path. Server-side pandas/pyarrow/pdfminer keeps the LLM context small. |
+| `RenderChart` / `RenderAdvancedChart` | Inline ECharts (bar, line, pie, scatter, funnel, world maps, heatmaps, treemaps, radar, gauge, sankey)                                                                                                   |
+| `GeneratePresentation`                | FinOps PowerPoint decks (python-pptx + matplotlib)                                                                                                                                                       |
+| `GenerateScript`                      | Downloadable Azure CLI / PowerShell remediation scripts                                                                                                                                                  |
+| `ReportMaturityScore`                 | FinOps maturity scoring (Crawl / Walk / Run, 0–5 per dimension)                                                                                                                                          |
+| `GetAzureServiceHealth`               | Azure Status RSS (no auth)                                                                                                                                                                               |
+| `PublishFAQ`                          | Dynamic SEO pages + IndexNow                                                                                                                                                                             |
+| `SuggestFollowUp`                     | Clickable follow-up actions                                                                                                                                                                              |
+| _Built-in (SDK)_                      | bash, Python 3, file ops, web fetch, grep, glob, memory                                                                                                                                                  |
 
 ### Auth & Security
 
@@ -126,21 +128,25 @@ src/Dashboard/
 ├── AI/
 │   ├── CopilotSessionFactory.cs        # CopilotClient + BYOK token cache + tool catalog
 │   ├── ChatEndpoints.cs                # SSE chat endpoint + structured marker dispatch
-│   └── Tools/                          # 15 AIFunction tools (one file each)
+│   └── Tools/                          # 17 AIFunction tools (one file each)
 │       ├── AzureQueryTools.cs          # ARM REST APIs
 │       ├── GraphQueryTools.cs          # Microsoft Graph
 │       ├── LogAnalyticsQueryTools.cs
 │       ├── StorageQueryTools.cs        # Cost Management export blobs
 │       ├── RetailPricingTools.cs       # Public Azure Retail Prices (no auth)
+│       ├── UploadedFileTools.cs        # User-dropped CSV/JSON/XLSX/PDF/Parquet inspection
 │       ├── IdleResourceTools.cs / AnomalyTools.cs / ScheduleTools.cs
 │       ├── ChartTools.cs               # ECharts rendering
 │       ├── PresentationTools.cs        # PowerPoint generation (python-pptx)
 │       ├── ScoreTools.cs / ScriptTools.cs / HealthTools.cs
 │       ├── FaqTools.cs / FollowUpTools.cs
-│       └── Resources/pptx_generator.py # Embedded Python template
+│       └── Resources/                  # Embedded Python helpers
+│           ├── pptx_generator.py       # PPTX builder (matplotlib + python-pptx)
+│           └── file_inspect.py         # Upload preview + query (pandas/pyarrow/pdfminer)
 ├── Web/
 │   ├── MetaEndpoints.cs                # /api/version, /api/config, /api/models
 │   ├── DownloadEndpoints.cs            # PPTX + script downloads
+│   ├── UploadEndpoints.cs              # File attachments (drop-in analysis)
 │   └── SeoEndpoints.cs                 # FAQ pages + sitemap.xml
 ├── Observability/
 │   └── AiTelemetry.cs                  # ActivitySource + Meter + per-user state registry

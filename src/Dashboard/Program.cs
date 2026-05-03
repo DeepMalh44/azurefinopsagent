@@ -205,6 +205,7 @@ app.MapAzureSessionEndpoints(tokenStore, telemetry, logger);
 app.MapChatEndpoints(copilotFactory, tokenStore, telemetry, logger);
 app.MapMetaEndpoints(appInsightsCs ?? "", azureOpenAIDeployment);
 app.MapDownloadEndpoints();
+app.MapUploadEndpoints();
 app.MapSeoEndpoints();
 
 app.MapFallbackToFile("index.html");

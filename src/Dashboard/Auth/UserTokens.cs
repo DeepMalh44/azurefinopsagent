@@ -12,6 +12,9 @@ public class UserTokens
     private volatile string? _logAnalyticsToken;
     private volatile string? _storageToken;
 
+    /// <summary>The user id this token bag belongs to (set by the per-user factory).</summary>
+    public long UserId { get; init; }
+
     /// <summary>Azure ARM API token (management.azure.com)</summary>
     public string? AzureToken { get => _azureToken; set => _azureToken = value; }
 

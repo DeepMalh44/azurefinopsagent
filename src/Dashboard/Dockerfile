@@ -26,7 +26,8 @@ RUN apt-get update -qq && \
     ln -sf /usr/bin/python3 /usr/bin/python && \
     pip3 install --no-cache-dir --break-system-packages \
     requests pandas numpy openpyxl tabulate python-dateutil \
-    "python-pptx>=1.0.2" "matplotlib>=3.9" lxml && \
+    "python-pptx>=1.0.2" "matplotlib>=3.9" lxml \
+    "pdfminer.six>=20240706" "pyarrow>=17.0" && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /root/.cache
 

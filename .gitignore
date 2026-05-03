@@ -52,3 +52,9 @@ DRAGONS-DEN.md
 .azcontext
 assets/Banedanmark-AzureCostManagement-Session3.pdf
 assets/Banedanmark-AzureCostManagement-Session3.md
+
+# Generated sample uploads (regenerate with samples/uploads/generate.py)
+samples/uploads/*
+!samples/uploads/generate.py
+!samples/uploads/README.md
+

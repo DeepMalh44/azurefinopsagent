@@ -61,7 +61,7 @@ public static class ChatEndpoints
             logger.LogInformation("Chat request from {User} model={Model} promptLen={PromptLen}",
                 userLogin, copilotFactory.Deployment, prompt.Length);
 
-            var tokens = telemetry.UserTokens.GetOrAdd(userId, _ => new UserTokens());
+            var tokens = telemetry.UserTokens.GetOrAdd(userId, uid => new UserTokens { UserId = uid });
             await tokens.RefreshLock.WaitAsync(ctx.RequestAborted);
             try
             {
@@ -87,7 +87,27 @@ public static class ChatEndpoints
             var connectionContext = connectedApis.Count > 0
                 ? $"[CONTEXT: User IS connected to Azure. Available APIs: {string.Join(", ", connectedApis)}. Proceed with tool calls directly.]"
                 : "[CONTEXT: User is NOT connected to Azure. You can still answer any question that does NOT require their tenant-specific data — including public Azure information (regions, datacenters, services, pricing via RetailPrices, service health, general FinOps guidance), rendering charts/maps with public data, and explaining concepts. Use your built-in knowledge and public tools (RenderChart, RenderAdvancedChart, RetailPricing, GetAzureServiceHealth, web fetch) freely. Only ask the user to click 'Connect Azure' when the question genuinely requires their subscription/tenant data (their costs, their resources, their usage). Do NOT refuse public questions.]";
-            prompt = $"{connectionContext}\n{prompt}";
+
+            // Surface any files the user has dropped into this session so the LLM
+            // immediately knows the fileIds it can pass to QueryUploadedFile.
+            var uploads = AzureFinOps.Dashboard.AI.Tools.UploadedFileTools.ListForUser(userId);
+            string uploadsContext = "";
+            if (uploads.Count > 0)
+            {
+                var sb = new System.Text.StringBuilder();
+                sb.Append("[UPLOADED FILES IN THIS SESSION — the user dropped these in. Their question is almost certainly about them. Use QueryUploadedFile(fileId, mode, paramsJson) to drill in. The schema is already shown below — you usually do NOT need a separate 'preview' call. Jump straight to head / slice / filter / aggregate / text_range / json_path. Responses are capped at ~200 rows / ~8000 chars; issue more calls if needed.");
+                foreach (var u in uploads)
+                {
+                    sb.Append($"\n  - fileId={u.FileId} name='{u.FileName}' kind={u.Kind} size={u.SizeBytes}B");
+                    if (!string.IsNullOrEmpty(u.SchemaSummary))
+                        sb.Append($"\n      schema: {u.SchemaSummary}");
+                }
+                sb.Append("]\n[FOLLOW-UP DIRECTIVE: After answering, you MUST call SuggestFollowUp. When the answer involved file analysis, prefer 2-3 distinct actions via the optional label2/prompt2 + label3/prompt3 parameters. Each action must propose a concrete next ACTION on these files (e.g. 'Rank top 5 prioritized actions across all files', 'Generate a cleanup script for the disks identified', 'Build a CFO deck from these uploads', 'Tag the untagged resources via PATCH'). Never propose a follow-up that just re-asks for analysis the user already saw.]");
+                uploadsContext = sb.ToString();
+            }
+            prompt = string.IsNullOrEmpty(uploadsContext)
+                ? $"{connectionContext}\n{prompt}"
+                : $"{connectionContext}\n{uploadsContext}\n{prompt}";
 
             ctx.Response.Headers.ContentType = "text/event-stream";
             ctx.Response.Headers.CacheControl = "no-cache";
@@ -177,6 +197,8 @@ public static class ChatEndpoints
                 telemetry.ActiveSessions.Add(-1);
                 try { await oldSession.DisposeAsync(); } catch { }
             }
+
+            AzureFinOps.Dashboard.AI.Tools.UploadedFileTools.ClearForUser(userId);
 
             logger.LogInformation("Copilot session cleared for user {UserId}", userId);
             ctx.Response.StatusCode = 204;
