@@ -1505,21 +1505,25 @@
             &times;
           </button>
         </div>
-        <div v-if="hoveredTool.args" class="tool-popover-section">
-          <div class="tool-popover-label">INPUT</div>
-          <pre class="tool-popover-pre">{{ formatJson(hoveredTool.args) }}</pre>
-        </div>
-        <div v-if="hoveredTool.result" class="tool-popover-section">
-          <div class="tool-popover-label">RESPONSE</div>
-          <pre class="tool-popover-pre">{{
-            truncate(hoveredTool.result, 4000)
-          }}</pre>
-        </div>
-        <div v-if="hoveredTool.error" class="tool-popover-section">
-          <div class="tool-popover-label">ERROR</div>
-          <pre class="tool-popover-pre tool-popover-pre--error">{{
-            hoveredTool.error
-          }}</pre>
+        <div class="tool-popover-body">
+          <div v-if="hoveredTool.args" class="tool-popover-section">
+            <div class="tool-popover-label">INPUT</div>
+            <pre class="tool-popover-pre">{{
+              formatJson(hoveredTool.args)
+            }}</pre>
+          </div>
+          <div v-if="hoveredTool.result" class="tool-popover-section">
+            <div class="tool-popover-label">RESPONSE</div>
+            <pre class="tool-popover-pre">{{
+              truncate(hoveredTool.result, 4000)
+            }}</pre>
+          </div>
+          <div v-if="hoveredTool.error" class="tool-popover-section">
+            <div class="tool-popover-label">ERROR</div>
+            <pre class="tool-popover-pre tool-popover-pre--error">{{
+              hoveredTool.error
+            }}</pre>
+          </div>
         </div>
       </div>
     </Teleport>
@@ -5222,6 +5226,12 @@ async function send() {
 .tool-popover-section:last-child {
   border-bottom: none;
 }
+.tool-popover-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
 .tool-popover-label {
   font-size: 12px;
   font-weight: 700;
@@ -5239,7 +5249,7 @@ async function send() {
   font-size: 13px;
   white-space: pre-wrap;
   word-break: break-word;
-  max-height: 350px;
+  max-height: 500px;
   overflow-y: auto;
   line-height: 1.5;
   color: #323130;

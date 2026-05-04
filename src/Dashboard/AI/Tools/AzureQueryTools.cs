@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Text.Json;
 using Microsoft.Extensions.AI;
 
 using AzureFinOps.Dashboard.Auth;
@@ -201,6 +202,13 @@ GET /subscriptions/{id}/providers/Microsoft.Support/supportTickets?api-version=2
 Scope = /subscriptions/{subId} or /subscriptions/{subId}/resourceGroups/{rg}.
 For retail pricing use the built-in fetch tool with https://prices.azure.com (no auth required). ALWAYS filter by armRegionName + serviceName + armSkuName and use $top=20 for comparisons.
 SECURITY: GET, POST, PUT, PATCH allowed. DELETE blocked. The user's Entra RBAC role is the effective access boundary.");
+
+        yield return AIFunctionFactory.Create(BulkAzureRequest, "BulkAzureRequest", @"Executes MANY Azure ARM requests in ONE tool call, in parallel, server-side. Use this whenever you would otherwise loop QueryAzure for the same kind of operation across multiple resources (bulk tagging, cleanup discovery, autoshutdown rollout, budget rollout across subs, multi-resource right-sizing, RBAC fan-out, etc.).
+Input: requestsJson = JSON array of {""method"":""GET|POST|PUT|PATCH"",""path"":""/...?api-version=..."",""body"":""<optional JSON string>""}.
+Optional: parallelism (default 20, max 50), stopOnFirstError (default false).
+Returns ONE compact JSON summary: {""total"":N,""succeeded"":X,""failed"":Y,""durationMs"":Z,""failures"":[{""index"":i,""status"":code,""path"":""..."",""error"":""...""}],""successSamples"":[{""path"":""..."",""name"":""...""}]}.
+DELETE is still blocked at the code level. Same per-request response trimming as QueryAzure (PUT/PATCH echoes are compacted). Throttling-aware: 429 retries are handled per request, batches stay below ARM's 1200 writes/hour/sub.
+Use this INSTEAD of looping QueryAzure when you have ≥5 similar requests. Build the request list from your prior Resource Graph discovery query in the same turn.");
     }
 
     private async Task<string> QueryAzure(
@@ -237,4 +245,139 @@ SECURITY: GET, POST, PUT, PATCH allowed. DELETE blocked. The user's Entra RBAC r
             jsonBody: hasBody && httpMethod != HttpMethod.Get ? body : null,
             includeTimestamp: true);
     }
+
+    private async Task<string> BulkAzureRequest(
+        [Description("JSON array of {method,path,body?} objects, e.g. [{\"method\":\"PATCH\",\"path\":\"/subscriptions/.../tags/default?api-version=2021-04-01\",\"body\":\"{...}\"}]")] string requestsJson,
+        [Description("Max parallel requests in flight. Default 20, max 50.")] int parallelism = 20,
+        [Description("Stop the whole bulk run on the first failure. Default false (continue and report all failures).")] bool stopOnFirstError = false)
+    {
+        using var activity = HttpHelper.Telemetry.StartActivity("BulkAzureRequest");
+        var token = _tokens.AzureToken;
+        if (string.IsNullOrEmpty(token))
+            return HttpHelper.TokenMissing("AzureToken", activity, "bulk");
+
+        if (string.IsNullOrWhiteSpace(requestsJson))
+            return "HTTP 400 BadRequest\nrequestsJson is empty.";
+
+        List<BulkRequestItem>? items;
+        try
+        {
+            items = JsonSerializer.Deserialize<List<BulkRequestItem>>(
+                requestsJson,
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        }
+        catch (JsonException ex)
+        {
+            return $"HTTP 400 BadRequest\nInvalid requestsJson: {ex.Message}";
+        }
+        if (items is null || items.Count == 0)
+            return "HTTP 400 BadRequest\nrequestsJson must be a non-empty JSON array.";
+
+        var maxPar = Math.Clamp(parallelism, 1, 50);
+        activity?.SetTag("bulk.total", items.Count);
+        activity?.SetTag("bulk.parallelism", maxPar);
+
+        var sw = Stopwatch.StartNew();
+        var results = new BulkResult[items.Count];
+        var cts = new CancellationTokenSource();
+
+        await Parallel.ForEachAsync(
+            Enumerable.Range(0, items.Count),
+            new ParallelOptions { MaxDegreeOfParallelism = maxPar, CancellationToken = cts.Token },
+            async (i, ct) =>
+            {
+                var item = items[i];
+                var (httpMethod, methodError) = HttpHelper.ResolveMethod(item.Method, activity, "bulk");
+                if (methodError is not null)
+                {
+                    results[i] = new BulkResult(i, 0, item.Path ?? "", methodError, false);
+                    if (stopOnFirstError) cts.Cancel();
+                    return;
+                }
+                if (string.IsNullOrWhiteSpace(item.Path) || !item.Path.StartsWith('/'))
+                {
+                    results[i] = new BulkResult(i, 400, item.Path ?? "", $"Invalid path: '{item.Path}'", false);
+                    if (stopOnFirstError) cts.Cancel();
+                    return;
+                }
+
+                var hasBody = !string.IsNullOrWhiteSpace(item.Body);
+                var resp = await HttpHelper.SendWithRetryAsync(
+                    $"https://management.azure.com{item.Path}",
+                    token, activity, "bulk",
+                    method: httpMethod,
+                    jsonBody: hasBody && httpMethod != HttpMethod.Get ? item.Body : null,
+                    includeTimestamp: false,
+                    maxResponseChars: 1024); // hard cap so a stray verbose 4xx doesn't blow up the summary
+
+                // Parse the "HTTP {code} {reason}\n{body}" envelope SendWithRetryAsync returns.
+                var firstLine = resp.IndexOf('\n');
+                var statusLine = firstLine > 0 ? resp[..firstLine] : resp;
+                var statusParts = statusLine.Split(' ', 3);
+                int.TryParse(statusParts.ElementAtOrDefault(1), out var status);
+                var ok = status >= 200 && status < 300;
+                var bodyPart = firstLine > 0 ? resp[(firstLine + 1)..] : "";
+
+                string? name = null;
+                try
+                {
+                    var idx = bodyPart.IndexOf('{');
+                    if (idx >= 0)
+                    {
+                        using var doc = JsonDocument.Parse(bodyPart[idx..]);
+                        if (doc.RootElement.ValueKind == JsonValueKind.Object
+                            && doc.RootElement.TryGetProperty("name", out var n))
+                            name = n.GetString();
+                    }
+                }
+                catch { /* ignore */ }
+
+                results[i] = new BulkResult(i, status, item.Path, ok ? null : bodyPart, ok, name);
+                if (!ok && stopOnFirstError) cts.Cancel();
+            });
+
+        sw.Stop();
+        var succeeded = results.Count(r => r is not null && r.Ok);
+        var failed = results.Count(r => r is not null && !r.Ok);
+        activity?.SetTag("bulk.succeeded", succeeded);
+        activity?.SetTag("bulk.failed", failed);
+        activity?.SetTag("bulk.duration_ms", sw.ElapsedMilliseconds);
+
+        var failuresPayload = results
+            .Where(r => r is not null && !r.Ok)
+            .Take(20)
+            .Select(r => new
+            {
+                index = r!.Index,
+                status = r.Status,
+                path = r.Path,
+                error = (r.Error ?? "").Length > 200 ? r.Error![..200] : r.Error
+            });
+
+        var successSamples = results
+            .Where(r => r is not null && r.Ok)
+            .Take(5)
+            .Select(r => new { path = r!.Path, name = r.Name });
+
+        var summary = new
+        {
+            total = items.Count,
+            succeeded,
+            failed,
+            durationMs = sw.ElapsedMilliseconds,
+            stopped = cts.IsCancellationRequested && stopOnFirstError,
+            failures = failuresPayload,
+            successSamples
+        };
+        return JsonSerializer.Serialize(summary);
+    }
+
+    private sealed class BulkRequestItem
+    {
+        public string Method { get; set; } = "GET";
+        public string Path { get; set; } = "";
+        public string? Body { get; set; }
+    }
+
+    private sealed record BulkResult(int Index, int Status, string Path, string? Error, bool Ok, string? Name = null);
 }
