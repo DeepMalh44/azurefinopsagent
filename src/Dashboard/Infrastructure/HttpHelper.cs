@@ -68,6 +68,34 @@ public static class HttpHelper
         if (includeTimestamp)
             result += $"Current UTC time: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}\n";
 
+        // Trim chatty PUT/PATCH echoes — ARM returns the full resource (often 5–20KB) on success.
+        // For bulk mutations this dominates LLM input tokens with no informational value.
+        // Compact to a one-line {ok,status,name,id} summary; failures still return the full body
+        // so the LLM can diagnose. Reads (GET) and query POSTs are untouched.
+        if (res.IsSuccessStatusCode
+            && (method == HttpMethod.Put || method == HttpMethod.Patch)
+            && responseBody.Length > 256)
+        {
+            string? id = null, name = null;
+            try
+            {
+                using var doc = System.Text.Json.JsonDocument.Parse(responseBody);
+                if (doc.RootElement.ValueKind == System.Text.Json.JsonValueKind.Object)
+                {
+                    if (doc.RootElement.TryGetProperty("id", out var idEl)) id = idEl.GetString();
+                    if (doc.RootElement.TryGetProperty("name", out var nameEl)) name = nameEl.GetString();
+                }
+            }
+            catch { /* not JSON or unexpected shape — fall through to full body */ }
+
+            if (id is not null || name is not null)
+            {
+                result += $"{{\"ok\":true,\"status\":{(int)res.StatusCode},\"method\":\"{method.Method}\",\"name\":\"{name}\",\"id\":\"{id}\"}}";
+                activity?.SetTag($"{telemetryPrefix}.response_trimmed", true);
+                return result;
+            }
+        }
+
         if (maxResponseChars.HasValue && responseBody.Length > maxResponseChars.Value)
         {
             result += responseBody[..maxResponseChars.Value];

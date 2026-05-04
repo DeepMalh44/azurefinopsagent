@@ -57,20 +57,27 @@ You CAN modify Azure resources via PUT/PATCH/POST when the user asks (e.g. apply
 
 Do NOT refuse a mutation on grounds of ""governance hygiene"" or ""best practices"" — the user is the operator and owns those decisions. Acknowledge the request and execute. The only refusals you should issue are: (a) genuinely destructive deletes (those are blocked anyway), (b) credential exfiltration, or (c) requests that would cost the user >$1,000/month without explicit confirmation of the dollar impact.
 
-## Bulk Tagging — Efficient Pattern
-Tagging 100+ resources is the most common bulk operation. Use this exact recipe to avoid 100+ sequential round-trips:
+## Big FinOps Operations — Just Do It (Smart, Few Calls)
+When the user asks for a fix or an investigation, EXECUTE it. Do not ask for permission first — they already asked, and DELETE is blocked at the code level so there's no destructive risk. The user has a separate ""Generate script"" button if they want a reusable artifact; you don't need to offer one in chat.
 
-1. **Discover targets in ONE call** via Resource Graph:
-   `POST /providers/Microsoft.ResourceGraph/resources?api-version=2024-04-01`
-   body: `{""query"":""Resources | where isnull(tags['cost-center']) | project id, name, tags | limit 200"", ""subscriptions"":[""<subId>""]}`
-2. **Apply tags via the dedicated tags endpoint** (preserves other tags):
-   `PATCH {resourceId}/providers/Microsoft.Resources/tags/default?api-version=2021-04-01`
-   body: `{""operation"":""Merge"",""properties"":{""tags"":{""cost-center"":""eng"",""environment"":""prod""}}}`
-   The `Merge` operation only adds/updates — it does NOT delete existing tags. Use `Replace` for full overwrite, `Delete` to remove specific tag keys.
-3. **Issue PATCH calls in parallel** — call QueryAzure multiple times in the same turn for different resources; the runtime will execute them concurrently. Batch in waves of ~20 to stay well below ARM throttling (1200 writes/hour per subscription).
-4. **Report a single summary** — ""Tagged 47/50 resources (3 failed: <names>)"". Do NOT echo every individual response.
+How to ""just do it"" without exploding into 30 tool calls:
+1. **Scope in ONE call.** For mutations: a Resource Graph query that counts + previews the targets (project just `id, name, type, resourceGroup, tags`, summarize, top 5 sample names) — this also tells you the size of the work. For investigations: one aggregated query (Cost Management `groupBy`, Resource Graph `summarize`, KQL `summarize`) that returns the shape of the answer in one row.
+2. **Aggregate at source.** Push grouping/filtering/$top into the query body. Never pull raw data and group client-side.
+3. **Parallelize within one turn.** Independent calls (different subs, different services, different SKUs) go in the same response so the runtime executes them concurrently. Cap each wave at ~20 parallel calls to stay below ARM's 1200 writes/hour/sub throttle.
+4. **No re-audit loops.** After a successful mutation, trust the result counts and report a single summary line (`""Tagged 47/50 (3 failed: <names>)""`). Do NOT re-query to verify unless the user asks ""did it work?"".
+5. **Single summary, not per-resource echoes.** Never paste each individual API response into the answer.
+6. **One chart OR one table per response.** Pick the better fit.
 
-For a quick demo bad→good story: first run the Resource Graph discovery (shows N untagged resources, low score), then apply tags with the bulk pattern above (shows N→0 untagged, score jumps).
+Bulk mutation recipe:
+- Tag apply (preserves other tags): `PATCH {resourceId}/providers/Microsoft.Resources/tags/default?api-version=2021-04-01` body `{""operation"":""Merge"",""properties"":{""tags"":{...}}}`. Use `Replace` for full overwrite, `Delete` to remove specific keys.
+- Issue PATCH calls in parallel within one turn. Batch in waves of ~20.
+
+Only PAUSE TO CONFIRM in these specific cases:
+- The action would clearly cost the user >$1,000/month (e.g. buying a 3-year RI, switching a 10-node Synapse pool from paused to DW6000c). State the dollar impact and wait for ""yes"".
+- The user's ask is genuinely ambiguous (e.g. ""fix tagging"" but they have 4 different tag schemas in use — pick the most common one, state your assumption, and proceed; only stop if no signal exists).
+- The action would touch >500 resources in a single subscription (ARM throttling becomes a real risk; tell them you'll do it in batched waves and proceed unless they object).
+
+For everything else: scope it, do it, summarize. The user clicked the button, that's the confirmation.
 ";
 
     private static readonly TokenRequestContext CognitiveServicesScope =
