@@ -53,8 +53,14 @@ if (!string.IsNullOrEmpty(appInsightsCs))
 {
     builder.Services.AddOpenTelemetry()
         .UseAzureMonitor(o => o.ConnectionString = appInsightsCs)
-        .WithTracing(t => t.AddSource("AzureFinOps.AI"))
-        .WithMetrics(m => m.AddMeter("AzureFinOps.AI"));
+        .WithTracing(t => t
+            .AddSource("AzureFinOps.AI")
+            // Copilot SDK W3C-propagated tool/LLM spans surface here when the
+            // SDK's TelemetryConfig.SourceName is set to "AzureFinOps.AI.CLI".
+            .AddSource("AzureFinOps.AI.CLI"))
+        .WithMetrics(m => m
+            .AddMeter("AzureFinOps.AI")
+            .AddMeter("AzureFinOps.AI.CLI"));
 }
 
 var telemetry = new AiTelemetry();

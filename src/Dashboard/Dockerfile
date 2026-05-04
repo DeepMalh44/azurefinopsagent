@@ -31,8 +31,15 @@ RUN apt-get update -qq && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /root/.cache
 
+# OpenTelemetry Collector (contrib build — needed for the azuremonitor exporter).
+# Bridges OTLP from the Copilot CLI subprocess into Azure Application Insights.
+COPY --from=otel/opentelemetry-collector-contrib:0.108.0 /otelcol-contrib /usr/local/bin/otelcol
+COPY otel-collector-config.yaml /etc/otelcol/config.yaml
+
 WORKDIR /app
 COPY --from=build /app/publish .
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
 
 # Build metadata baked into the image
 ARG BUILD_SHA=dev
@@ -42,6 +49,10 @@ ENV BUILD_NUMBER=${BUILD_NUMBER}
 
 # App Service expects port 8080 by default for containers
 ENV ASPNETCORE_URLS=http://+:8080
+# Tell the Copilot CLI (and any other OTLP-capable child process) to push
+# telemetry to the local collector.
+ENV OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
+ENV OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
 EXPOSE 8080
 
-ENTRYPOINT ["dotnet", "Dashboard.dll"]
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

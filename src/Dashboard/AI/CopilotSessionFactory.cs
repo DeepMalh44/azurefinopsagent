@@ -115,7 +115,22 @@ For a quick demo bad→good story: first run the Resource Graph discovery (shows
         string azureOpenAIDeployment,
         ILoggerFactory loggerFactory)
     {
-        var copilotClient = new CopilotClient();
+        // Forward CLI telemetry (GenAI + MCP semantic conventions) to the local
+        // OTel collector when one is configured. The collector translates OTLP into
+        // Azure Monitor format and ships it to Application Insights so we get full
+        // tool-call and LLM-roundtrip visibility without any custom span wiring.
+        var otlpEndpoint = Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT");
+        var clientOptions = new CopilotClientOptions();
+        if (!string.IsNullOrWhiteSpace(otlpEndpoint))
+        {
+            clientOptions.Telemetry = new TelemetryConfig
+            {
+                OtlpEndpoint = otlpEndpoint,
+                CaptureContent = true, // include prompts, tool args, results
+                SourceName = "AzureFinOps.AI.CLI",
+            };
+        }
+        var copilotClient = new CopilotClient(clientOptions);
         await copilotClient.StartAsync();
 
         var credential = new ClientSecretCredential(

@@ -14,25 +14,18 @@ Write-Host "All consent grants revoked — user will see fresh consent screens"
 
 This ensures the incremental consent flow works as expected and the user sees the real Microsoft Entra ID consent UI for each tier.
 
-always check if you are logged into:
-Basic information
-Name
-Contoso
-Tenant ID
-51650aad-d085-4ecb-8b07-d7ed4f5355e0
-Primary domain
-MngEnvMCAP237604.onmicrosoft.com
-License
-Microsoft Entra ID Free
-Users
-2
-Groups
-3
-Applications
-3
-Devices
-2
-admin@MngEnvMCAP237604.onmicrosoft.com
+always check if you are logged into the right tenant + subscription before running Azure CLI commands:
+
+- **Tenant**: Contoso — `51650aad-d085-4ecb-8b07-d7ed4f5355e0` (`MngEnvMCAP237604.onmicrosoft.com`)
+- **Subscription**: `ME-MngEnvMCAP237604-alfarahn-1` — `3f359915-1adb-4464-a4c0-8b0bc65c7959`
+- **Account**: `admin@MngEnvMCAP237604.onmicrosoft.com`
+
+If `az account show` returns a different tenant, run:
+
+```powershell
+az login --tenant 51650aad-d085-4ecb-8b07-d7ed4f5355e0
+az account set --subscription 3f359915-1adb-4464-a4c0-8b0bc65c7959
+```
 
 ## Project Purpose
 
@@ -58,7 +51,7 @@ The agent acts as a frontend on top of Azure Cost Management, Billing, ARM REST 
 - **AI**: GitHub Copilot SDK (`GitHub.Copilot.SDK`) with BYOK (Bring Your Own Key) using Azure OpenAI via Entra ID bearer tokens. Sessions managed via `CopilotClient` / `CopilotSession`. Reasoning effort set to `xhigh`. The Copilot CLI provides built-in tools (file operations, bash, grep, glob, web fetch, memory) — custom tools handle Azure-specific APIs.
 - **Auth**: Auto-assigned anonymous sessions (no login required for chat); Microsoft Entra ID OAuth (multi-tenant) for Azure ARM, Microsoft Graph, and Log Analytics APIs
 - **Data Sources**: Azure Retail Prices API (no auth), Azure Service Health (no auth), Azure Cost Management APIs, Microsoft Graph APIs, Azure Monitor / Log Analytics APIs, ECharts visualization
-- **Observability**: OpenTelemetry + Azure Monitor (Application Insights) — structured traces via `ActivitySource("AzureFinOps.AI")` and custom metrics via `Meter("AzureFinOps.AI")` (chat requests, tool calls, errors, token refreshes, session lifecycle, duration histograms). Frontend telemetry in `client/src/main.js` captures page views, failed browser dependencies, uncaught JS errors, unhandled promise rejections, Vue component errors, and CSP violations. Third-party correlation headers are excluded for `cdn.jsdelivr.net` and `js.monitor.azure.com` so browser telemetry does not break public fetches.
+- **Observability**: OpenTelemetry end-to-end. The .NET app uses `UseAzureMonitor()` (auto-instruments HttpClient, ASP.NET Core, custom `ActivitySource("AzureFinOps.AI")` + `Meter("AzureFinOps.AI")`). The Copilot CLI subprocess emits OTLP via the SDK's built-in `TelemetryConfig` (GenAI + MCP semantic conventions — every tool call, LLM round-trip, prompt, tool args, result, token usage). Both feeds reach Application Insights via an in-container **OpenTelemetry Collector** (`otel/opentelemetry-collector-contrib`) using the `azuremonitor` exporter — config at `src/Dashboard/otel-collector-config.yaml`, launched by `entrypoint.sh` before the .NET app. Trace context (W3C `traceparent`) is auto-propagated SDK→CLI so Application Map shows one continuous transaction. Custom metrics (`finops.chat.requests`, `finops.tool.calls`, `finops.sessions.active`, etc.) keep flowing through the .NET exporter. Frontend telemetry in `client/src/main.js` captures page views, failed browser dependencies, uncaught JS errors, unhandled promise rejections, Vue component errors, and CSP violations. Third-party correlation headers are excluded for `cdn.jsdelivr.net` and `js.monitor.azure.com`.
 - **Deployment**: Azure App Service (Linux, P0v3 Premium) via Docker container image from Azure Container Registry (ACR). Multi-stage Dockerfile bakes Python 3, pip packages (python-pptx, matplotlib, pandas, numpy, lxml), and CLI tools into the image — no runtime install needed. Legacy zip deployment via `deploy.ps1` still supported for the original `finops-agent` app.
 - **Container Registry**: Azure Container Registry (`crfinopsagent.azurecr.io`) — Basic SKU, admin credentials, images built via `az acr build`
 - **Container App (staging)**: `finops-agent-container.azurewebsites.net` — Docker container on same P0v3 plan, used for testing before swapping to production
@@ -91,7 +84,9 @@ src/Dashboard/
 │   ├── ScriptTools.cs      # GenerateScript — generates downloadable Azure CLI/PowerShell scripts from FinOps recommendations
 │   └── UploadedFileTools.cs # QueryUploadedFile — inspect/query files (CSV/TSV/JSON/TXT/XLSX/PDF/Parquet) the user dropped into chat (no Azure consent needed). Backed by AI/Tools/Resources/file_inspect.py (pandas/openpyxl/pyarrow/pdfminer).
 │   └── TokenContext.cs     # UserTokens — per-user mutable token holder with volatile fields for concurrent access
-├── Dockerfile              # Multi-stage Docker build (node:22 + dotnet/sdk:10.0 + dotnet/aspnet:10.0 + Python 3)
+├── Dockerfile              # Multi-stage Docker build (node:22 + dotnet/sdk:10.0 + dotnet/aspnet:10.0 + Python 3 + OTel collector)
+├── entrypoint.sh           # Container entrypoint — starts OTel collector in background, then exec dotnet
+├── otel-collector-config.yaml # OpenTelemetry Collector config — bridges OTLP from Copilot CLI → Application Insights via azuremonitor exporter
 ├── .dockerignore           # Excludes bin/, obj/, node_modules/, wwwroot/ from Docker context
 ├── client/
 │   ├── index.html          # SPA entry point
