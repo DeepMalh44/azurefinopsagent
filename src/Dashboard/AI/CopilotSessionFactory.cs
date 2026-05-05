@@ -132,10 +132,7 @@ For everything else: scope it, do it, summarize. The user clicked the button, th
         MicrosoftOAuthOptions oauthOptions,
         string azureOpenAIEndpoint,
         string azureOpenAIDeployment,
-        ILoggerFactory loggerFactory,
-        string? byokTenantId = null,
-        string? byokClientId = null,
-        string? byokClientSecret = null)
+        ILoggerFactory loggerFactory)
     {
         // Forward CLI telemetry (GenAI + MCP semantic conventions) to the local
         // OTel collector when one is configured. The collector translates OTLP into
@@ -155,14 +152,11 @@ For everything else: scope it, do it, summarize. The user clicked the button, th
         var copilotClient = new CopilotClient(clientOptions);
         await copilotClient.StartAsync();
 
-        // BYOK credential: defaults to the Microsoft OAuth app reg (one set of secrets),
-        // but can be overridden via Foundry.* config to point at a different tenant /
-        // app registration that owns the Azure OpenAI deployment. This lets us swap the
-        // model provider without touching the user-facing OAuth flow.
+        // BYOK credential: uses the Microsoft OAuth app reg to mint Azure OpenAI bearer tokens.
         var credential = new ClientSecretCredential(
-            string.IsNullOrWhiteSpace(byokTenantId) ? oauthOptions.HomeTenantId : byokTenantId,
-            string.IsNullOrWhiteSpace(byokClientId) ? oauthOptions.ClientId : byokClientId,
-            string.IsNullOrWhiteSpace(byokClientSecret) ? oauthOptions.ClientSecret : byokClientSecret);
+            oauthOptions.HomeTenantId,
+            oauthOptions.ClientId,
+            oauthOptions.ClientSecret);
 
         var chartLogger = loggerFactory.CreateLogger("AzureFinOps.AI.Charts");
         var sharedTools = new List<AIFunction>();

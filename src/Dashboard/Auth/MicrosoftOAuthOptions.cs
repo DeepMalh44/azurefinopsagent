@@ -11,14 +11,6 @@ public sealed class MicrosoftOAuthOptions
     public string TenantId { get; init; } = "common";
     public string HomeTenantId { get; init; } = "common";
 
-    /// <summary>
-    /// When true, forces <c>prompt=login</c> on every authorize redirect so cached
-    /// browser accounts from other tenants are bypassed. Useful for local demos
-    /// against a single-tenant app reg. Default false (keeps the friendlier
-    /// <c>select_account</c> behavior for production multi-tenant use).
-    /// </summary>
-    public bool ForceLoginPrompt { get; init; }
-
     public bool IsConfigured => !string.IsNullOrEmpty(ClientId);
 
     /// <summary>

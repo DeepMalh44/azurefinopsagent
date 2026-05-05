@@ -113,7 +113,6 @@ public static class MicrosoftAuthEndpoints
             ctx.Session.Remove("force_consent");
             var silentChain = ctx.Session.GetString("auth_silent") == "1";
             string promptType = silentChain ? "none"
-                : options.ForceLoginPrompt ? "login"
                 : (tier != "base" || forceConsent) ? "consent"
                 : "select_account";
 

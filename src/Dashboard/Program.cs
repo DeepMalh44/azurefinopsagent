@@ -22,7 +22,6 @@ var oauthOptions = new MicrosoftOAuthOptions
     HomeTenantId = builder.Configuration["Microsoft:HomeTenantId"]
                    ?? builder.Configuration["Microsoft:TenantId"]
                    ?? "common",
-    ForceLoginPrompt = bool.TryParse(builder.Configuration["Microsoft:ForceLoginPrompt"], out var f) && f,
 };
 var azureOpenAIEndpoint = builder.Configuration["AzureOpenAI:Endpoint"]
                           ?? "https://finops-agent-ai.openai.azure.com/";
@@ -76,10 +75,7 @@ var logger = loggerFactory.CreateLogger("AzureFinOps.AI");
 logger.LogInformation("Application starting. AppInsights configured: {Configured}", !string.IsNullOrEmpty(appInsightsCs));
 
 await using var copilotFactory = await CopilotSessionFactory.CreateAsync(
-    telemetry, oauthOptions, azureOpenAIEndpoint, azureOpenAIDeployment, loggerFactory,
-    byokTenantId: builder.Configuration["Foundry:TenantId"],
-    byokClientId: builder.Configuration["Foundry:ClientId"],
-    byokClientSecret: builder.Configuration["Foundry:ClientSecret"]);
+    telemetry, oauthOptions, azureOpenAIEndpoint, azureOpenAIDeployment, loggerFactory);
 
 // ── Middleware pipeline ────────────────────────────────────────
 var forwardedHeadersOptions = new ForwardedHeadersOptions
