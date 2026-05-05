@@ -88,7 +88,7 @@ For everything else: scope it, do it, summarize. The user clicked the button, th
 
     private readonly AiTelemetry _telemetry;
     private readonly CopilotClient _copilotClient;
-    private readonly ClientSecretCredential _credential;
+    private readonly TokenCredential _credential;
     private readonly string _endpoint;
     private readonly string _deployment;
     private readonly List<AIFunction> _sharedTools;
@@ -112,7 +112,7 @@ For everything else: scope it, do it, summarize. The user clicked the button, th
     private CopilotSessionFactory(
         AiTelemetry telemetry,
         CopilotClient copilotClient,
-        ClientSecretCredential credential,
+        TokenCredential credential,
         string endpoint,
         string deployment,
         List<AIFunction> sharedTools,
@@ -152,11 +152,13 @@ For everything else: scope it, do it, summarize. The user clicked the button, th
         var copilotClient = new CopilotClient(clientOptions);
         await copilotClient.StartAsync();
 
-        // BYOK credential: uses the Microsoft OAuth app reg to mint Azure OpenAI bearer tokens.
-        var credential = new ClientSecretCredential(
-            oauthOptions.HomeTenantId,
-            oauthOptions.ClientId,
-            oauthOptions.ClientSecret);
+        // BYOK credential: prefers a managed identity in Azure (App Service / Container Apps),
+        // falls back to az CLI / VS / env vars locally. Grant the identity the
+        // "Cognitive Services User" role on the Azure OpenAI resource.
+        var credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions
+        {
+            ExcludeInteractiveBrowserCredential = true,
+        });
 
         var chartLogger = loggerFactory.CreateLogger("AzureFinOps.AI.Charts");
         var sharedTools = new List<AIFunction>();
