@@ -1,5 +1,11 @@
 # Azure FinOps Agent
 
+[![Deploy to Azure](https://github.com/Azure-Samples/azure-finops-agent/actions/workflows/deploy.yml/badge.svg)](https://github.com/Azure-Samples/azure-finops-agent/actions/workflows/deploy.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![.NET 10](https://img.shields.io/badge/.NET-10-512BD4?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
+[![Vue 3](https://img.shields.io/badge/Vue-3-4FC08D?logo=vuedotjs&logoColor=white)](https://vuejs.org/)
+[![Live demo](https://img.shields.io/badge/demo-azure--finops--agent.com-0078D4?logo=microsoftazure&logoColor=white)](https://azure-finops-agent.com)
+
 Replace a multi-week FinOps assessment with a single conversation. Connect a tenant or drop a cost export, ask in plain language, and walk away with quantified savings, a FinOps Foundation maturity score, a CFO-ready PowerPoint deck, and ready-to-run remediation scripts — in minutes, not sprints.
 
 The agent can apply fixes directly (`GET` / `POST` / `PUT` / `PATCH` — e.g. tags, budgets, anomaly alerts, autoshutdown) or hand you a downloadable script if you'd rather review first. **`DELETE` is blocked at the code level**, so destructive cleanup always stays in human hands. Multi-tenant, safe to point at anything from a dev sandbox to a global enterprise estate.

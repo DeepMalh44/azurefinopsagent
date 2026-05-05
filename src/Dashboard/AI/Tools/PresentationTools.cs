@@ -153,17 +153,6 @@ GOOD EXAMPLE (note conclusion-style titles, takeaway bullets after charts, $ for
         psi.Environment["PPTX_OUTPUT_PATH"] = outputPath;
         psi.Environment["PPTX_CUSTOMER"] = customer ?? "";
 
-        // Ensure pip packages installed by startup.sh are discoverable (Azure: /home/site/pip-packages)
-        // On local dev (Windows/macOS), packages are in the default site-packages — no override needed
-        var pipTarget = "/home/site/pip-packages";
-        if (Directory.Exists(pipTarget))
-        {
-            var existingPythonPath = Environment.GetEnvironmentVariable("PYTHONPATH") ?? "";
-            psi.Environment["PYTHONPATH"] = string.IsNullOrEmpty(existingPythonPath)
-                ? pipTarget
-                : $"{pipTarget}:{existingPythonPath}";
-        }
-
         using var process = new Process { StartInfo = psi };
         process.Start();
 

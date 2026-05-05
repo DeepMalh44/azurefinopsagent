@@ -15,11 +15,6 @@
     <PackageReference Include="OpenTelemetry.Api" Version="1.15.3" />
   </ItemGroup>
 
-  <!-- Include startup.sh in publish output for App Service custom startup -->
-  <ItemGroup>
-    <None Update="startup.sh" CopyToPublishDirectory="PreserveNewest" />
-  </ItemGroup>
-
   <!-- Embed Python script templates as resources (loaded at runtime by tools) -->
   <ItemGroup>
     <EmbeddedResource Include="AI\Tools\Resources\*.py" />

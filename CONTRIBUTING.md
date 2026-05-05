@@ -58,12 +58,15 @@ dotnet run --urls "http://localhost:5000"
 
 ```
 src/Dashboard/
-├── Program.cs              # Auth, SSE chat, models, version endpoints
-├── Tools/                  # AI agent tools (QueryAzure, QueryGraph, RenderChart, etc.)
+├── Program.cs              # App composition, middleware, endpoint mapping
+├── AI/                     # Copilot SDK session factory, chat SSE endpoint, tools
+├── Auth/                   # Microsoft Entra ID OAuth, session token store
+├── Web/                    # Upload/download/SEO/meta endpoints
+├── Infrastructure/         # HTTP helper, temp file helper
+├── Observability/          # OpenTelemetry sources/meters
 ├── client/src/components/  # Vue 3 components (ChatView, Dashboard)
-├── setup-entra-app.ps1     # Entra ID app registration setup (one-time)
-├── deploy.ps1              # Azure App Service deployment
-└── startup.sh              # App Service startup — installs Python/tools
+├── Dockerfile              # Multi-stage build (frontend + .NET + Python + OTel)
+└── setup-entra-app.ps1     # Entra ID app registration setup (one-time)
 ```
 
 ### Code Conventions
