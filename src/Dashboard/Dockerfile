@@ -1,9 +1,9 @@
 # ── Stage 1: Build Vue frontend ──
 FROM node:22-slim AS frontend
-WORKDIR /app/client
+WORKDIR /app/frontend
 COPY frontend/package.json frontend/package-lock.json* ./
 RUN npm ci
-COPY client/ ./
+COPY frontend/ ./
 RUN npx vite build --outDir ../wwwroot
 
 # ── Stage 2: Build .NET backend ──
