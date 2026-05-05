@@ -20,7 +20,7 @@ These files exercise every code path in `QueryUploadedFile`. Drag any of them in
 
 ```pwsh
 cd C:\repos\azure-finops-agent-azsamples
-.\.venv\Scripts\python.exe samples\uploads\generate.py
+.\.venv\Scripts\python.exe demo-data\generate.py
 ```
 
 ## Notes

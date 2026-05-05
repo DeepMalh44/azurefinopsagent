@@ -54,5 +54,5 @@ docs/assets/Banedanmark-AzureCostManagement-Session3.pdf
 docs/assets/Banedanmark-AzureCostManagement-Session3.md
 
 # Sample uploads are committed so demos work out of the box.
-# Regenerate with samples/uploads/generate.py if needed.
+# Regenerate with demo-data/generate.py if needed.
 

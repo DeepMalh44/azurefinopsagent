@@ -2,9 +2,9 @@
 Generate realistic FinOps sample files for testing the chat upload feature.
 
 Run from repo root with the project venv active:
-    python samples/uploads/generate.py
+    python demo-data/generate.py
 
-Produces (in samples/uploads/):
+Produces (in demo-data/):
   azure-cost-90days.csv         ~30k rows, Cost Management-shaped
   azure-resources.tsv           ~5k rows, Resource Graph inventory
   advisor-recommendations.json  ~500 items, JSON array

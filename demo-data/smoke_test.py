@@ -6,7 +6,7 @@ each mode of QueryUploadedFile by calling the chat endpoint with prompts that
 force specific tool calls. Reports OK / FAIL per file.
 
 Run while the backend is up at http://localhost:5000:
-    .\.venv\Scripts\python.exe samples\uploads\smoke_test.py
+    .\.venv\Scripts\python.exe demo-data\smoke_test.py
 """
 from __future__ import annotations
 import json
