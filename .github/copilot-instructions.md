@@ -60,7 +60,7 @@ The agent acts as a frontend on top of Azure Cost Management, Billing, ARM REST 
 
 ## Azure Icon Assets
 
-- `Icons/` and `assets/Icons/` are **gitignored** — they contain the full Azure Architecture icon pack (~1,370 SVGs) downloaded from [Microsoft](https://learn.microsoft.com/azure/architecture/icons/) for local use only.
+- `Icons/` and `docs/assets/Icons/` are **gitignored** — they contain the full Azure Architecture icon pack (~1,370 SVGs) downloaded from [Microsoft](https://learn.microsoft.com/azure/architecture/icons/) for local use only.
 - `azure-icons-catalog.drawio` is a generated draw.io catalog of all icons (with embedded base64 SVGs) — also gitignored.
 - If a README, doc, or diagram needs a specific icon, copy it into `assets/` (which IS versioned, minus its `Icons/` subfolder).
 

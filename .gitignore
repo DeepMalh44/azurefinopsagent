@@ -42,16 +42,16 @@ Thumbs.db
 
 ## Azure icon packs (local reference only — not versioned)
 ## Download from https://learn.microsoft.com/en-us/azure/architecture/icons/
-## Use assets/ for icons actually referenced in README/docs/diagrams
+## Use docs/assets/ for icons actually referenced in README/docs/diagrams
 Icons/
-assets/Icons/
+docs/assets/Icons/
 azure-icons-catalog.drawio
 
-## Dragon's Den submission (personal)
-DRAGONS-DEN.md
+## Personal notes (kept locally, not published)
+docs/dragons-den.md
 .azcontext
-assets/Banedanmark-AzureCostManagement-Session3.pdf
-assets/Banedanmark-AzureCostManagement-Session3.md
+docs/assets/Banedanmark-AzureCostManagement-Session3.pdf
+docs/assets/Banedanmark-AzureCostManagement-Session3.md
 
 # Sample uploads are committed so demos work out of the box.
 # Regenerate with samples/uploads/generate.py if needed.

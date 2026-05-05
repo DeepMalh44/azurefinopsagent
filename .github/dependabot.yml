@@ -37,9 +37,3 @@ updates:
     schedule:
       interval: weekly
     labels: [dependencies, docker]
-
-  - package-ecosystem: nuget
-    directory: /tests/Dashboard.Tests
-    schedule:
-      interval: weekly
-    labels: [dependencies, dotnet, tests]
