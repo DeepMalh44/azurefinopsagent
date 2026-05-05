@@ -53,8 +53,6 @@ DRAGONS-DEN.md
 assets/Banedanmark-AzureCostManagement-Session3.pdf
 assets/Banedanmark-AzureCostManagement-Session3.md
 
-# Generated sample uploads (regenerate with samples/uploads/generate.py)
-samples/uploads/*
-!samples/uploads/generate.py
-!samples/uploads/README.md
+# Sample uploads are committed so demos work out of the box.
+# Regenerate with samples/uploads/generate.py if needed.
 
