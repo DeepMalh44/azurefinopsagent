@@ -66,6 +66,8 @@ if (!string.IsNullOrEmpty(appInsightsCs))
 var telemetry = new AiTelemetry();
 builder.Services.AddSingleton(telemetry);
 builder.Services.AddSingleton(oauthOptions);
+builder.Services.AddSingleton<EntraClientCredentials>();
+builder.Services.AddSingleton<IdTokenValidator>();
 builder.Services.AddSingleton<SessionTokenStore>();
 builder.Services.AddHostedService<UserStateJanitor>();
 
@@ -99,7 +101,7 @@ app.Use(async (ctx, next) =>
     headers["X-Content-Type-Options"] = "nosniff";
     headers["X-Frame-Options"] = "DENY";
     headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
-    headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()";
+    headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()";
     headers["Content-Security-Policy"] =
         "default-src 'self'; " +
         "script-src 'self'; " +
@@ -205,8 +207,10 @@ app.Use(async (ctx, next) =>
 
 // ── Endpoints ──────────────────────────────────────────────────
 var tokenStore = app.Services.GetRequiredService<SessionTokenStore>();
+var entraCredentials = app.Services.GetRequiredService<EntraClientCredentials>();
+var idTokenValidator = app.Services.GetRequiredService<IdTokenValidator>();
 
-app.MapMicrosoftAuthEndpoints(oauthOptions, telemetry, logger);
+app.MapMicrosoftAuthEndpoints(oauthOptions, entraCredentials, idTokenValidator, telemetry, logger);
 app.MapAzureSessionEndpoints(tokenStore, telemetry, logger);
 app.MapChatEndpoints(copilotFactory, tokenStore, telemetry, logger);
 app.MapMetaEndpoints(appInsightsCs ?? "", azureOpenAIDeployment);

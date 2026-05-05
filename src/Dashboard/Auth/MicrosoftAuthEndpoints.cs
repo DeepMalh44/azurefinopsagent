@@ -25,6 +25,8 @@ public static class MicrosoftAuthEndpoints
     public static void MapMicrosoftAuthEndpoints(
         this IEndpointRouteBuilder app,
         MicrosoftOAuthOptions options,
+        EntraClientCredentials credentials,
+        IdTokenValidator idTokenValidator,
         AiTelemetry telemetry,
         ILogger logger)
     {
@@ -88,8 +90,14 @@ public static class MicrosoftAuthEndpoints
             ctx.Session.SetString("pkce_verifier", codeVerifier);
             var codeChallenge = PkceChallenge(codeVerifier);
 
-            var tier = ctx.Request.Query["tier"].ToString().ToLowerInvariant();
-            if (string.IsNullOrEmpty(tier)) tier = "base";
+            // OIDC nonce — bound into the id_token by the IdP and verified on callback
+            // to defeat token replay between sessions.
+            var nonce = CryptoRandomHex(16);
+            ctx.Session.SetString("oidc_nonce", nonce);
+
+            // Allowlist-validate the requested tier — reject anything outside the
+            // known set so we never construct an /authorize URL with attacker-supplied scopes.
+            var tier = MicrosoftOAuthOptions.NormalizeTier(ctx.Request.Query["tier"].ToString());
 
             // Post-admin-consent silent chain: walk every remaining add-on tier
             if (ctx.Request.Query["postadmin"].ToString() == "1")
@@ -103,8 +111,17 @@ public static class MicrosoftAuthEndpoints
 
             var tenantParam = ctx.Request.Query["tenant"].ToString().Trim();
             if (!string.IsNullOrEmpty(tenantParam))
+            {
+                if (!MicrosoftOAuthOptions.IsValidTenantId(tenantParam))
+                {
+                    logger.LogWarning("Rejected invalid tenant query param: {Tenant}", tenantParam);
+                    return Results.BadRequest("Invalid tenant identifier");
+                }
                 ctx.Session.SetString("auth_tenant", tenantParam);
+            }
             var effectiveTenant = ctx.Session.GetString("auth_tenant") ?? options.TenantId;
+            if (!MicrosoftOAuthOptions.IsValidTenantId(effectiveTenant))
+                effectiveTenant = options.TenantId;
 
             var redirectUri = $"{MicrosoftOAuthOptions.NormalizeCallbackHost(ctx)}/auth/microsoft/callback";
             var scope = string.Join(" ", ["openid", "profile", "email", "offline_access", .. MicrosoftOAuthOptions.GetScopesForTier(tier)]);
@@ -122,6 +139,7 @@ public static class MicrosoftAuthEndpoints
                       $"&redirect_uri={Uri.EscapeDataString(redirectUri)}" +
                       $"&scope={Uri.EscapeDataString(scope)}" +
                       $"&state={state}" +
+                      $"&nonce={nonce}" +
                       $"&response_mode=query" +
                       $"&prompt={promptType}" +
                       $"&code_challenge={codeChallenge}" +
@@ -237,7 +255,6 @@ public static class MicrosoftAuthEndpoints
                 var tokenForm = new Dictionary<string, string>
                 {
                     ["client_id"] = options.ClientId,
-                    ["client_secret"] = options.ClientSecret,
                     ["code"] = code,
                     ["redirect_uri"] = redirectUri,
                     ["grant_type"] = "authorization_code",
@@ -245,6 +262,8 @@ public static class MicrosoftAuthEndpoints
                 };
                 if (!string.IsNullOrEmpty(pkceVerifier))
                     tokenForm["code_verifier"] = pkceVerifier;
+                // Adds either client_secret OR client_assertion (federated MI). Prefer the latter.
+                await credentials.AddCredentialFieldsAsync(tokenForm);
 
                 tokenReq.Content = new FormUrlEncodedContent(tokenForm);
 
@@ -299,31 +318,24 @@ public static class MicrosoftAuthEndpoints
                 if (tokenJson.TryGetProperty("id_token", out var idTokenProp))
                 {
                     var idToken = idTokenProp.GetString()!;
-                    var parts = idToken.Split('.');
-                    if (parts.Length == 3)
+                    var expectedNonce = ctx.Session.GetString("oidc_nonce") ?? "";
+                    ctx.Session.Remove("oidc_nonce");
+                    var validated = await idTokenValidator.ValidateAsync(idToken, expectedNonce);
+                    if (validated is null)
                     {
-                        try
-                        {
-                            var payload = parts[1];
-                            payload = payload.Replace('-', '+').Replace('_', '/');
-                            switch (payload.Length % 4)
-                            {
-                                case 2: payload += "=="; break;
-                                case 3: payload += "="; break;
-                            }
-                            var claims = JsonSerializer.Deserialize<JsonElement>(Convert.FromBase64String(payload));
-                            var azureUser = new Dictionary<string, string?>();
-                            if (claims.TryGetProperty("name", out var n)) azureUser["name"] = n.GetString();
-                            if (claims.TryGetProperty("preferred_username", out var u)) azureUser["email"] = u.GetString();
-                            if (claims.TryGetProperty("tid", out var t)) azureUser["tenantId"] = t.GetString();
-                            if (claims.TryGetProperty("oid", out var o)) azureUser["objectId"] = o.GetString();
-                            ctx.Session.SetString("azure_user", JsonSerializer.Serialize(azureUser));
-                        }
-                        catch (Exception ex)
-                        {
-                            logger.LogWarning(ex, "Failed to parse ID token claims");
-                        }
+                        logger.LogWarning("id_token failed validation — aborting login");
+                        return Results.Redirect("/?azure_error=id_token_invalid");
                     }
+                    var azureUser = new Dictionary<string, string?>
+                    {
+                        // oid+tid is the only stable, attacker-resistant identity in a multi-tenant
+                        // app. email/preferred_username are display-only (defends against nOAuth).
+                        ["tenantId"] = validated.TenantId,
+                        ["objectId"] = validated.ObjectId,
+                        ["name"] = validated.Name,
+                        ["email"] = validated.Email ?? validated.PreferredUsername,
+                    };
+                    ctx.Session.SetString("azure_user", JsonSerializer.Serialize(azureUser));
                 }
 
                 logger.LogInformation("Microsoft OAuth login successful, tier={Tier}", authTier);
@@ -337,7 +349,17 @@ public static class MicrosoftAuthEndpoints
                         var next = parts[0];
                         var rest = string.Join(",", parts.Skip(1));
                         ctx.Session.SetString("auth_chain", rest);
-                        return Results.Redirect($"/auth/microsoft?tier={Uri.EscapeDataString(next)}");
+                        // Defensive: only chain to known tiers. Anything unexpected
+                        // means session tampering — drop the chain and finish normally.
+                        if (!MicrosoftOAuthOptions.ValidTiers.Contains(next))
+                        {
+                            logger.LogWarning("Dropped auth_chain entry with invalid tier: {Tier}", next);
+                            ctx.Session.Remove("auth_chain");
+                        }
+                        else
+                        {
+                            return Results.Redirect($"/auth/microsoft?tier={Uri.EscapeDataString(next)}");
+                        }
                     }
                     ctx.Session.Remove("auth_chain");
                 }

@@ -12,12 +12,14 @@ namespace AzureFinOps.Dashboard.Auth;
 public sealed class SessionTokenStore
 {
     private readonly MicrosoftOAuthOptions _options;
+    private readonly EntraClientCredentials _credentials;
     private readonly ILogger<SessionTokenStore> _logger;
     private readonly ConcurrentDictionary<string, SemaphoreSlim> _refreshLocks = new();
 
-    public SessionTokenStore(MicrosoftOAuthOptions options, ILogger<SessionTokenStore> logger)
+    public SessionTokenStore(MicrosoftOAuthOptions options, EntraClientCredentials credentials, ILogger<SessionTokenStore> logger)
     {
         _options = options;
+        _credentials = credentials;
         _logger = logger;
     }
 
@@ -27,14 +29,15 @@ public sealed class SessionTokenStore
         var effectiveTenant = tenantOverride ?? _options.TenantId;
         using var req = new HttpRequestMessage(HttpMethod.Post,
             $"https://login.microsoftonline.com/{Uri.EscapeDataString(effectiveTenant)}/oauth2/v2.0/token");
-        req.Content = new FormUrlEncodedContent(new Dictionary<string, string>
+        var form = new Dictionary<string, string>
         {
             ["client_id"] = _options.ClientId,
-            ["client_secret"] = _options.ClientSecret,
             ["refresh_token"] = refreshToken,
             ["grant_type"] = "refresh_token",
             ["scope"] = scope
-        });
+        };
+        await _credentials.AddCredentialFieldsAsync(form);
+        req.Content = new FormUrlEncodedContent(form);
 
         var res = await http.SendAsync(req);
         if (!res.IsSuccessStatusCode) return null;
