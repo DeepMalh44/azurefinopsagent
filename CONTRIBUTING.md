@@ -25,7 +25,7 @@ This project has adopted the [Microsoft Open Source Code of Conduct](https://ope
 ### Building & Running
 
 - **Backend**: .NET 10 minimal API in `src/Dashboard/`
-- **Frontend**: Vue 3 + Vite SPA in `src/Dashboard/client/`
+- **Frontend**: Vue 3 + Vite SPA in `src/Dashboard/frontend/`
 
 ```bash
 # One-time: Create Entra ID app registration
@@ -64,7 +64,7 @@ src/Dashboard/
 ├── Web/                    # Upload/download/SEO/meta endpoints
 ├── Infrastructure/         # HTTP helper, temp file helper
 ├── Observability/          # OpenTelemetry sources/meters
-├── client/src/components/  # Vue 3 components (ChatView, Dashboard)
+├── frontend/src/components/  # Vue 3 components (ChatView, Dashboard)
 ├── Dockerfile              # Multi-stage build (frontend + .NET + Python + OTel)
 └── setup-entra-app.ps1     # Entra ID app registration setup (one-time)
 ```

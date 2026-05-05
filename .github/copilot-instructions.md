@@ -47,11 +47,11 @@ The agent acts as a frontend on top of Azure Cost Management, Billing, ARM REST 
 ## Tech Stack
 
 - **Backend**: .NET 10 minimal API (`src/Dashboard/`)
-- **Frontend**: Vue 3 + Vite SPA (`src/Dashboard/client/`) with ECharts for data visualization
+- **Frontend**: Vue 3 + Vite SPA (`src/Dashboard/frontend/`) with ECharts for data visualization
 - **AI**: GitHub Copilot SDK (`GitHub.Copilot.SDK`) with BYOK (Bring Your Own Key) using Azure OpenAI via Entra ID bearer tokens. Sessions managed via `CopilotClient` / `CopilotSession`. Reasoning effort set to `xhigh`. The Copilot CLI provides built-in tools (file operations, bash, grep, glob, web fetch, memory) — custom tools handle Azure-specific APIs.
 - **Auth**: Auto-assigned anonymous sessions (no login required for chat); Microsoft Entra ID OAuth (multi-tenant) for Azure ARM, Microsoft Graph, and Log Analytics APIs
 - **Data Sources**: Azure Retail Prices API (no auth), Azure Service Health (no auth), Azure Cost Management APIs, Microsoft Graph APIs, Azure Monitor / Log Analytics APIs, ECharts visualization
-- **Observability**: OpenTelemetry end-to-end. The .NET app uses `UseAzureMonitor()` (auto-instruments HttpClient, ASP.NET Core, custom `ActivitySource("AzureFinOps.AI")` + `Meter("AzureFinOps.AI")`). The Copilot CLI subprocess emits OTLP via the SDK's built-in `TelemetryConfig` (GenAI + MCP semantic conventions — every tool call, LLM round-trip, prompt, tool args, result, token usage). Both feeds reach Application Insights via an in-container **OpenTelemetry Collector** (`otel/opentelemetry-collector-contrib`) using the `azuremonitor` exporter — config at `src/Dashboard/otel-collector-config.yaml`, launched by `entrypoint.sh` before the .NET app. Trace context (W3C `traceparent`) is auto-propagated SDK→CLI so Application Map shows one continuous transaction. Custom metrics (`finops.chat.requests`, `finops.tool.calls`, `finops.sessions.active`, etc.) keep flowing through the .NET exporter. Frontend telemetry in `client/src/main.js` captures page views, failed browser dependencies, uncaught JS errors, unhandled promise rejections, Vue component errors, and CSP violations. Third-party correlation headers are excluded for `cdn.jsdelivr.net` and `js.monitor.azure.com`.
+- **Observability**: OpenTelemetry end-to-end. The .NET app uses `UseAzureMonitor()` (auto-instruments HttpClient, ASP.NET Core, custom `ActivitySource("AzureFinOps.AI")` + `Meter("AzureFinOps.AI")`). The Copilot CLI subprocess emits OTLP via the SDK's built-in `TelemetryConfig` (GenAI + MCP semantic conventions — every tool call, LLM round-trip, prompt, tool args, result, token usage). Both feeds reach Application Insights via an in-container **OpenTelemetry Collector** (`otel/opentelemetry-collector-contrib`) using the `azuremonitor` exporter — config at `src/Dashboard/otel-collector-config.yaml`, launched by `entrypoint.sh` before the .NET app. Trace context (W3C `traceparent`) is auto-propagated SDK→CLI so Application Map shows one continuous transaction. Custom metrics (`finops.chat.requests`, `finops.tool.calls`, `finops.sessions.active`, etc.) keep flowing through the .NET exporter. Frontend telemetry in `frontend/src/main.js` captures page views, failed browser dependencies, uncaught JS errors, unhandled promise rejections, Vue component errors, and CSP violations. Third-party correlation headers are excluded for `cdn.jsdelivr.net` and `js.monitor.azure.com`.
 - **Deployment**: Azure App Service (Linux, P0v3 Premium) via Docker container image from Azure Container Registry (ACR). Multi-stage Dockerfile bakes Python 3, pip packages (python-pptx, matplotlib, pandas, numpy, lxml), and CLI tools into the image — no runtime install needed.
 - **Container Registry**: Azure Container Registry (`crfinopsagent.azurecr.io`) — Basic SKU, admin credentials, images built via `az acr build`
 - **Container App (staging)**: `finops-agent-container.azurewebsites.net` — Docker container on same P0v3 plan, used for testing before swapping to production
@@ -261,7 +261,7 @@ For Azure App Service: `Microsoft__ClientId`, `Microsoft__ClientSecret`, `Micros
 # Copy the output ClientId/ClientSecret into appsettings.Local.json
 
 # 1. Frontend (dev mode with hot reload — optional, only for UI development)
-cd src/Dashboard/client
+cd src/Dashboard/frontend
 npm install
 npm run build          # Build to wwwroot (required for backend to serve)
 

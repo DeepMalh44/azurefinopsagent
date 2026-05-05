@@ -1,6 +1,6 @@
 using System.Diagnostics;
 
-namespace AzureFinOps.Dashboard.Web;
+namespace AzureFinOps.Dashboard.Endpoints;
 
 /// <summary>
 /// Frontend-facing metadata endpoints (build version, App Insights config, model list).

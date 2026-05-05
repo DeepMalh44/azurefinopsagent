@@ -1,6 +1,6 @@
 using AzureFinOps.Dashboard.AI.Tools;
 
-namespace AzureFinOps.Dashboard.Web;
+namespace AzureFinOps.Dashboard.Endpoints;
 
 /// <summary>
 /// Single-use file downloads for generated PowerPoint and script artifacts.

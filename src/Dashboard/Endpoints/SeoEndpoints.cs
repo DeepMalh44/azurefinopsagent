@@ -1,7 +1,7 @@
 using System.Text.Json;
 using AzureFinOps.Dashboard.AI.Tools;
 
-namespace AzureFinOps.Dashboard.Web;
+namespace AzureFinOps.Dashboard.Endpoints;
 
 /// <summary>
 /// Server-rendered SEO HTML for FAQ pages and the sitemap. Public, no auth.

@@ -1,7 +1,7 @@
 using System.Text.Json;
 using AzureFinOps.Dashboard.AI.Tools;
 
-namespace AzureFinOps.Dashboard.Web;
+namespace AzureFinOps.Dashboard.Endpoints;
 
 /// <summary>
 /// File-attachment endpoints. Lets users drop CSV/TSV/JSON/TXT/XLSX/PDF/Parquet

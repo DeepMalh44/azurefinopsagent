@@ -151,7 +151,7 @@ src/Dashboard/
 │       └── Resources/                  # Embedded Python helpers
 │           ├── pptx_generator.py       # PPTX builder (matplotlib + python-pptx)
 │           └── file_inspect.py         # Upload preview + query (pandas/pyarrow/pdfminer)
-├── Web/
+├── Endpoints/
 │   ├── MetaEndpoints.cs                # /api/version, /api/config, /api/models
 │   ├── DownloadEndpoints.cs            # PPTX + script downloads
 │   ├── UploadEndpoints.cs              # File attachments (drop-in analysis)
@@ -161,7 +161,7 @@ src/Dashboard/
 ├── Infrastructure/
 │   ├── HttpHelper.cs                   # HTTP retry + read-only method guard (blocks DELETE)
 │   └── TempFileHelper.cs               # Temp file cleanup
-├── client/                             # Vue 3 + Vite 7 SPA
+├── frontend/                            # Vue 3 + Vite 7 SPA
 │   └── src/
 │       ├── components/
 │       │   ├── ChatView.vue            # Chat UI, tool sidebar, ECharts

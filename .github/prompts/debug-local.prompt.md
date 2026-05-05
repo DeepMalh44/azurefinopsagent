@@ -13,7 +13,7 @@ description: "Build and run the Azure FinOps Agent locally for debugging"
 1. Build the Vue frontend to `wwwroot/`:
 
 ```bash
-cd src/Dashboard/client
+cd src/Dashboard/frontend
 npm install
 npm run build
 ```

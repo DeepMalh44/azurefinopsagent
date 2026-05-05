@@ -1,7 +1,7 @@
 # ── Stage 1: Build Vue frontend ──
 FROM node:22-slim AS frontend
 WORKDIR /app/client
-COPY client/package.json client/package-lock.json* ./
+COPY frontend/package.json frontend/package-lock.json* ./
 RUN npm ci
 COPY client/ ./
 RUN npx vite build --outDir ../wwwroot

@@ -4,7 +4,7 @@ using Azure.Monitor.OpenTelemetry.AspNetCore;
 using AzureFinOps.Dashboard.AI;
 using AzureFinOps.Dashboard.Auth;
 using AzureFinOps.Dashboard.Observability;
-using AzureFinOps.Dashboard.Web;
+using AzureFinOps.Dashboard.Endpoints;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 
