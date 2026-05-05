@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Azure.Core;
 using Azure.Identity;
 using AzureFinOps.Dashboard.AI.Tools;
@@ -97,6 +98,15 @@ For everything else: scope it, do it, summarize. The user clicked the button, th
     private string? _cachedBearerToken;
     private DateTimeOffset _bearerTokenExpiry = DateTimeOffset.MinValue;
 
+    // Tracks the bearer-token expiry that was baked into each user's CopilotSession
+    // at creation time. The Copilot CLI subprocess holds its own copy of the token
+    // string passed via ProviderConfig.BearerToken — there is no way to push a
+    // refreshed token into a running session — so once the original token expires
+    // every subsequent prompt fails with HTTP 401 from Azure OpenAI. We proactively
+    // recreate the session before that happens (see RecycleBuffer).
+    private readonly ConcurrentDictionary<long, DateTimeOffset> _sessionTokenExpiry = new();
+    private static readonly TimeSpan RecycleBuffer = TimeSpan.FromMinutes(10);
+
     public string Deployment => _deployment;
 
     private CopilotSessionFactory(
@@ -194,11 +204,22 @@ For everything else: scope it, do it, summarize. The user clicked the button, th
     public async Task<CopilotSession> GetOrCreateSessionAsync(long userId, string userLogin)
     {
         if (_telemetry.UserSessions.TryGetValue(userId, out var existing))
-            return existing;
+        {
+            // Proactively recycle if the BYOK bearer token baked into this session is
+            // about to expire — otherwise the next prompt would hit AOAI HTTP 401.
+            if (_sessionTokenExpiry.TryGetValue(userId, out var expiry) &&
+                expiry > DateTimeOffset.UtcNow.Add(RecycleBuffer))
+            {
+                return existing;
+            }
+            _logger.LogInformation("Recycling Copilot session for {User} — BYOK token near expiry ({Expiry})", userLogin, expiry);
+            return await RecreateSessionAsync(userId, userLogin);
+        }
 
         var config = await CreateSessionConfigAsync(userId);
         var session = await _copilotClient.CreateSessionAsync(config);
         _telemetry.UserSessions[userId] = session;
+        _sessionTokenExpiry[userId] = _bearerTokenExpiry;
         _telemetry.ActiveSessions.Add(1);
         _logger.LogInformation("Created new Copilot session for {User} sessionId={SessionId}", userLogin, session.SessionId);
         return session;
@@ -208,10 +229,12 @@ For everything else: scope it, do it, summarize. The user clicked the button, th
     {
         if (_telemetry.UserSessions.TryRemove(userId, out _))
             _telemetry.ActiveSessions.Add(-1);
+        _sessionTokenExpiry.TryRemove(userId, out _);
 
         var config = await CreateSessionConfigAsync(userId);
         var session = await _copilotClient.CreateSessionAsync(config);
         _telemetry.UserSessions[userId] = session;
+        _sessionTokenExpiry[userId] = _bearerTokenExpiry;
         _telemetry.ActiveSessions.Add(1);
         _logger.LogInformation("Recreated Copilot session for {User} sessionId={SessionId}", userLogin, session.SessionId);
         return session;
