@@ -775,6 +775,48 @@
         color: #fff;
         border: 1.5px solid rgba(255, 255, 255, 0.6);
       }
+      /* "Pitch this deck" banner on slide 7 */
+      .pitch-banner {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.4rem;
+        margin: 3rem auto 0;
+        padding: 1.4rem 2rem;
+        max-width: 720px;
+        text-decoration: none;
+        background: rgba(255, 255, 255, 0.08);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.22);
+        border-radius: 14px;
+        transition: all 0.25s ease;
+      }
+      .pitch-banner:hover {
+        background: rgba(255, 255, 255, 0.15);
+        border-color: rgba(255, 255, 255, 0.45);
+        transform: translateY(-2px);
+      }
+      .pitch-eyebrow {
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.25em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.75);
+      }
+      .pitch-title {
+        font-size: clamp(1.4rem, 2.2vw, 1.9rem);
+        font-weight: 800;
+        color: #fff;
+        letter-spacing: -0.015em;
+        line-height: 1.2;
+      }
+      .pitch-link {
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: #fff;
+        opacity: 0.9;
+        font-family: "Consolas", "Menlo", monospace;
+      }
 
       /* ========== Navigation chrome ========== */
       .progress {
@@ -2167,6 +2209,15 @@
             </a>
             <a class="cta secondary" href="/">Try the live demo →</a>
           </div>
+          <a
+            class="pitch-banner anim d7"
+            href="/slides"
+            aria-label="Share or present this deck"
+          >
+            <span class="pitch-eyebrow">For devs &amp; FinOps architects</span>
+            <span class="pitch-title">Pitch this in your next review.</span>
+            <span class="pitch-link">azure-finops-agent.com/slides ↗</span>
+          </a>
         </div>
       </section>
     </div>

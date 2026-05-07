@@ -6,13 +6,15 @@
 [![Vue 3](https://img.shields.io/badge/Vue-3-4FC08D?logo=vuedotjs&logoColor=white)](https://vuejs.org/)
 [![Live demo](https://img.shields.io/badge/demo-azure--finops--agent.com-0078D4?logo=microsoftazure&logoColor=white)](https://azure-finops-agent.com)
 
-Replace a multi-week FinOps assessment with a single conversation. Connect a tenant or drop a cost export, ask in plain language, and walk away with quantified savings, a FinOps Foundation maturity score, a CFO-ready PowerPoint deck, and ready-to-run remediation scripts — in minutes, not sprints.
+> ### 📊 [Pitch this in your next review → azure-finops-agent.com/slides](https://azure-finops-agent.com/slides)
+>
+> A ready-made customer deck for devs &amp; FinOps architects.
 
-The agent can apply fixes directly via Azure REST APIs (`POST` / `PUT` / `PATCH` — e.g. tags, budgets, anomaly alerts, autoshutdown, scheduled actions) using your delegated Entra token, or hand you a downloadable PowerShell / Bash script if you'd rather review and run it yourself. **`DELETE` is blocked at the code level**, so destructive cleanup always stays in human hands. Multi-tenant, safe to point at anything from a dev sandbox to a global enterprise estate.
+Replace a multi-week FinOps assessment with a single conversation. Quantified savings, a FinOps maturity score, a CFO-ready deck, and ready-to-run remediation scripts — in minutes.
 
-Built for FinOps leads, CCoE teams, and the architects who serve them.
+**The agent fixes the issue for you, or hands you the az&nbsp;cli script.** Read &amp; write on your behalf, never delete. Multi-tenant Entra ID, your tokens, your control.
 
-**[Try it live →](https://azure-finops-agent.com)**
+**[Try it live →](https://azure-finops-agent.com)** &nbsp;·&nbsp; **[📊 Pitch deck →](https://azure-finops-agent.com/slides)**
 
 ![Azure FinOps Agent — concise FinOps insight on demand](docs/assets/screenshot-finops-shortq.png)
 

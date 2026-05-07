@@ -219,13 +219,16 @@ app.MapUploadEndpoints();
 app.MapSeoEndpoints();
 
 // Customer overview deck — clean URL (file is also reachable at /slides.html)
-app.MapGet("/slides", (IWebHostEnvironment env) =>
+// Both /slides (canonical) and /slide (alias) serve the same deck.
+IResult ServeSlides(IWebHostEnvironment env)
 {
     var path = Path.Combine(env.WebRootPath, "slides.html");
     return File.Exists(path)
         ? Results.File(path, "text/html; charset=utf-8")
         : Results.NotFound();
-});
+}
+app.MapGet("/slides", ServeSlides);
+app.MapGet("/slide", ServeSlides);
 
 app.MapFallbackToFile("index.html");
 
