@@ -102,14 +102,32 @@ app.Use(async (ctx, next) =>
     headers["X-Frame-Options"] = "DENY";
     headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
     headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()";
-    headers["Content-Security-Policy"] =
-        "default-src 'self'; " +
-        "script-src 'self'; " +
-        "style-src 'self' 'unsafe-inline'; " +
-        "img-src 'self' data:; " +
-        "connect-src 'self' https://cdn.jsdelivr.net https://js.monitor.azure.com https://canadacentral-1.in.applicationinsights.azure.com https://canadacentral.livediagnostics.monitor.azure.com; " +
-        "font-src 'self'; " +
-        "frame-ancestors 'none'";
+    // The standalone /slides deck has inline <script> + Google Fonts. Relax CSP for that one route.
+    var path = ctx.Request.Path.Value ?? "";
+    if (path.Equals("/slides", StringComparison.OrdinalIgnoreCase) ||
+        path.Equals("/slide", StringComparison.OrdinalIgnoreCase) ||
+        path.Equals("/slides.html", StringComparison.OrdinalIgnoreCase))
+    {
+        headers["Content-Security-Policy"] =
+            "default-src 'self'; " +
+            "script-src 'self' 'unsafe-inline'; " +
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+            "font-src 'self' https://fonts.gstatic.com; " +
+            "img-src 'self' data:; " +
+            "connect-src 'self'; " +
+            "frame-ancestors 'none'";
+    }
+    else
+    {
+        headers["Content-Security-Policy"] =
+            "default-src 'self'; " +
+            "script-src 'self'; " +
+            "style-src 'self' 'unsafe-inline'; " +
+            "img-src 'self' data:; " +
+            "connect-src 'self' https://cdn.jsdelivr.net https://js.monitor.azure.com https://canadacentral-1.in.applicationinsights.azure.com https://canadacentral.livediagnostics.monitor.azure.com; " +
+            "font-src 'self'; " +
+            "frame-ancestors 'none'";
+    }
     await next();
 });
 
