@@ -218,6 +218,15 @@ app.MapDownloadEndpoints();
 app.MapUploadEndpoints();
 app.MapSeoEndpoints();
 
+// Customer overview deck — clean URL (file is also reachable at /slides.html)
+app.MapGet("/slides", (IWebHostEnvironment env) =>
+{
+    var path = Path.Combine(env.WebRootPath, "slides.html");
+    return File.Exists(path)
+        ? Results.File(path, "text/html; charset=utf-8")
+        : Results.NotFound();
+});
+
 app.MapFallbackToFile("index.html");
 
 app.Run();

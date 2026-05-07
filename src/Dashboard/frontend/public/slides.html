@@ -1,0 +1,2473 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Azure FinOps Agent — Customer Overview</title>
+    <meta
+      name="description"
+      content="An AI-powered FinOps & InfraOps agent for Azure. Customer overview deck."
+    />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Segoe+UI:wght@300;400;600;700&family=Inter:wght@300;400;500;600;700;800;900&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        height: 100%;
+        width: 100%;
+        overflow: hidden;
+        font-family:
+          "Segoe UI",
+          "Inter",
+          -apple-system,
+          BlinkMacSystemFont,
+          sans-serif;
+        background: #ffffff;
+        color: #1a1a1a;
+      }
+
+      :root {
+        --azure-blue: #0078d4;
+        --azure-blue-dark: #106ebe;
+        --azure-blue-darker: #005a9e;
+        --azure-blue-light: #50e6ff;
+        --azure-blue-pale: #deecf9;
+        --azure-cyan: #00bcf2;
+        --ink: #1a1a1a;
+        --ink-soft: #4a4a4a;
+        --ink-mute: #767676;
+        --line: #e1e1e1;
+        --bg-soft: #f5f9fd;
+        --bg-blue: #f0f6fc;
+      }
+
+      .deck {
+        position: relative;
+        width: 100vw;
+        height: 100vh;
+        overflow: hidden;
+      }
+
+      .slide {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 4vh 5vw;
+        opacity: 0;
+        visibility: hidden;
+        transform: translateX(60px);
+        transition:
+          opacity 0.6s cubic-bezier(0.22, 1, 0.36, 1),
+          transform 0.6s cubic-bezier(0.22, 1, 0.36, 1),
+          visibility 0s linear 0.6s;
+      }
+      .slide.active {
+        opacity: 1;
+        visibility: visible;
+        transform: translateX(0);
+        transition:
+          opacity 0.6s cubic-bezier(0.22, 1, 0.36, 1),
+          transform 0.6s cubic-bezier(0.22, 1, 0.36, 1),
+          visibility 0s linear 0s;
+      }
+      .slide.prev {
+        transform: translateX(-60px);
+      }
+
+      .slide .anim {
+        opacity: 0;
+        transform: translateY(18px);
+        transition:
+          opacity 0.7s ease,
+          transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+      }
+      .slide.active .anim {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      .slide.active .anim.d1 {
+        transition-delay: 0.08s;
+      }
+      .slide.active .anim.d2 {
+        transition-delay: 0.2s;
+      }
+      .slide.active .anim.d3 {
+        transition-delay: 0.32s;
+      }
+      .slide.active .anim.d4 {
+        transition-delay: 0.44s;
+      }
+      .slide.active .anim.d5 {
+        transition-delay: 0.56s;
+      }
+      .slide.active .anim.d6 {
+        transition-delay: 0.68s;
+      }
+      .slide.active .anim.d7 {
+        transition-delay: 0.8s;
+      }
+
+      h2.section-title {
+        font-size: clamp(1.9rem, 3.4vw, 3rem);
+        font-weight: 700;
+        letter-spacing: -0.015em;
+        line-height: 1.1;
+        margin-bottom: 0.5rem;
+        color: var(--ink);
+      }
+      h2.section-title em {
+        font-style: normal;
+        color: var(--azure-blue);
+      }
+      .section-lead {
+        color: var(--ink-soft);
+        font-size: 1.05rem;
+        margin-bottom: 1.5rem;
+        max-width: 820px;
+      }
+
+      .content {
+        width: 100%;
+        max-width: 1240px;
+      }
+
+      /* ========== Slide 1: Hero ========== */
+      .s1 {
+        background:
+          radial-gradient(
+            ellipse at 15% 20%,
+            rgba(0, 120, 212, 0.1),
+            transparent 55%
+          ),
+          radial-gradient(
+            ellipse at 85% 80%,
+            rgba(0, 188, 242, 0.1),
+            transparent 55%
+          ),
+          #ffffff;
+      }
+      .s1::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background-image:
+          linear-gradient(rgba(0, 120, 212, 0.05) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(0, 120, 212, 0.05) 1px, transparent 1px);
+        background-size: 56px 56px;
+        mask-image: radial-gradient(
+          ellipse at center,
+          black 25%,
+          transparent 75%
+        );
+        -webkit-mask-image: radial-gradient(
+          ellipse at center,
+          black 25%,
+          transparent 75%
+        );
+      }
+      .s1 .content {
+        text-align: center;
+        max-width: 1100px;
+        position: relative;
+      }
+      .s1 h1 {
+        font-size: clamp(2.6rem, 7vw, 6rem);
+        font-weight: 800;
+        line-height: 1;
+        letter-spacing: -0.035em;
+        color: var(--ink);
+        margin-bottom: 1.4rem;
+      }
+      .s1 h1 span {
+        color: var(--azure-blue);
+      }
+      .s1 .tagline {
+        font-size: clamp(0.95rem, 1.15vw, 1.1rem);
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        color: var(--azure-blue);
+        margin-bottom: 1.2rem;
+        text-transform: uppercase;
+      }
+      .s1 .sub {
+        font-size: clamp(1rem, 1.25vw, 1.2rem);
+        color: var(--ink-soft);
+        max-width: 680px;
+        margin: 0 auto 2.4rem;
+        line-height: 1.6;
+      }
+
+      /* ========== Slide 2: Problem ========== */
+      .s2 {
+        background: #fff;
+      }
+      .s2 .section-title {
+        font-size: clamp(2.4rem, 4.4vw, 3.8rem);
+      }
+      .s2 .section-lead {
+        font-size: clamp(1.2rem, 1.6vw, 1.5rem);
+        color: var(--ink);
+        font-weight: 500;
+        margin-bottom: 2.4rem;
+      }
+      .s2 .grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1.4rem;
+        margin-top: 1.5rem;
+      }
+      .pain-card {
+        padding: 2rem 1.6rem;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: #fff;
+        transition: all 0.3s ease;
+        text-align: center;
+      }
+      .pain-card:hover {
+        border-color: var(--azure-blue);
+        box-shadow: 0 8px 24px rgba(0, 120, 212, 0.1);
+        transform: translateY(-3px);
+      }
+      .pain-card .ico {
+        width: 64px;
+        height: 64px;
+        border-radius: 14px;
+        background: var(--bg-blue);
+        color: var(--azure-blue);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1.2rem;
+      }
+      .pain-card .ico svg {
+        width: 32px;
+        height: 32px;
+      }
+      .pain-card h3 {
+        font-size: 1.35rem;
+        font-weight: 700;
+        margin-bottom: 0.6rem;
+        color: var(--ink);
+      }
+      .pain-card p {
+        color: var(--ink-soft);
+        font-size: 1rem;
+        line-height: 1.55;
+      }
+      .s2 .punchline,
+      .s3 .punchline {
+        margin-top: 2.5rem;
+        text-align: center;
+        font-size: clamp(1.1rem, 1.5vw, 1.4rem);
+        font-weight: 600;
+        color: var(--azure-blue-darker);
+        padding: 1.1rem 1.6rem;
+        background: var(--bg-blue);
+        border-left: 4px solid var(--azure-blue);
+        border-radius: 8px;
+        max-width: 760px;
+        margin-left: auto;
+        margin-right: auto;
+      }
+      /* Step-reveal: hidden until revealed by presenter advance.
+         Higher specificity + !important so it wins over .slide.active .anim */
+      .slide [data-step] {
+        opacity: 0 !important;
+        transform: translateY(16px) !important;
+        transition:
+          opacity 0.5s ease,
+          transform 0.5s cubic-bezier(0.22, 1, 0.36, 1) !important;
+        pointer-events: none;
+      }
+      .slide [data-step].revealed {
+        opacity: 1 !important;
+        transform: translateY(0) !important;
+        pointer-events: auto;
+      }
+
+      /* ========== Slide 3: What it is ========== */
+      .s3 {
+        background: #fff;
+      }
+      .s3 .section-title {
+        font-size: clamp(2.4rem, 4.4vw, 3.8rem);
+      }
+      .s3 .section-lead {
+        font-size: clamp(1.2rem, 1.6vw, 1.5rem);
+        color: var(--ink);
+        font-weight: 500;
+        margin-bottom: 2.4rem;
+      }
+      .s3 .grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1.4rem;
+        margin-top: 1.5rem;
+      }
+
+      /* ========== Slide 4: Architecture ========== */
+      .s4 {
+        background: #fff;
+      }
+      .s4 .content {
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+      }
+      .s4-header {
+        max-width: 1100px;
+        width: 100%;
+        margin: 0 auto;
+      }
+      .s4-header .section-lead {
+        margin-bottom: 0;
+      }
+      .arch-wrap {
+        width: 100%;
+        max-width: 1400px;
+        margin: 0 auto;
+      }
+      .arch-svg {
+        width: 100%;
+        height: auto;
+        display: block;
+      }
+      .region-box {
+        fill: var(--bg-soft);
+        stroke: var(--line);
+        stroke-width: 1.5;
+      }
+      .region-label {
+        fill: var(--ink-mute);
+        font-size: 13px;
+        font-weight: 600;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        font-family: "Segoe UI", sans-serif;
+      }
+      .node-box {
+        fill: #fff;
+        stroke: var(--line);
+        stroke-width: 1.5;
+      }
+      .node-box.primary {
+        stroke: var(--azure-blue);
+        stroke-width: 2;
+      }
+      .node-icon-bg {
+        fill: var(--azure-blue);
+      }
+      .node-title {
+        fill: var(--ink);
+        font-size: 14px;
+        font-weight: 700;
+        font-family: "Segoe UI", sans-serif;
+      }
+      .node-sub {
+        fill: var(--ink-mute);
+        font-size: 11.5px;
+        font-family: "Segoe UI", sans-serif;
+      }
+      .node-title-c {
+        fill: var(--ink);
+        font-size: 11px;
+        font-weight: 600;
+        text-anchor: middle;
+        font-family: "Segoe UI", sans-serif;
+      }
+      .conn {
+        fill: none;
+        stroke: var(--azure-blue);
+        stroke-width: 1.6;
+        opacity: 0.45;
+        stroke-dasharray: 4 4;
+      }
+      .conn.telemetry {
+        stroke: var(--ink-mute);
+        stroke-width: 1.2;
+        opacity: 0.35;
+        stroke-dasharray: 2 4;
+      }
+      .conn-label {
+        fill: var(--ink-mute);
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        text-anchor: middle;
+        font-family: "Segoe UI", sans-serif;
+      }
+      .flow-particle {
+        fill: var(--azure-cyan);
+        animation: flow 3s linear infinite;
+        offset-rotate: 0deg;
+      }
+      .fp1 {
+        animation-delay: 0s;
+      }
+      .fp2 {
+        animation-delay: 0.6s;
+      }
+      .fp3 {
+        animation-delay: 1.2s;
+      }
+      .fp4 {
+        animation-delay: 1.8s;
+      }
+      .fp5 {
+        animation-delay: 2.4s;
+      }
+      @keyframes flow {
+        0% {
+          offset-distance: 0%;
+          opacity: 0;
+        }
+        10% {
+          opacity: 1;
+        }
+        90% {
+          opacity: 1;
+        }
+        100% {
+          offset-distance: 100%;
+          opacity: 0;
+        }
+      }
+      .legend-row {
+        display: flex;
+        gap: 1.75rem;
+        margin: 1.4rem auto 0;
+        padding: 0.75rem 1.25rem;
+        font-size: 0.82rem;
+        color: var(--ink-soft);
+        flex-wrap: wrap;
+        justify-content: center;
+        max-width: 1100px;
+        background: var(--bg-soft);
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        width: max-content;
+      }
+      .legend-row .item {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+        white-space: nowrap;
+      }
+      .legend-row .ico {
+        width: 14px;
+        height: 14px;
+        background: var(--azure-blue);
+        border-radius: 3px;
+        display: inline-block;
+      }
+      .legend-row .ico.flow {
+        background: var(--azure-cyan);
+        border-radius: 50%;
+      }
+
+      /* ========== Slide 5: Use cases / Capabilities ========== */
+      .s5 {
+        background: var(--bg-soft);
+      }
+      .s5 .section-title {
+        font-size: clamp(2.4rem, 4.4vw, 3.8rem);
+      }
+      .s5 .section-lead {
+        font-size: clamp(1.15rem, 1.5vw, 1.4rem);
+        color: var(--ink);
+        margin-bottom: 2.4rem;
+      }
+      .s5 .maturity {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1.75rem;
+        margin-top: 1rem;
+      }
+      .stage {
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 2rem 1.75rem;
+        border-top: 5px solid var(--azure-blue);
+        position: relative;
+        transition: all 0.3s ease;
+      }
+      .stage:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 24px rgba(0, 120, 212, 0.1);
+      }
+      .stage:nth-child(2) {
+        border-top-color: var(--azure-blue-dark);
+      }
+      .stage:nth-child(3) {
+        border-top-color: var(--azure-blue-darker);
+      }
+      .stage .badge {
+        display: inline-block;
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        color: var(--azure-blue);
+        background: var(--bg-blue);
+        padding: 5px 12px;
+        border-radius: 4px;
+        margin-bottom: 1rem;
+      }
+      .stage h3 {
+        font-size: 2rem;
+        font-weight: 800;
+        margin-bottom: 0.3rem;
+        color: var(--ink);
+        letter-spacing: -0.02em;
+      }
+      .stage .desc {
+        font-size: 1rem;
+        color: var(--ink-mute);
+        margin-bottom: 1.4rem;
+      }
+      .stage ul {
+        list-style: none;
+      }
+      .stage ul li {
+        padding: 0.7rem 0;
+        font-size: 1.05rem;
+        color: var(--ink-soft);
+        border-top: 1px solid var(--line);
+        display: flex;
+        gap: 0.7rem;
+        align-items: flex-start;
+      }
+      .stage ul li:first-child {
+        border-top: none;
+      }
+      .stage ul li::before {
+        content: "→";
+        color: var(--azure-blue);
+        font-weight: 700;
+        flex-shrink: 0;
+      }
+
+      /* ========== Slide 6: Security ========== */
+      .s6 {
+        background: #fff;
+      }
+      .s6 .section-title {
+        font-size: clamp(2.4rem, 4.4vw, 3.8rem);
+      }
+      .s6 .section-lead {
+        font-size: clamp(1.15rem, 1.5vw, 1.4rem);
+        color: var(--ink);
+        margin-bottom: 2.4rem;
+      }
+      .s6 .sec-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 2rem;
+      }
+      .sec-panel {
+        padding: 2rem 1.8rem;
+        border-radius: 16px;
+      }
+      .sec-panel.ok {
+        background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+        border: 1px solid var(--azure-blue-pale);
+      }
+      .sec-panel.no {
+        background: #fff5f5;
+        border: 1px solid #fed7d7;
+      }
+      .sec-panel h3 {
+        font-size: 1.6rem;
+        font-weight: 800;
+        margin-bottom: 1.2rem;
+        letter-spacing: -0.01em;
+      }
+      .sec-panel.ok h3 {
+        color: var(--azure-blue-darker);
+      }
+      .sec-panel.no h3 {
+        color: #c53030;
+      }
+      .sec-panel ul {
+        list-style: none;
+      }
+      .sec-panel li {
+        padding: 0.85rem 0;
+        font-size: 1.1rem;
+        display: flex;
+        gap: 0.7rem;
+        align-items: flex-start;
+        border-top: 1px solid rgba(0, 0, 0, 0.06);
+      }
+      .sec-panel li:first-child {
+        border-top: none;
+      }
+      .sec-panel li .mark {
+        flex-shrink: 0;
+        width: 22px;
+        font-weight: 800;
+        font-size: 1.2rem;
+      }
+      .sec-panel.ok li .mark {
+        color: var(--azure-blue);
+      }
+      .sec-panel.no li .mark {
+        color: #c53030;
+      }
+      .sec-panel li span {
+        color: var(--ink);
+      }
+      .sec-foot {
+        margin-top: 2rem;
+        padding: 1.3rem 1.6rem;
+        background: var(--bg-blue);
+        border-left: 4px solid var(--azure-blue);
+        border-radius: 8px;
+        font-size: 1.05rem;
+        color: var(--ink);
+        line-height: 1.55;
+        text-align: center;
+      }
+      .sec-foot strong {
+        color: var(--azure-blue-darker);
+      }
+
+      /* ========== Slide 7: Get started ========== */
+      .s7 {
+        background: linear-gradient(
+          135deg,
+          var(--azure-blue) 0%,
+          var(--azure-blue-darker) 100%
+        );
+        color: #fff;
+      }
+      .s7::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background-image:
+          linear-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+        background-size: 60px 60px;
+        mask-image: radial-gradient(
+          ellipse at center,
+          black 30%,
+          transparent 80%
+        );
+        -webkit-mask-image: radial-gradient(
+          ellipse at center,
+          black 30%,
+          transparent 80%
+        );
+      }
+      .s7 .content {
+        text-align: center;
+        max-width: 1000px;
+        position: relative;
+      }
+      .s7 .pre {
+        font-size: 0.78rem;
+        letter-spacing: 0.3em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.85);
+        margin-bottom: 1.2rem;
+      }
+      .s7 h2 {
+        font-size: clamp(2.2rem, 5vw, 4rem);
+        font-weight: 800;
+        line-height: 1.05;
+        letter-spacing: -0.025em;
+        margin-bottom: 1.2rem;
+      }
+      .s7 p {
+        font-size: 1.25rem;
+        color: rgba(255, 255, 255, 0.92);
+        line-height: 1.6;
+        max-width: 760px;
+        margin: 0 auto 2rem;
+      }
+      .s7 .steps {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1.75rem;
+        margin: 3rem 0 2rem;
+      }
+      .s7 .step {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        padding: 1.8rem 1.6rem;
+        border-radius: 14px;
+        text-align: left;
+      }
+      .s7 .step .num {
+        font-size: 2.2rem;
+        font-weight: 800;
+        color: rgba(255, 255, 255, 0.5);
+        letter-spacing: -0.02em;
+        line-height: 1;
+      }
+      .s7 .step h4 {
+        font-size: 1.5rem;
+        font-weight: 800;
+        margin: 0.6rem 0 0.4rem;
+        color: #fff;
+        letter-spacing: -0.01em;
+      }
+      .s7 .step p {
+        font-size: 1rem;
+        color: rgba(255, 255, 255, 0.85);
+        margin: 0;
+        line-height: 1.5;
+      }
+      .s7 .step code {
+        background: rgba(0, 0, 0, 0.3);
+        padding: 3px 9px;
+        border-radius: 5px;
+        font-family: "Consolas", monospace;
+        font-size: 0.92rem;
+      }
+      .s7 .cta-row {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        flex-wrap: wrap;
+        margin-top: 1rem;
+      }
+      .s7 .cta {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 1.05rem 2.2rem;
+        border-radius: 10px;
+        background: #fff;
+        color: var(--azure-blue-darker);
+        font-weight: 700;
+        font-size: 1.05rem;
+        text-decoration: none;
+        border: 0;
+        cursor: pointer;
+        transition:
+          transform 0.2s ease,
+          box-shadow 0.2s ease;
+      }
+      .s7 .cta:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+      }
+      .s7 .cta.secondary {
+        background: transparent;
+        color: #fff;
+        border: 1.5px solid rgba(255, 255, 255, 0.6);
+      }
+
+      /* ========== Navigation chrome ========== */
+      .progress {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: rgba(0, 120, 212, 0.08);
+        z-index: 100;
+      }
+      .progress-bar {
+        height: 100%;
+        background: var(--azure-blue);
+        width: 0%;
+        transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+      }
+      /* Glowing nav arrows in left/right corners */
+      .nav-arrow {
+        position: fixed;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.7);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(0, 120, 212, 0.18);
+        color: var(--azure-blue);
+        cursor: pointer;
+        z-index: 60;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        box-shadow:
+          0 0 0 0 rgba(0, 120, 212, 0.45),
+          0 8px 24px rgba(0, 120, 212, 0.15);
+        animation: arrowGlow 2.4s ease-in-out infinite;
+        transition:
+          transform 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+          background 0.3s ease,
+          color 0.3s ease;
+      }
+      .nav-arrow svg {
+        width: 16px;
+        height: 16px;
+      }
+      .nav-arrow.left {
+        left: 1.5rem;
+      }
+      .nav-arrow.right {
+        right: 1.5rem;
+      }
+      .nav-arrow:hover {
+        background: var(--azure-blue);
+        color: #fff;
+        transform: translateY(-50%) scale(1.1);
+        animation: none;
+        box-shadow: 0 12px 32px rgba(0, 120, 212, 0.4);
+      }
+      .nav-arrow:active {
+        transform: translateY(-50%) scale(0.95);
+      }
+      @keyframes arrowGlow {
+        0%,
+        100% {
+          box-shadow:
+            0 0 0 0 rgba(0, 120, 212, 0.35),
+            0 6px 18px rgba(0, 120, 212, 0.15);
+        }
+        50% {
+          box-shadow:
+            0 0 0 9px rgba(0, 120, 212, 0),
+            0 6px 18px rgba(0, 120, 212, 0.25);
+        }
+      }
+      /* Hide left arrow on first slide, right on last */
+      body:has(.s1.active) .nav-arrow.left,
+      body:has(.s7.active) .nav-arrow.right {
+        opacity: 0;
+        pointer-events: none;
+      }
+      /* Dark variants on the gradient last slide */
+      body:has(.s7.active) .nav-arrow {
+        background: rgba(255, 255, 255, 0.18);
+        border-color: rgba(255, 255, 255, 0.35);
+        color: #fff;
+      }
+      body:has(.s7.active) .nav-arrow:hover {
+        background: #fff;
+        color: var(--azure-blue-darker);
+      }
+
+      /* Fullscreen toggle (top-right corner) */
+      .fs-toggle {
+        position: fixed;
+        top: 1.4rem;
+        right: 1.4rem;
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.6);
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(0, 120, 212, 0.15);
+        color: var(--ink-mute);
+        cursor: pointer;
+        z-index: 65;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        transition: all 0.25s ease;
+      }
+      .fs-toggle svg {
+        width: 18px;
+        height: 18px;
+      }
+      .fs-toggle .fs-exit {
+        display: none;
+      }
+      body.is-fullscreen .fs-toggle .fs-enter {
+        display: none;
+      }
+      body.is-fullscreen .fs-toggle .fs-exit {
+        display: block;
+      }
+      .fs-toggle:hover {
+        background: var(--azure-blue);
+        color: #fff;
+        border-color: var(--azure-blue);
+      }
+      body:has(.s7.active) .fs-toggle {
+        background: rgba(255, 255, 255, 0.18);
+        border-color: rgba(255, 255, 255, 0.35);
+        color: #fff;
+      }
+      .dots {
+        position: fixed;
+        bottom: 1.5rem;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 0.5rem;
+        z-index: 60;
+      }
+      .dot-nav {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: rgba(0, 120, 212, 0.25);
+        border: 0;
+        cursor: pointer;
+        padding: 0;
+        transition: all 0.3s ease;
+      }
+      .dot-nav.active {
+        background: var(--azure-blue);
+        width: 28px;
+        border-radius: 4px;
+      }
+      .s7 .dot-nav {
+        background: rgba(255, 255, 255, 0.4);
+      }
+      .s7 .dot-nav.active {
+        background: #fff;
+      }
+      .counter {
+        position: fixed;
+        bottom: 1.5rem;
+        right: 2rem;
+        font-size: 0.8rem;
+        color: var(--ink-mute);
+        letter-spacing: 0.15em;
+        z-index: 60;
+        font-variant-numeric: tabular-nums;
+      }
+
+      /* Persistent corner links (bottom-left) */
+      .corner-links {
+        position: fixed;
+        bottom: 1.4rem;
+        left: 1.5rem;
+        display: flex;
+        gap: 0.6rem;
+        z-index: 60;
+      }
+      .corner-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.45rem 0.85rem;
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: var(--ink-soft);
+        text-decoration: none;
+        background: rgba(255, 255, 255, 0.7);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        border: 1px solid rgba(0, 120, 212, 0.15);
+        border-radius: 999px;
+        transition: all 0.2s ease;
+      }
+      .corner-link:hover {
+        background: var(--azure-blue);
+        color: #fff;
+        border-color: var(--azure-blue);
+        transform: translateY(-1px);
+      }
+      /* Inverted on slide 7 (gradient bg) */
+      body:has(.s7.active) .corner-link {
+        background: rgba(255, 255, 255, 0.18);
+        border-color: rgba(255, 255, 255, 0.35);
+        color: #fff;
+      }
+      body:has(.s7.active) .corner-link:hover {
+        background: #fff;
+        color: var(--azure-blue-darker);
+      }
+      .s7 ~ * .counter,
+      body:has(.s7.active) .counter {
+        color: rgba(255, 255, 255, 0.85);
+      }
+      .brand-mark {
+        position: fixed;
+        top: 1.4rem;
+        left: 2rem;
+        z-index: 60;
+        font-size: 0.85rem;
+        font-weight: 700;
+        color: var(--azure-blue);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        text-decoration: none;
+      }
+      .brand-mark .logo {
+        width: 26px;
+        height: 26px;
+        display: inline-block;
+      }
+      body:has(.s7.active) .brand-mark {
+        color: #fff;
+      }
+      body:has(.s7.active) .brand-mark .logo {
+        filter: brightness(0) invert(1);
+      }
+      /* Clean hero — hide all chrome on the title slide */
+      body:has(.s1.active) .brand-mark,
+      body:has(.s1.active) .counter,
+      body:has(.s1.active) .progress {
+        display: none;
+      }
+      .hint {
+        position: fixed;
+        bottom: 4rem;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 0.78rem;
+        color: var(--ink-mute);
+        z-index: 60;
+        transition: opacity 0.6s ease;
+        pointer-events: none;
+      }
+      .hint kbd {
+        display: inline-block;
+        padding: 1px 6px;
+        margin: 0 2px;
+        background: var(--bg-soft);
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        font-family: inherit;
+        font-size: 0.72rem;
+        color: var(--ink-soft);
+      }
+      .hint.fade {
+        opacity: 0;
+      }
+      body:has(.s7.active) .hint {
+        color: rgba(255, 255, 255, 0.7);
+      }
+      body:has(.s7.active) .hint kbd {
+        background: rgba(255, 255, 255, 0.15);
+        border-color: rgba(255, 255, 255, 0.3);
+        color: #fff;
+      }
+
+      @media (max-width: 900px) {
+        .s2 .grid,
+        .s3 .grid,
+        .s5 .maturity,
+        .s7 .steps {
+          grid-template-columns: 1fr;
+        }
+        .s6 .sec-grid {
+          grid-template-columns: 1fr;
+          gap: 1.5rem;
+        }
+        .counter,
+        .brand-mark {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="progress">
+      <div class="progress-bar" id="progressBar"></div>
+    </div>
+
+    <div class="deck" id="deck">
+      <!-- ========== Slide 1: Hero ========== -->
+      <section class="slide s1 active">
+        <div class="content">
+          <h1 class="anim d3">
+            Your AI agent for<br />Azure <span>FinOps</span>.
+          </h1>
+          <p class="tagline anim d4">
+            Understand · Forecast · Optimize · Govern
+          </p>
+          <p class="sub anim d5">
+            More than a cost dashboard — an AI-powered FinOps &amp; InfraOps
+            assistant that surfaces waste, simulates scenarios, generates
+            remediation scripts, and scores your maturity. Built on the GitHub
+            Copilot SDK and the FinOps Framework.
+          </p>
+        </div>
+      </section>
+
+      <!-- ========== Slide 2: Problem ========== -->
+      <section class="slide s2">
+        <div class="content">
+          <h2 class="section-title anim d1">
+            FinOps today is a <em>full-time job</em>.
+          </h2>
+          <p class="section-lead anim d2">And you're always behind.</p>
+          <div class="grid">
+            <div class="pain-card anim d3">
+              <div class="ico">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <rect x="2" y="6" width="20" height="12" rx="2" />
+                  <path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10" />
+                </svg>
+              </div>
+              <h3>Manual queries</h3>
+              <p>Hand-written KQL, Resource Graph, billing exports.</p>
+            </div>
+            <div class="pain-card anim d4">
+              <div class="ico">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path
+                    d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.37 1.9.72 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.35 1.85.59 2.81.72A2 2 0 0 1 22 16.92z"
+                  />
+                </svg>
+              </div>
+              <h3>Chasing teams</h3>
+              <p>Emails and meetings to find owners and intent.</p>
+            </div>
+            <div class="pain-card anim d5">
+              <div class="ico">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path
+                    d="M17 1l4 4-4 4M3 11V9a4 4 0 0 1 4-4h14M7 23l-4-4 4-4M21 13v2a4 4 0 0 1-4 4H3"
+                  />
+                </svg>
+              </div>
+              <h3>Portal hopping</h3>
+              <p>Cost Mgmt, Advisor, Monitor, Graph — five tabs deep.</p>
+            </div>
+            <div class="pain-card anim d6">
+              <div class="ico">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <line x1="18" y1="20" x2="18" y2="10" />
+                  <line x1="12" y1="20" x2="12" y2="4" />
+                  <line x1="6" y1="20" x2="6" y2="14" />
+                  <line x1="3" y1="22" x2="21" y2="22" />
+                </svg>
+              </div>
+              <h3>Slide assembly</h3>
+              <p>Stitching screenshots into Monday's exec report.</p>
+            </div>
+          </div>
+          <div class="punchline anim d7" data-step>
+            Repeat every week. Data is stale before the meeting starts.
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== Slide 3: What it is ========== -->
+      <section class="slide s3">
+        <div class="content">
+          <h2 class="section-title anim d1">One <em>chat</em>. Done.</h2>
+          <p class="section-lead anim d2">
+            Ask. Get the answer. Apply the fix.
+          </p>
+          <div class="grid">
+            <div class="pain-card anim d3">
+              <div class="ico">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path
+                    d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
+                  />
+                </svg>
+              </div>
+              <h3>Plain English</h3>
+              <p>Ask. The agent runs the queries.</p>
+            </div>
+            <div class="pain-card anim d4">
+              <div class="ico">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                </svg>
+              </div>
+              <h3>Agent worker</h3>
+              <p>Applies the fix in your tenant. Hands-off.</p>
+            </div>
+            <div class="pain-card anim d5">
+              <div class="ico">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <polyline points="4 17 10 11 4 5" />
+                  <line x1="12" y1="19" x2="20" y2="19" />
+                </svg>
+              </div>
+              <h3>Az CLI script</h3>
+              <p>Prefer manual control? Export. Review. Run.</p>
+            </div>
+            <div class="pain-card anim d6">
+              <div class="ico">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <circle cx="12" cy="12" r="6" />
+                  <circle cx="12" cy="12" r="2" />
+                </svg>
+              </div>
+              <h3>Score again</h3>
+              <p>Re-run Crawl · Walk · Run anytime. Track the gain.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== Slide 4: Architecture ========== -->
+      <section class="slide s4">
+        <div class="content">
+          <div class="s4-header">
+            <h2 class="section-title anim d1">How it <em>works</em>.</h2>
+            <p class="section-lead anim d2">
+              The user chats with a Vue 3 frontend hosted on Azure App Service.
+              A .NET 10 minimal API orchestrates the GitHub Copilot SDK, which
+              calls Azure's read APIs using the user's delegated tokens.
+            </p>
+          </div>
+          <div class="arch-wrap anim d3">
+            <svg
+              class="arch-svg"
+              viewBox="0 0 1540 540"
+              preserveAspectRatio="xMidYMid meet"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <!-- ====== Inline Azure icon symbols (official Microsoft Azure SVGs) ====== -->
+              <defs>
+                <symbol id="ic-users" viewBox="0 0 18 18">
+                  <linearGradient
+                    id="ic-users-g1"
+                    x1="9"
+                    y1="6.88"
+                    x2="9"
+                    y2="20.45"
+                    gradientUnits="userSpaceOnUse"
+                  >
+                    <stop offset="0.22" stop-color="#32d4f5" />
+                    <stop offset="1" stop-color="#198ab3" />
+                  </linearGradient>
+                  <linearGradient
+                    id="ic-users-g2"
+                    x1="8.61"
+                    y1="-0.4"
+                    x2="9.6"
+                    y2="11.92"
+                    gradientUnits="userSpaceOnUse"
+                  >
+                    <stop offset="0.22" stop-color="#32d4f5" />
+                    <stop offset="1" stop-color="#198ab3" />
+                  </linearGradient>
+                  <path
+                    d="M15.72,18a1.45,1.45,0,0,0,1.45-1.45.47.47,0,0,0,0-.17C16.59,11.81,14,8.09,9,8.09S1.34,11.24.83,16.39A1.46,1.46,0,0,0,2.14,18H15.72Z"
+                    fill="url(#ic-users-g1)"
+                  />
+                  <path
+                    d="M9,9.17a4.59,4.59,0,0,1-2.48-.73L9,14.86l2.44-6.38A4.53,4.53,0,0,1,9,9.17Z"
+                    fill="#fff"
+                    opacity="0.8"
+                  />
+                  <circle
+                    cx="9.01"
+                    cy="4.58"
+                    r="4.58"
+                    fill="url(#ic-users-g2)"
+                  />
+                </symbol>
+
+                <symbol id="ic-app-service" viewBox="0 0 18 18">
+                  <radialGradient
+                    id="ic-app-g1"
+                    cx="13428.81"
+                    cy="3518.86"
+                    r="56.67"
+                    gradientTransform="translate(-2005.33 -518.83) scale(0.15)"
+                    gradientUnits="userSpaceOnUse"
+                  >
+                    <stop offset="0.18" stop-color="#5ea0ef" />
+                    <stop offset="1" stop-color="#0078d4" />
+                  </radialGradient>
+                  <linearGradient
+                    id="ic-app-g2"
+                    x1="4.4"
+                    y1="11.48"
+                    x2="4.37"
+                    y2="7.53"
+                    gradientUnits="userSpaceOnUse"
+                  >
+                    <stop offset="0" stop-color="#ccc" />
+                    <stop offset="1" stop-color="#fcfcfc" />
+                  </linearGradient>
+                  <linearGradient
+                    id="ic-app-g3"
+                    x1="10.13"
+                    y1="15.45"
+                    x2="10.13"
+                    y2="11.9"
+                    gradientUnits="userSpaceOnUse"
+                  >
+                    <stop offset="0" stop-color="#ccc" />
+                    <stop offset="1" stop-color="#fcfcfc" />
+                  </linearGradient>
+                  <linearGradient
+                    id="ic-app-g4"
+                    x1="14.18"
+                    y1="11.15"
+                    x2="14.18"
+                    y2="7.38"
+                    gradientUnits="userSpaceOnUse"
+                  >
+                    <stop offset="0" stop-color="#ccc" />
+                    <stop offset="1" stop-color="#fcfcfc" />
+                  </linearGradient>
+                  <path
+                    d="M14.21,15.72A8.5,8.5,0,0,1,3.79,2.28l.09-.06a8.5,8.5,0,0,1,10.33,13.5"
+                    fill="url(#ic-app-g1)"
+                  />
+                  <path
+                    d="M6.69,7.23A13,13,0,0,1,15.6,3.65a8.47,8.47,0,0,0-1.49-1.44,14.34,14.34,0,0,0-4.69,1.1A12.54,12.54,0,0,0,5.34,6.13,2.76,2.76,0,0,1,6.69,7.23Z"
+                    fill="#fff"
+                    opacity="0.6"
+                  />
+                  <path
+                    d="M2.48,10.65a17.86,17.86,0,0,0-.83,2.62,7.82,7.82,0,0,0,.62.92c.18.23.35.44.55.65A17.94,17.94,0,0,1,3.9,11.37,2.76,2.76,0,0,1,2.48,10.65Z"
+                    fill="#fff"
+                    opacity="0.6"
+                  />
+                  <path
+                    d="M3.46,6.11a12,12,0,0,1-.69-2.94,8.15,8.15,0,0,0-1.1,1.45A12.69,12.69,0,0,0,2.24,7,2.69,2.69,0,0,1,3.46,6.11Z"
+                    fill="#f2f2f2"
+                    opacity="0.55"
+                  />
+                  <circle cx="4.38" cy="8.68" r="2.73" fill="url(#ic-app-g2)" />
+                  <path
+                    d="M8.36,13.67A1.77,1.77,0,0,1,8.9,12.4a11.88,11.88,0,0,1-2.53-1.86,2.74,2.74,0,0,1-1.49.83,13.1,13.1,0,0,0,1.45,1.28A12.12,12.12,0,0,0,8.38,13.9,1.79,1.79,0,0,1,8.36,13.67Z"
+                    fill="#f2f2f2"
+                    opacity="0.55"
+                  />
+                  <path
+                    d="M14.66,13.88a12,12,0,0,1-2.76-.32.41.41,0,0,1,0,.11,1.75,1.75,0,0,1-.51,1.24,13.69,13.69,0,0,0,3.42.24A8.21,8.21,0,0,0,16,13.81,11.5,11.5,0,0,1,14.66,13.88Z"
+                    fill="#f2f2f2"
+                    opacity="0.55"
+                  />
+                  <circle
+                    cx="10.13"
+                    cy="13.67"
+                    r="1.78"
+                    fill="url(#ic-app-g3)"
+                  />
+                  <path
+                    d="M12.32,8.93a1.83,1.83,0,0,1,.61-1A25.5,25.5,0,0,1,8.47,3.79a16.91,16.91,0,0,1-2-2.92,7.64,7.64,0,0,0-1.09.42A18.14,18.14,0,0,0,7.53,4.47,26.44,26.44,0,0,0,12.32,8.93Z"
+                    fill="#f2f2f2"
+                    opacity="0.7"
+                  />
+                  <circle
+                    cx="14.18"
+                    cy="9.27"
+                    r="1.89"
+                    fill="url(#ic-app-g4)"
+                  />
+                </symbol>
+
+                <symbol id="ic-azure-openai" viewBox="0 0 18 18">
+                  <radialGradient
+                    id="ic-aoai-g"
+                    cx="-67.981"
+                    cy="793.199"
+                    r=".45"
+                    gradientTransform="translate(-17939.03 20368.029) rotate(45) scale(25.091 -34.149)"
+                    gradientUnits="userSpaceOnUse"
+                  >
+                    <stop offset="0" stop-color="#83b9f9" />
+                    <stop offset="1" stop-color="#0078d4" />
+                  </radialGradient>
+                  <path
+                    d="m0,2.7v12.6c0,1.491,1.209,2.7,2.7,2.7h12.6c1.491,0,2.7-1.209,2.7-2.7V2.7c0-1.491-1.209-2.7-2.7-2.7H2.7C1.209,0,0,1.209,0,2.7ZM10.8,0v3.6c0,3.976,3.224,7.2,7.2,7.2h-3.6c-3.976,0-7.199,3.222-7.2,7.198v-3.598c0-3.976-3.224-7.2-7.2-7.2h3.6c3.976,0,7.2-3.224,7.2-7.2Z"
+                    fill="url(#ic-aoai-g)"
+                  />
+                </symbol>
+
+                <symbol id="ic-cost-mgmt" viewBox="0 0 18 18">
+                  <linearGradient
+                    id="ic-cost-g1"
+                    x1="9"
+                    y1="1.48"
+                    x2="9"
+                    y2="17.07"
+                    gradientUnits="userSpaceOnUse"
+                  >
+                    <stop offset="0" stop-color="#76bc2d" />
+                    <stop offset="0.32" stop-color="#73b82c" />
+                    <stop offset="0.65" stop-color="#6cab29" />
+                    <stop offset="0.99" stop-color="#5e9724" />
+                    <stop offset="1" stop-color="#5e9624" />
+                  </linearGradient>
+                  <path
+                    d="M12.35,1.48H5.65a2,2,0,0,0-1.73,1L.58,8.28a2,2,0,0,0,0,2l3.34,5.79a2,2,0,0,0,1.73,1h6.7a2,2,0,0,0,1.73-1l3.34-5.79a2,2,0,0,0,0-2l-3.34-5.8A2,2,0,0,0,12.35,1.48Z"
+                    fill="url(#ic-cost-g1)"
+                  />
+                  <path
+                    d="M9.07,4.81A.82.82,0,0,1,8.25,4,.82.82,0,0,1,9.89,4,.82.82,0,0,1,9.07,4.81Zm-.82,9.75a.82.82,0,1,0,1.64,0,.82.82,0,0,0-1.64,0Zm.84-2.7A1.5,1.5,0,0,1,7.58,11l-1.45.28A2.68,2.68,0,0,0,9,13c1.69,0,2.91-.89,2.91-2.13a2.07,2.07,0,0,0-1.12-2A13,13,0,0,0,9,8.33c-.67-.16-1.1-.53-1.1-1A1,1,0,0,1,9,6.46a1.4,1.4,0,0,1,1.29.69l1.25-.4A2.56,2.56,0,0,0,9,5.45c-1.18,0-2.55.52-2.55,2,0,1.81,1.11,2.17,2.69,2.48.37.07,1.23.32,1.23,1C10.33,11.31,10,11.86,9.09,11.86Z"
+                    fill="#fff"
+                    opacity="0.9"
+                  />
+                </symbol>
+
+                <symbol id="ic-resource-graph" viewBox="0 0 18 18">
+                  <linearGradient
+                    id="ic-rg-g1"
+                    x1="2.63"
+                    y1="5.99"
+                    x2="2.63"
+                    y2="1.75"
+                    gradientUnits="userSpaceOnUse"
+                  >
+                    <stop offset="0" stop-color="#773adc" />
+                    <stop offset="1" stop-color="#b77af4" />
+                  </linearGradient>
+                  <linearGradient
+                    id="ic-rg-g2"
+                    x1="14.76"
+                    y1="6.31"
+                    x2="14.76"
+                    y2="0.85"
+                    gradientUnits="userSpaceOnUse"
+                  >
+                    <stop offset="0" stop-color="#773adc" />
+                    <stop offset="1" stop-color="#b77af4" />
+                  </linearGradient>
+                  <linearGradient
+                    id="ic-rg-g3"
+                    x1="11.92"
+                    y1="17.27"
+                    x2="11.92"
+                    y2="7.71"
+                    gradientUnits="userSpaceOnUse"
+                  >
+                    <stop offset="0" stop-color="#773adc" />
+                    <stop offset="1" stop-color="#b77af4" />
+                  </linearGradient>
+                  <path
+                    d="M11.56,14.24,1.79,4.35A.77.77,0,0,1,2.34,3H14.76V4.58H4.19l8.47,8.58Z"
+                    fill="#b796f9"
+                  />
+                  <ellipse
+                    cx="2.63"
+                    cy="3.87"
+                    rx="2.13"
+                    ry="2.12"
+                    fill="url(#ic-rg-g1)"
+                  />
+                  <ellipse
+                    cx="14.76"
+                    cy="3.58"
+                    rx="2.74"
+                    ry="2.73"
+                    fill="url(#ic-rg-g2)"
+                  />
+                  <ellipse
+                    cx="11.92"
+                    cy="13.69"
+                    rx="3.47"
+                    ry="3.46"
+                    fill="url(#ic-rg-g3)"
+                  />
+                </symbol>
+
+                <symbol id="ic-entra" viewBox="0 0 18 18">
+                  <linearGradient
+                    id="ic-entra-g1"
+                    x1="10.901"
+                    y1="4.385"
+                    x2="10.901"
+                    y2="18.783"
+                    gradientUnits="userSpaceOnUse"
+                  >
+                    <stop offset=".085" stop-color="#ef7100" />
+                    <stop offset=".999" stop-color="#f78d1e" />
+                  </linearGradient>
+                  <linearGradient
+                    id="ic-entra-g2"
+                    x1="-79.452"
+                    y1="778.657"
+                    x2="-79.452"
+                    y2="786.378"
+                    gradientTransform="translate(94 795.516) scale(1 -1)"
+                    gradientUnits="userSpaceOnUse"
+                  >
+                    <stop offset="0" stop-color="#0078d4" />
+                    <stop offset=".06" stop-color="#0a7cd7" />
+                    <stop offset=".34" stop-color="#2e8ce1" />
+                    <stop offset=".59" stop-color="#4897e9" />
+                    <stop offset=".82" stop-color="#589eed" />
+                    <stop offset="1" stop-color="#5ea0ef" />
+                  </linearGradient>
+                  <polygon
+                    points="4.636 9.985 4.688 10.017 9 12.713 9.001 12.713 9.001 12.713 9.001 5.062 9 5.061 4.636 9.985"
+                    fill="#ffb34d"
+                    opacity=".9"
+                  />
+                  <path
+                    d="m10.146,1.294c-.299-.338-.722-.507-1.145-.507h0c-.424-.001-.847.168-1.147.506h-.001L.353,9.753c-.579.654-.428,1.642.323,2.111,0,0,2.776,1.735,3.126,1.954.388.242,1.033.511,1.715.511.621,0,1.198-.18,1.676-.487,0,0,0,0,.002,0l1.805-1.128-4.364-2.728,4.365-4.924.109-.123c.55-.627,1.377-1.026,2.302-1.026.472,0,.916.107,1.313.291l-2.579-2.909Z"
+                    fill="#faa21d"
+                  />
+                  <polygon
+                    points="13.365 9.985 13.365 9.985 13.365 9.985 9.001 5.062 9.001 12.712 13.365 9.985"
+                    fill="#f78d1e"
+                  />
+                  <path
+                    d="m17.647,9.753l-4.921-5.551c-.397-.185-.842-.291-1.313-.291-.925,0-1.752.399-2.302,1.026l-.109.123,4.364,4.924-4.266,2.666-.099.062v.003s-.001-.002-.001-.002l-1.805,1.128s-.002,0-.002,0c-.478.307-1.055.487-1.676.487-.682,0-1.327-.269-1.715-.511l4.374,2.734c.25.156.538.234.824.234h0s.001,0,.001,0c.287,0,.573-.078.823-.234l1.73-1.081h0s5.77-3.607,5.77-3.607h0c.751-.468.902-1.456.323-2.11Z"
+                    fill="url(#ic-entra-g1)"
+                  />
+                  <path
+                    d="m18,12.721c0,2.265-2.739,4.088-3.338,4.46-.068.044-.156.044-.224,0-.599-.367-3.338-2.19-3.338-4.46v-2.725c0-.119.093-.215.21-.218,2.134-.055,1.642-.991,3.241-.991s1.106.937,3.241.991c.117.003.21.1.21.218v2.725Z"
+                    fill="#0078d4"
+                  />
+                  <path
+                    d="m17.717,12.741c0,2.081-2.515,3.751-3.065,4.088-.063.039-.142.039-.205,0-.551-.337-3.065-2.007-3.065-4.088v-2.478c-.019-.111.054-.216.163-.235.011-.002.021-.003.032-.003,1.959-.035,1.511-.887,2.973-.887s1.014.852,2.973.887c.107.003.192.09.195.198v2.517Z"
+                    fill="url(#ic-entra-g2)"
+                  />
+                </symbol>
+
+                <symbol id="ic-log-analytics" viewBox="0 0 18 18">
+                  <linearGradient
+                    id="ic-la-g1"
+                    x1="5.23"
+                    y1="17.45"
+                    x2="5.23"
+                    y2="8.09"
+                    gradientUnits="userSpaceOnUse"
+                  >
+                    <stop offset="0" stop-color="#1988d9" />
+                    <stop offset="0.9" stop-color="#54aef0" />
+                  </linearGradient>
+                  <linearGradient
+                    id="ic-la-g2"
+                    x1="11.5"
+                    y1="12.45"
+                    x2="11.5"
+                    y2="0.55"
+                    gradientUnits="userSpaceOnUse"
+                  >
+                    <stop offset="0" stop-color="#198ab3" />
+                    <stop offset="0.44" stop-color="#27b2d7" />
+                    <stop offset="0.79" stop-color="#2fcbed" />
+                    <stop offset="1" stop-color="#32d4f5" />
+                  </linearGradient>
+                  <path
+                    d="M5.59,13.13H9.91v4.32H5.59ZM1.15,17.45H4.87V13.13H.55v3.72A.6.6,0,0,0,1.15,17.45Zm-.6-5H4.87V8.09H.55Z"
+                    fill="url(#ic-la-g1)"
+                  />
+                  <path
+                    d="M11.5.55a5.89,5.89,0,0,1,5.95,6,5.89,5.89,0,0,1-5.95,5.95H5.55V6.5A5.89,5.89,0,0,1,11.5.55Z"
+                    fill-rule="evenodd"
+                    fill="url(#ic-la-g2)"
+                  />
+                  <rect
+                    x="7.59"
+                    y="5.65"
+                    width="1.36"
+                    height="4.08"
+                    fill="#fff"
+                  />
+                  <rect
+                    x="10.31"
+                    y="7.01"
+                    width="1.36"
+                    height="2.72"
+                    fill="#fff"
+                  />
+                  <rect
+                    x="13.03"
+                    y="4.29"
+                    width="1.36"
+                    height="5.44"
+                    fill="#fff"
+                  />
+                </symbol>
+
+                <symbol id="ic-app-insights" viewBox="0 0 18 18">
+                  <radialGradient
+                    id="ic-ai-g1"
+                    cx="9"
+                    cy="7.35"
+                    r="6.42"
+                    gradientUnits="userSpaceOnUse"
+                  >
+                    <stop offset="0" stop-color="#b77af4" />
+                    <stop offset="0.21" stop-color="#b378f2" />
+                    <stop offset="0.43" stop-color="#a672ed" />
+                    <stop offset="0.65" stop-color="#9267e4" />
+                    <stop offset="0.88" stop-color="#7559d8" />
+                    <stop offset="1" stop-color="#624fd0" />
+                  </radialGradient>
+                  <path
+                    d="M10.23,17.39l.81-.87V14.2H7v2.32l.81.87A.32.32,0,0,0,8,17.5h2A.32.32,0,0,0,10.23,17.39Z"
+                    fill="#cecece"
+                  />
+                  <path
+                    d="M9,.5A5.89,5.89,0,0,0,3.09,7.07c.27,2.47,2.62,3.62,3.29,6.75a.49.49,0,0,0,.47.38h4.3a.49.49,0,0,0,.47-.38c.67-3.13,3-4.28,3.29-6.75A5.89,5.89,0,0,0,9,.5Z"
+                    fill="url(#ic-ai-g1)"
+                  />
+                  <path
+                    d="M11.46,3.79a1.4,1.4,0,0,0-1.35,1.44V6H8V5.23A1.41,1.41,0,0,0,6.59,3.79,1.4,1.4,0,0,0,5.24,5.23,1.41,1.41,0,0,0,6.59,6.68h.64v6a.36.36,0,0,0,.72,0v-6h2.16v6a.36.36,0,1,0,.72,0v-6h.63a1.4,1.4,0,0,0,1.35-1.45A1.4,1.4,0,0,0,11.46,3.79ZM7.23,6H6.55a.74.74,0,0,1-.68-.77.74.74,0,0,1,.68-.77.74.74,0,0,1,.68.77Zm4.28,0h-.68V5.19a.68.68,0,1,1,1.35,0A.73.73,0,0,1,11.51,6Z"
+                    fill="#fff"
+                  />
+                </symbol>
+              </defs>
+
+              <!-- ====== Region containers ====== -->
+              <rect
+                class="region-box"
+                x="40"
+                y="60"
+                width="200"
+                height="420"
+                rx="12"
+              />
+              <text class="region-label" x="60" y="88">User</text>
+
+              <rect
+                class="region-box"
+                x="280"
+                y="60"
+                width="310"
+                height="420"
+                rx="12"
+              />
+              <text class="region-label" x="300" y="88">
+                App Service · Container
+              </text>
+
+              <rect
+                class="region-box"
+                x="620"
+                y="60"
+                width="260"
+                height="420"
+                rx="12"
+              />
+              <text class="region-label" x="640" y="88">AI Layer</text>
+
+              <rect
+                class="region-box"
+                x="920"
+                y="60"
+                width="470"
+                height="420"
+                rx="12"
+              />
+              <text class="region-label" x="940" y="88">Azure Read APIs</text>
+
+              <rect
+                class="region-box"
+                x="1400"
+                y="60"
+                width="100"
+                height="420"
+                rx="12"
+              />
+              <text
+                class="region-label"
+                x="1418"
+                y="88"
+                style="font-size: 10px"
+              >
+                Observe
+              </text>
+
+              <!--
+                Node geometry (rect x,y,w,h):
+                  user      :  70,230,140,80   right edge (210,270)
+                  vue       : 340,160,160,80   left (340,200)  bottom (420,240)
+                  net       : 340,300,160,80   left (340,340)  top    (420,300)
+                  copilot   : 620,230,160,80   left (620,270)  right  (780,270)
+                  cost      : 900,120,160,80   left (900,160)
+                  rg        : 900,230,160,80   left (900,270)  right  (1060,270)
+                  graph     : 900,340,160,80   left (900,380)
+                  la        : 1080,230,160,80  left (1080,270) right  (1240,270)
+                  ai        : 1310,230,60,80   left (1310,270)
+              -->
+
+              <!-- ====== Connections (drawn first, nodes on top) ====== -->
+              <!-- User → Vue Frontend -->
+              <path class="conn c1" d="M 210,270 C 275,270 280,200 340,200" />
+              <!-- Vue Frontend → .NET Backend (vertical inside App Service region) -->
+              <path class="conn c2" d="M 435,240 L 435,300" />
+              <!-- .NET Backend → Copilot SDK -->
+              <path class="conn c3" d="M 530,340 C 585,340 585,270 640,270" />
+              <!-- Copilot → Cost Mgmt (curve up) -->
+              <path class="conn c4" d="M 830,270 C 885,270 885,160 940,160" />
+              <!-- Copilot → Resource Graph (straight) -->
+              <path class="conn c5" d="M 830,270 L 940,270" />
+              <!-- Copilot → MS Graph (curve down) -->
+              <path class="conn c6" d="M 830,270 C 885,270 885,380 940,380" />
+              <!-- Resource Graph → Log Analytics -->
+              <path class="conn c7" d="M 1130,270 L 1170,270" />
+              <!-- Log Analytics → App Insights -->
+              <path class="conn c8" d="M 1360,270 L 1410,270" />
+              <!-- .NET Backend → App Insights (telemetry, top arc — well above nodes) -->
+              <path
+                class="conn c9 telemetry"
+                d="M 530,300 C 530,30 1450,30 1450,250"
+              />
+              <text class="conn-label" x="990" y="22">OpenTelemetry</text>
+
+              <!-- ====== Nodes ====== -->
+              <!-- User -->
+              <g>
+                <rect
+                  class="node-box"
+                  x="70"
+                  y="230"
+                  width="140"
+                  height="80"
+                  rx="10"
+                />
+                <use href="#ic-users" x="85" y="245" width="40" height="40" />
+                <text class="node-title" x="129" y="268">FinOps Lead</text>
+                <text class="node-sub" x="129" y="284">Browser chat</text>
+              </g>
+
+              <!-- Vue Frontend -->
+              <g>
+                <rect
+                  class="node-box primary"
+                  x="340"
+                  y="160"
+                  width="190"
+                  height="80"
+                  rx="10"
+                />
+                <use
+                  href="#ic-app-service"
+                  x="358"
+                  y="175"
+                  width="40"
+                  height="40"
+                />
+                <text class="node-title" x="408" y="195">Vue Frontend</text>
+                <text class="node-sub" x="408" y="214">SPA · ECharts</text>
+              </g>
+
+              <!-- .NET Backend -->
+              <g>
+                <rect
+                  class="node-box primary"
+                  x="340"
+                  y="300"
+                  width="190"
+                  height="80"
+                  rx="10"
+                />
+                <use
+                  href="#ic-app-service"
+                  x="358"
+                  y="315"
+                  width="40"
+                  height="40"
+                />
+                <text class="node-title" x="408" y="335">.NET Backend</text>
+                <text class="node-sub" x="408" y="354">Minimal API · SSE</text>
+              </g>
+
+              <!-- Copilot SDK -->
+              <g>
+                <rect
+                  class="node-box primary"
+                  x="640"
+                  y="230"
+                  width="190"
+                  height="80"
+                  rx="10"
+                />
+                <use
+                  href="#ic-azure-openai"
+                  x="658"
+                  y="245"
+                  width="40"
+                  height="40"
+                />
+                <text class="node-title" x="708" y="265">Copilot SDK</text>
+                <text class="node-sub" x="708" y="284">
+                  BYOK · Azure OpenAI
+                </text>
+              </g>
+
+              <!-- Cost Management -->
+              <g>
+                <rect
+                  class="node-box"
+                  x="940"
+                  y="120"
+                  width="190"
+                  height="80"
+                  rx="10"
+                />
+                <use
+                  href="#ic-cost-mgmt"
+                  x="958"
+                  y="135"
+                  width="40"
+                  height="40"
+                />
+                <text class="node-title" x="1008" y="155">Cost Mgmt</text>
+                <text class="node-sub" x="1008" y="174">
+                  Billing · Forecast
+                </text>
+              </g>
+
+              <!-- Resource Graph -->
+              <g>
+                <rect
+                  class="node-box"
+                  x="940"
+                  y="230"
+                  width="190"
+                  height="80"
+                  rx="10"
+                />
+                <use
+                  href="#ic-resource-graph"
+                  x="958"
+                  y="245"
+                  width="40"
+                  height="40"
+                />
+                <text class="node-title" x="1008" y="265">Resource Graph</text>
+                <text class="node-sub" x="1008" y="284">Advisor · Monitor</text>
+              </g>
+
+              <!-- Microsoft Graph -->
+              <g>
+                <rect
+                  class="node-box"
+                  x="940"
+                  y="340"
+                  width="190"
+                  height="80"
+                  rx="10"
+                />
+                <use href="#ic-entra" x="958" y="355" width="40" height="40" />
+                <text class="node-title" x="1008" y="375">MS Graph</text>
+                <text class="node-sub" x="1008" y="394">Licenses · M365</text>
+              </g>
+
+              <!-- Log Analytics -->
+              <g>
+                <rect
+                  class="node-box"
+                  x="1170"
+                  y="230"
+                  width="190"
+                  height="80"
+                  rx="10"
+                />
+                <use
+                  href="#ic-log-analytics"
+                  x="1188"
+                  y="245"
+                  width="40"
+                  height="40"
+                />
+                <text class="node-title" x="1238" y="265">Log Analytics</text>
+                <text class="node-sub" x="1238" y="284">KQL queries</text>
+              </g>
+
+              <!-- App Insights -->
+              <g>
+                <rect
+                  class="node-box"
+                  x="1410"
+                  y="230"
+                  width="80"
+                  height="80"
+                  rx="10"
+                />
+                <use
+                  href="#ic-app-insights"
+                  x="1430"
+                  y="245"
+                  width="40"
+                  height="40"
+                />
+                <text class="node-title-c" x="1450" y="305">App Insights</text>
+              </g>
+
+              <!-- ====== Animated flow particles ====== -->
+              <circle
+                class="flow-particle fp1"
+                r="4"
+                style="
+                  offset-path: path(
+                    &quot;M 210,270 C 275,270 280,200 340,200&quot;
+                  );
+                "
+              />
+              <circle
+                class="flow-particle fp2"
+                r="4"
+                style="
+                  offset-path: path(
+                    &quot;M 530,340 C 585,340 585,270 640,270&quot;
+                  );
+                "
+              />
+              <circle
+                class="flow-particle fp3"
+                r="4"
+                style="offset-path: path(&quot;M 830,270 L 940,270&quot;)"
+              />
+              <circle
+                class="flow-particle fp4"
+                r="4"
+                style="
+                  offset-path: path(
+                    &quot;M 830,270 C 885,270 885,160 940,160&quot;
+                  );
+                "
+              />
+              <circle
+                class="flow-particle fp5"
+                r="4"
+                style="
+                  offset-path: path(
+                    &quot;M 830,270 C 885,270 885,380 940,380&quot;
+                  );
+                "
+              />
+              <circle
+                class="flow-particle fp6"
+                r="3"
+                style="
+                  offset-path: path(&quot;M 1130,270 L 1410,270&quot;);
+                  fill: #b77af4;
+                "
+              />
+            </svg>
+          </div>
+          <div class="legend-row anim d4">
+            <div class="item">
+              <span class="ico"></span> Customer-deployed component
+            </div>
+            <div class="item">
+              <span class="ico flow"></span> Live API call (delegated token)
+            </div>
+            <div class="item">All telemetry to your Application Insights</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== Slide 5: FinOps Maturity ========== -->
+      <section class="slide s5">
+        <div class="content">
+          <h2 class="section-title anim d1">Start where <em>you are</em>.</h2>
+          <p class="section-lead anim d2">
+            Aligned to the FinOps Foundation Crawl · Walk · Run framework.
+          </p>
+          <div class="maturity">
+            <div class="stage anim d3">
+              <span class="badge">Crawl</span>
+              <h3>See it.</h3>
+              <p class="desc">Visibility &amp; baseline</p>
+              <ul>
+                <li>Cost trends &amp; tagging audit</li>
+                <li>Orphaned resources</li>
+                <li>Budgets &amp; Advisor</li>
+              </ul>
+            </div>
+            <div class="stage anim d4">
+              <span class="badge">Walk</span>
+              <h3>Fix it.</h3>
+              <p class="desc">Optimization &amp; governance</p>
+              <ul>
+                <li>Reservations &amp; savings plans</li>
+                <li>Right-sizing &amp; AHUB</li>
+                <li>Storage tiers, dev/test</li>
+              </ul>
+            </div>
+            <div class="stage anim d5">
+              <span class="badge">Run</span>
+              <h3>Own it.</h3>
+              <p class="desc">Scale &amp; accountability</p>
+              <ul>
+                <li>Chargeback &amp; unit economics</li>
+                <li>Anomaly detection</li>
+                <li>Exec reports, AI/GPU, carbon</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== Slide 6: Security ========== -->
+      <section class="slide s6">
+        <div class="content">
+          <h2 class="section-title anim d1">Trust by <em>design</em>.</h2>
+          <p class="section-lead anim d2">
+            Read &amp; write on your behalf. <strong>Never delete.</strong>
+          </p>
+          <div class="sec-grid">
+            <div class="sec-panel ok anim d3">
+              <h3>Can</h3>
+              <ul>
+                <li>
+                  <span class="mark">✓</span
+                  ><span>Read all your cost &amp; ops data</span>
+                </li>
+                <li>
+                  <span class="mark">✓</span
+                  ><span>Write tags, budgets, alerts</span>
+                </li>
+                <li>
+                  <span class="mark">✓</span
+                  ><span
+                    >Generate scripts — or run them with your approval</span
+                  >
+                </li>
+                <li>
+                  <span class="mark">✓</span
+                  ><span>Build dashboards, charts, PPTX</span>
+                </li>
+              </ul>
+            </div>
+            <div class="sec-panel no anim d4">
+              <h3>Cannot</h3>
+              <ul>
+                <li>
+                  <span class="mark">✗</span
+                  ><span>Delete any Azure resource. Ever.</span>
+                </li>
+                <li>
+                  <span class="mark">✗</span><span>Exceed your RBAC role</span>
+                </li>
+                <li>
+                  <span class="mark">✗</span
+                  ><span>Persist your data — always live, never stored</span>
+                </li>
+                <li>
+                  <span class="mark">✗</span
+                  ><span>Bypass Conditional Access</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+          <div class="sec-foot anim d5">
+            <strong>Your tenant. Your tokens. Your control.</strong>
+            Multi-tenant Entra ID with incremental, opt-in consent per data
+            source.
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== Slide 7: Get started ========== -->
+      <section class="slide s7">
+        <div class="content">
+          <div class="pre anim d1">— Open Source · MIT —</div>
+          <h2 class="anim d2">
+            Your tenant.<br />Your data.<br />Your control.
+          </h2>
+          <p class="anim d3">
+            Customer-deployable. Microsoft Customer Success accelerator.
+          </p>
+          <div class="steps">
+            <div class="step anim d4">
+              <div class="num">01</div>
+              <h4>Clone</h4>
+              <p>From GitHub.</p>
+            </div>
+            <div class="step anim d5">
+              <div class="num">02</div>
+              <h4>Connect</h4>
+              <p>One Entra ID app.</p>
+            </div>
+            <div class="step anim d6">
+              <div class="num">03</div>
+              <h4>Chat</h4>
+              <p>App Service or Container Apps.</p>
+            </div>
+          </div>
+          <div class="cta-row anim d7">
+            <a
+              class="cta"
+              href="https://github.com/Azure-Samples/azure-finops-agent"
+              target="_blank"
+              rel="noopener"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                width="18"
+                height="18"
+                fill="currentColor"
+                aria-hidden="true"
+              >
+                <path
+                  d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56 0-.28-.01-1.01-.02-1.99-3.2.69-3.87-1.54-3.87-1.54-.52-1.32-1.27-1.67-1.27-1.67-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.18 1.76 1.18 1.02 1.75 2.69 1.25 3.35.96.1-.74.4-1.25.73-1.54-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.18-3.1-.12-.29-.51-1.46.11-3.05 0 0 .96-.31 3.15 1.18a10.97 10.97 0 0 1 5.74 0c2.19-1.49 3.15-1.18 3.15-1.18.62 1.59.23 2.76.11 3.05.74.81 1.18 1.84 1.18 3.1 0 4.42-2.69 5.39-5.26 5.68.41.36.78 1.06.78 2.13 0 1.54-.01 2.78-.01 3.16 0 .31.21.68.8.56C20.21 21.39 23.5 17.08 23.5 12 23.5 5.65 18.35.5 12 .5z"
+                />
+              </svg>
+              View on GitHub
+            </a>
+            <a class="cta secondary" href="/">Try the live demo →</a>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Persistent corner links -->
+    <div class="corner-links" aria-label="External links">
+      <a
+        class="corner-link"
+        href="https://github.com/Azure-Samples/azure-finops-agent"
+        target="_blank"
+        rel="noopener"
+        aria-label="View source on GitHub"
+        title="View on GitHub"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          width="16"
+          height="16"
+          fill="currentColor"
+          aria-hidden="true"
+        >
+          <path
+            d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56 0-.28-.01-1.01-.02-1.99-3.2.69-3.87-1.54-3.87-1.54-.52-1.32-1.27-1.67-1.27-1.67-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.18 1.76 1.18 1.02 1.75 2.69 1.25 3.35.96.1-.74.4-1.25.73-1.54-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.18-3.1-.12-.29-.51-1.46.11-3.05 0 0 .96-.31 3.15 1.18a10.97 10.97 0 0 1 5.74 0c2.19-1.49 3.15-1.18 3.15-1.18.62 1.59.23 2.76.11 3.05.74.81 1.18 1.84 1.18 3.1 0 4.42-2.69 5.39-5.26 5.68.41.36.78 1.06.78 2.13 0 1.54-.01 2.78-.01 3.16 0 .31.21.68.8.56C20.21 21.39 23.5 17.08 23.5 12 23.5 5.65 18.35.5 12 .5z"
+          />
+        </svg>
+        <span>GitHub</span>
+      </a>
+      <a
+        class="corner-link"
+        href="/"
+        aria-label="Open the live demo"
+        title="Try the live demo"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          width="16"
+          height="16"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <circle cx="12" cy="12" r="2.5" fill="currentColor" />
+          <circle cx="12" cy="12" r="6.5" />
+        </svg>
+        <span>Live demo</span>
+      </a>
+    </div>
+
+    <button class="nav-arrow left" id="zoneLeft" aria-label="Previous slide">
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2.2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
+        <polyline points="15 18 9 12 15 6" />
+      </svg>
+    </button>
+    <button class="nav-arrow right" id="zoneRight" aria-label="Next slide">
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2.2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
+        <polyline points="9 18 15 12 9 6" />
+      </svg>
+    </button>
+    <button
+      class="fs-toggle"
+      id="fsToggle"
+      aria-label="Toggle fullscreen"
+      title="Fullscreen (↑) / Exit (↓)"
+    >
+      <svg
+        class="fs-enter"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
+        <path d="M3 9V3h6M21 9V3h-6M3 15v6h6M21 15v6h-6" />
+      </svg>
+      <svg
+        class="fs-exit"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
+        <path d="M9 3v6H3M15 3v6h6M9 21v-6H3M15 21v-6h6" />
+      </svg>
+    </button>
+
+    <div class="dots" id="dots"></div>
+    <div class="counter" id="counter">01 / 07</div>
+    <div class="hint" id="hint">
+      <kbd>←</kbd> <kbd>→</kbd> navigate &middot; <kbd>↑</kbd> fullscreen
+      &middot; <kbd>↓</kbd> exit
+    </div>
+
+    <script>
+      const slides = document.querySelectorAll(".slide");
+      const total = slides.length;
+      let current = 0;
+      const counter = document.getElementById("counter");
+      const progressBar = document.getElementById("progressBar");
+      const dotsWrap = document.getElementById("dots");
+      const hint = document.getElementById("hint");
+
+      for (let i = 0; i < total; i++) {
+        const b = document.createElement("button");
+        b.className = "dot-nav" + (i === 0 ? " active" : "");
+        b.setAttribute("aria-label", "Go to slide " + (i + 1));
+        b.addEventListener("click", (e) => {
+          e.stopPropagation();
+          goTo(i);
+        });
+        dotsWrap.appendChild(b);
+      }
+      const dotEls = dotsWrap.querySelectorAll(".dot-nav");
+      const pad = (n) => String(n).padStart(2, "0");
+
+      function update() {
+        slides.forEach((s, i) => {
+          s.classList.remove("active", "prev");
+          if (i === current) s.classList.add("active");
+          else if (i < current) s.classList.add("prev");
+          // Reset step reveals when leaving a slide
+          if (i !== current) {
+            s.querySelectorAll("[data-step]").forEach((el) =>
+              el.classList.remove("revealed"),
+            );
+          }
+        });
+        dotEls.forEach((d, i) => d.classList.toggle("active", i === current));
+        counter.textContent = pad(current + 1) + " / " + pad(total);
+        progressBar.style.width = ((current + 1) / total) * 100 + "%";
+        // Update URL hash for deep linking
+        history.replaceState(null, "", "#" + (current + 1));
+      }
+      // Reveal the next pending step inside the active slide; returns true if one was revealed.
+      function revealNextStep() {
+        const active = slides[current];
+        if (!active) return false;
+        const pending = active.querySelector("[data-step]:not(.revealed)");
+        if (pending) {
+          pending.classList.add("revealed");
+          return true;
+        }
+        return false;
+      }
+      const next = () => {
+        if (revealNextStep()) {
+          fadeHint();
+          return;
+        }
+        if (current < total - 1) {
+          current++;
+          update();
+          fadeHint();
+        }
+      };
+      const prev = () => {
+        if (current > 0) {
+          current--;
+          update();
+          fadeHint();
+        }
+      };
+      const goTo = (i) => {
+        if (i >= 0 && i < total) {
+          current = i;
+          update();
+          fadeHint();
+        }
+      };
+
+      let hintFaded = false;
+      function fadeHint() {
+        if (hintFaded) return;
+        hintFaded = true;
+        hint.classList.add("fade");
+      }
+
+      document.getElementById("zoneLeft").addEventListener("click", prev);
+      document.getElementById("zoneRight").addEventListener("click", next);
+
+      // Fullscreen handling — try multiple element targets and vendor prefixes
+      const fsBtn = document.getElementById("fsToggle");
+      function fsElement() {
+        return (
+          document.fullscreenElement ||
+          document.webkitFullscreenElement ||
+          document.mozFullScreenElement ||
+          document.msFullscreenElement ||
+          null
+        );
+      }
+      function enterFullscreen() {
+        if (fsElement()) return;
+        const el = document.documentElement;
+        const req =
+          el.requestFullscreen ||
+          el.webkitRequestFullscreen ||
+          el.mozRequestFullScreen ||
+          el.msRequestFullscreen;
+        if (!req) {
+          console.warn("Fullscreen API not supported by this browser.");
+          return;
+        }
+        try {
+          const p = req.call(el);
+          if (p && typeof p.then === "function") {
+            p.catch((err) => console.warn("Fullscreen request rejected:", err));
+          }
+        } catch (err) {
+          console.warn("Fullscreen request threw:", err);
+        }
+      }
+      function exitFullscreen() {
+        if (!fsElement()) return;
+        const ex =
+          document.exitFullscreen ||
+          document.webkitExitFullscreen ||
+          document.mozCancelFullScreen ||
+          document.msExitFullscreen;
+        if (ex) ex.call(document);
+      }
+      function toggleFullscreen() {
+        fsElement() ? exitFullscreen() : enterFullscreen();
+      }
+      fsBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        toggleFullscreen();
+      });
+      [
+        "fullscreenchange",
+        "webkitfullscreenchange",
+        "mozfullscreenchange",
+        "MSFullscreenChange",
+      ].forEach((evt) =>
+        document.addEventListener(evt, () => {
+          document.body.classList.toggle("is-fullscreen", !!fsElement());
+        }),
+      );
+
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "ArrowRight" || e.key === " " || e.key === "PageDown") {
+          e.preventDefault();
+          next();
+        } else if (e.key === "ArrowLeft" || e.key === "PageUp") {
+          e.preventDefault();
+          prev();
+        } else if (e.key === "ArrowUp") {
+          e.preventDefault();
+          enterFullscreen();
+        } else if (e.key === "ArrowDown" || e.key === "Escape") {
+          // Escape is handled natively by the browser, but normalize ArrowDown
+          if (e.key === "ArrowDown") {
+            e.preventDefault();
+            exitFullscreen();
+          }
+        } else if (e.key === "Home") goTo(0);
+        else if (e.key === "End") goTo(total - 1);
+      });
+
+      let touchStartX = 0;
+      document.addEventListener(
+        "touchstart",
+        (e) => {
+          touchStartX = e.touches[0].clientX;
+        },
+        { passive: true },
+      );
+      document.addEventListener("touchend", (e) => {
+        const dx = e.changedTouches[0].clientX - touchStartX;
+        if (Math.abs(dx) > 50) (dx < 0 ? next : prev)();
+      });
+
+      // Honor #N hash on load
+      const hash = parseInt(location.hash.slice(1), 10);
+      if (!isNaN(hash) && hash >= 1 && hash <= total) current = hash - 1;
+      update();
+      setTimeout(fadeHint, 6000);
+    </script>
+  </body>
+</html>
