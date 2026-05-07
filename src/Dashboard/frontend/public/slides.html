@@ -268,9 +268,7 @@
       }
       .s2 .punchline,
       .s3 .punchline {
-        margin-top: 2.5rem;
         text-align: center;
-        font-size: clamp(1.1rem, 1.5vw, 1.4rem);
         font-weight: 600;
         color: var(--azure-blue-darker);
         padding: 1.1rem 1.6rem;
@@ -278,8 +276,36 @@
         border-left: 4px solid var(--azure-blue);
         border-radius: 8px;
         max-width: 760px;
-        margin-left: auto;
-        margin-right: auto;
+        margin: 0 auto;
+      }
+      .s2 .punchline.tier1 {
+        font-size: clamp(1.1rem, 1.5vw, 1.4rem);
+      }
+      .s2 .punchline.tier2 {
+        font-size: clamp(1.4rem, 2vw, 1.8rem);
+        font-weight: 700;
+        background: #e0f2fe;
+        border-left-color: var(--azure-blue-dark);
+      }
+      .s2 .punchline.tier3 {
+        font-size: clamp(1.8rem, 2.8vw, 2.4rem);
+        font-weight: 800;
+        color: #fff;
+        background: linear-gradient(
+          135deg,
+          var(--azure-blue) 0%,
+          var(--azure-blue-darker) 100%
+        );
+        border-left-color: var(--azure-cyan);
+        box-shadow: 0 12px 30px rgba(0, 120, 212, 0.25);
+        letter-spacing: -0.01em;
+      }
+      .s2 .punchline-stack,
+      .s3 .punchline-stack {
+        display: flex;
+        flex-direction: column;
+        gap: 0.8rem;
+        margin-top: 2rem;
       }
       /* Step-reveal: hidden until revealed by presenter advance.
          Higher specificity + !important so it wins over .slide.active .anim */
@@ -559,6 +585,68 @@
         color: var(--azure-blue);
         font-weight: 700;
         flex-shrink: 0;
+      }
+
+      /* ========== Slide 5b: Proof video ========== */
+      .s5b {
+        background: #fff;
+      }
+      .s5b .section-title {
+        font-size: clamp(2.4rem, 4.4vw, 3.8rem);
+      }
+      .s5b .section-lead {
+        font-size: clamp(1.15rem, 1.5vw, 1.4rem);
+        color: var(--ink);
+        margin-bottom: 2rem;
+      }
+      .s5b .proof-wrap {
+        display: grid;
+        grid-template-columns: 1.6fr 1fr;
+        gap: 2rem;
+        align-items: center;
+      }
+      .s5b .video-frame {
+        position: relative;
+        width: 100%;
+        padding-top: 56.25%; /* 16:9 */
+        border-radius: 14px;
+        overflow: hidden;
+        background: #000;
+        box-shadow: 0 16px 40px rgba(0, 120, 212, 0.18);
+        border: 1px solid var(--line);
+      }
+      .s5b .video-frame iframe {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        border: 0;
+      }
+      .s5b .proof-meta {
+        display: flex;
+        flex-direction: column;
+        gap: 1.4rem;
+      }
+      .s5b .proof-stat {
+        padding: 1.5rem 1.6rem;
+        background: linear-gradient(180deg, #ffffff 0%, var(--bg-blue) 100%);
+        border: 1px solid var(--azure-blue-pale);
+        border-left: 5px solid var(--azure-blue);
+        border-radius: 12px;
+      }
+      .s5b .proof-num {
+        display: block;
+        font-size: clamp(1.6rem, 2.4vw, 2.2rem);
+        font-weight: 800;
+        color: var(--azure-blue-darker);
+        letter-spacing: -0.02em;
+        line-height: 1.05;
+      }
+      .s5b .proof-label {
+        display: block;
+        margin-top: 0.35rem;
+        font-size: 0.95rem;
+        color: var(--ink-soft);
       }
 
       /* ========== Slide 6: Security ========== */
@@ -1112,6 +1200,7 @@
         .s7 .steps {
           grid-template-columns: 1fr;
         }
+        .s5b .proof-wrap,
         .s6 .sec-grid {
           grid-template-columns: 1fr;
           gap: 1.5rem;
@@ -1228,8 +1317,12 @@
               <p>Stitching screenshots into Monday's exec report.</p>
             </div>
           </div>
-          <div class="punchline anim d7" data-step>
-            Repeat every week. Data is stale before the meeting starts.
+          <div class="punchline-stack">
+            <div class="punchline tier1" data-step>Repeat every month.</div>
+            <div class="punchline tier2" data-step>Continue for years.</div>
+            <div class="punchline tier3" data-step>
+              Until the customer churns.
+            </div>
           </div>
         </div>
       </section>
@@ -2100,6 +2193,53 @@
         </div>
       </section>
 
+      <!-- ========== Slide 5b: Proof ========== -->
+      <section class="slide s5b">
+        <div class="content">
+          <h2 class="section-title anim d1">
+            Tagging score: <em>0 → 5</em>. In minutes.
+          </h2>
+          <p class="section-lead anim d2">
+            What used to take days of queries, naming standards, and Slack
+            threads — now done in one chat.
+          </p>
+          <div class="proof-wrap anim d3">
+            <div class="video-frame">
+              <iframe
+                src="https://www.youtube.com/embed/0BbM3TNFp_U?rel=0&modestbranding=1&playsinline=1&controls=1&color=white&iv_load_policy=3&fs=1&enablejsapi=1"
+                title="Azure FinOps Agent — tagging maturity demo"
+                loading="lazy"
+                allow="
+                  accelerometer;
+                  autoplay;
+                  clipboard-write;
+                  encrypted-media;
+                  gyroscope;
+                  picture-in-picture;
+                  fullscreen;
+                "
+                allowfullscreen
+                referrerpolicy="strict-origin-when-cross-origin"
+              ></iframe>
+            </div>
+            <div class="proof-meta">
+              <div class="proof-stat">
+                <span class="proof-num">~3 min</span>
+                <span class="proof-label">to tag the entire estate</span>
+              </div>
+              <div class="proof-stat">
+                <span class="proof-num">0 → 5</span>
+                <span class="proof-label">tagging maturity score</span>
+              </div>
+              <div class="proof-stat">
+                <span class="proof-num">1</span>
+                <span class="proof-label">conversation, no scripts</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- ========== Slide 6: Security ========== -->
       <section class="slide s6">
         <div class="content">
@@ -2328,7 +2468,7 @@
     </button>
 
     <div class="dots" id="dots"></div>
-    <div class="counter" id="counter">01 / 07</div>
+    <div class="counter" id="counter">01 / 08</div>
     <div class="hint" id="hint">
       <kbd>←</kbd> <kbd>→</kbd> navigate &middot; <kbd>↑</kbd> fullscreen
       &middot; <kbd>↓</kbd> exit

@@ -15,6 +15,13 @@ The agent fixes the issue for you, or hands you the az&nbsp;cli script. Read &am
 
 ![Azure FinOps Agent screenshot](docs/assets/screenshot-finops-shortq.png)
 
+## Try it without signing in
+
+No Azure tenant? Two ways to demo:
+
+- **Public pricing questions** — ask about Azure VM SKUs, regions, reservations, savings plans. Agent uses the public Retail Prices API (no auth).
+- **Drop a sample file** — drag any CSV/JSON/XLSX/PDF from [`demo-data/`](demo-data/) into the chat. The agent inspects the schema, runs aggregates, and answers without ever loading the raw payload into the LLM. Includes realistic cost exports, Advisor JSON, audit logs, and FinOps notes.
+
 ## How it works
 
 Vue 3 SPA → .NET 10 minimal API → GitHub Copilot SDK → Azure read APIs (Cost Management, Resource Graph, Microsoft Graph, Log Analytics) using your delegated Entra tokens. Hosted on Azure App Service or Container Apps. OpenTelemetry to your Application Insights.

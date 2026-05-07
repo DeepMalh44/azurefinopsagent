@@ -113,8 +113,9 @@ app.Use(async (ctx, next) =>
             "script-src 'self' 'unsafe-inline'; " +
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
             "font-src 'self' https://fonts.gstatic.com; " +
-            "img-src 'self' data:; " +
+            "img-src 'self' data: https://i.ytimg.com; " +
             "connect-src 'self'; " +
+            "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com; " +
             "frame-ancestors 'none'";
     }
     else
