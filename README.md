@@ -11,7 +11,9 @@ The agent fixes the issue for you, or hands you the az&nbsp;cli script. Read &am
 
 ## [Try it live →](https://azure-finops-agent.com) &nbsp;&nbsp;&nbsp; [📊 Pitch deck →](https://azure-finops-agent.com/slides)
 
-![Azure FinOps Agent](docs/assets/screenshot-finops-shortq.png)
+![Azure FinOps Agent](src/Dashboard/frontend/public/og-image.png)
+
+![Azure FinOps Agent screenshot](docs/assets/screenshot-finops-shortq.png)
 
 ## How it works
 
