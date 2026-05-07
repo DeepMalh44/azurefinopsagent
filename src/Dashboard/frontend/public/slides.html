@@ -335,6 +335,10 @@
       }
 
       /* ========== Slide 2: Storytelling stage (cards + big image) ========== */
+      .s2 {
+        align-items: flex-start;
+        padding-top: 5vh;
+      }
       .s2 .content {
         display: flex;
         flex-direction: column;
@@ -576,14 +580,26 @@
       /* ========== Slide 4: Architecture ========== */
       .s4 {
         background: #fff;
+        padding: 2vh 2vw;
       }
       .s4 .content {
         display: flex;
         flex-direction: column;
-        gap: 1.25rem;
+        gap: 1rem;
+        max-width: none;
+        width: 100%;
+        height: 100%;
+      }
+      .s4 .section-title {
+        font-size: clamp(2.4rem, 4.4vw, 3.8rem);
+      }
+      .s4 .section-lead {
+        font-size: clamp(1.2rem, 1.6vw, 1.5rem);
+        color: var(--ink);
+        font-weight: 500;
       }
       .s4-header {
-        max-width: 1100px;
+        max-width: 1500px;
         width: 100%;
         margin: 0 auto;
       }
@@ -592,12 +608,18 @@
       }
       .arch-wrap {
         width: 100%;
-        max-width: 1900px;
+        max-width: none;
         margin: 0 auto;
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
       }
       .arch-svg {
         width: 100%;
-        height: auto;
+        height: 100%;
+        max-height: 88vh;
         display: block;
       }
       .region-box {
@@ -1455,15 +1477,15 @@
             Your AI agent for<br />Azure <span>FinOps</span>.
           </h1>
           <p class="tagline anim d4">
-            Visibility · Forecast · Optimize · Remediate · Clarity in minutes
+            Visibility · Agentic Remediation · Clarity in minutes
           </p>
           <p class="sub anim d5">
-            One interface to a team of agentic FinOps workers - surface waste,
-            forecast spend, fix maturity and clarity, and remediate directly
-            with delegated permissions or generated Azure CLI scripts. Even
-            assembles your exec presentations. Win back trust in your cloud
-            spend with years of FinOps Framework experience, all in one Agent
-            Portal. Built on the GitHub Copilot SDK.
+            Surface waste, forecast spending, remediate directly with a
+            delegated agent.
+            <br /><br />
+            Visualize findings and optimization opportunities. Win back trust in
+            your cloud spend - years of FinOps Framework experience, all in one
+            simple portal.
           </p>
         </div>
       </section>
@@ -1694,14 +1716,14 @@
                     stroke-linecap="round"
                     stroke-linejoin="round"
                   >
-                    <path d="M20 6L9 17l-5-5" />
+                    <path d="M12 2l3 7h7l-5.5 4 2 7L12 16l-6.5 4 2-7L2 9h7z" />
                   </svg>
                 </div>
                 <div class="card-text">
-                  <h3>Win trust again</h3>
+                  <h3>Open Source</h3>
                   <p>
-                    Report back to leadership quickly and with confidence -
-                    clarify remediations already done and what to decide next.
+                    Free from Microsoft - the first step in the trust and cost
+                    conversation.
                   </p>
                 </div>
               </div>
@@ -1715,14 +1737,14 @@
                     stroke-linecap="round"
                     stroke-linejoin="round"
                   >
-                    <path d="M12 2l3 7h7l-5.5 4 2 7L12 16l-6.5 4 2-7L2 9h7z" />
+                    <path d="M20 6L9 17l-5-5" />
                   </svg>
                 </div>
                 <div class="card-text">
-                  <h3>Open Source</h3>
+                  <h3>Win trust again</h3>
                   <p>
-                    Free from Microsoft - the first step in the trust and cost
-                    conversation.
+                    Report back to leadership quickly and with confidence -
+                    clarify remediations already done and what to decide next.
                   </p>
                 </div>
               </div>
@@ -1744,11 +1766,6 @@
         <div class="content">
           <div class="s4-header">
             <h2 class="section-title anim d1">How it <em>works</em>.</h2>
-            <p class="section-lead anim d2">
-              The user chats with a Vue 3 frontend hosted on Azure App Service.
-              A .NET 10 minimal API orchestrates Azure AI Foundry agents that
-              call Azure's read APIs using the user's delegated tokens.
-            </p>
           </div>
           <div class="arch-wrap anim d3">
             <svg
@@ -1796,6 +1813,67 @@
                     cy="4.58"
                     r="4.58"
                     fill="url(#ic-users-g2)"
+                  />
+                </symbol>
+
+                <symbol id="ic-container-apps" viewBox="0 0 18 18">
+                  <defs>
+                    <linearGradient
+                      id="ic-cae-g1"
+                      x1="11.729"
+                      y1="4.88"
+                      x2="11.729"
+                      y2="13.099"
+                      gradientUnits="userSpaceOnUse"
+                    >
+                      <stop offset="0.001" stop-color="#773adc" />
+                      <stop offset="0.528" stop-color="#6635bb" />
+                      <stop offset="1" stop-color="#552f99" />
+                    </linearGradient>
+                    <linearGradient
+                      id="ic-cae-g2"
+                      x1="6.35"
+                      y1="13.914"
+                      x2="6.35"
+                      y2="4.198"
+                      gradientUnits="userSpaceOnUse"
+                    >
+                      <stop offset="0.001" stop-color="#773adc" />
+                      <stop offset="0.307" stop-color="#793ddd" />
+                      <stop offset="0.532" stop-color="#8046e1" />
+                      <stop offset="0.731" stop-color="#8c56e7" />
+                      <stop offset="0.915" stop-color="#9c6def" />
+                      <stop offset="1" stop-color="#a67af4" />
+                    </linearGradient>
+                  </defs>
+                  <path
+                    d="M8.617,8.644H.639V1.784A1.16,1.16,0,0,1,1.788.624H8.617ZM1.63,7.653h6V1.594H1.788a.158.158,0,0,0-.158.158h0Z"
+                    fill="#949494"
+                  />
+                  <path
+                    d="M17.5,8.644H9.523V.624h6.828A1.16,1.16,0,0,1,17.5,1.784Zm-6.987-.991h6V1.784a.157.157,0,0,0-.123-.187.2.2,0,0,0-.035,0H10.513Z"
+                    fill="#949494"
+                  />
+                  <path
+                    d="M8.617,17.485H1.788A1.149,1.149,0,0,1,.639,16.347V9.476H8.617ZM1.63,10.467v5.88a.158.158,0,0,0,.158.158H7.626V10.467Z"
+                    fill="#949494"
+                  />
+                  <path
+                    d="M16.351,17.485H9.523V9.476H17.5v6.871A1.149,1.149,0,0,1,16.351,17.485Zm-5.838-.991h5.838a.157.157,0,0,0,.158-.158V10.467h-6Z"
+                    fill="#949494"
+                  />
+                  <path
+                    d="M14.6,6.294a.294.294,0,0,0-.2-.278L9.044,4.205A.128.128,0,0,0,9,4.2H9a.132.132,0,0,0-.133.133v9.445A.133.133,0,0,0,9,13.911H9a.138.138,0,0,0,.049-.01l5.365-2.145a.292.292,0,0,0,.184-.272Z"
+                    fill="url(#ic-cae-g1)"
+                  />
+                  <path
+                    d="M8.966,4.2l-5.293.966a.161.161,0,0,0-.13.158V12.63a.16.16,0,0,0,.126.157L8.962,13.91a.161.161,0,0,0,.191-.121.22.22,0,0,0,0-.036V4.358A.16.16,0,0,0,9,4.2.163.163,0,0,0,8.966,4.2Z"
+                    fill="url(#ic-cae-g2)"
+                  />
+                  <path
+                    d="M6.52,5.656v6.8l1.842.3V5.335Zm-2.262.367v5.955l1.6.326V5.754Z"
+                    fill="#b796f9"
+                    opacity="0.5"
                   />
                 </symbol>
 
@@ -2333,18 +2411,8 @@
                 rx="12"
               />
               <text class="region-label" x="360" y="42">
-                App Service · Container
+                Application Platform
               </text>
-
-              <rect
-                class="region-box"
-                x="680"
-                y="55"
-                width="320"
-                height="685"
-                rx="12"
-              />
-              <text class="region-label" x="700" y="42">AI Layer</text>
 
               <rect
                 class="region-box"
@@ -2354,7 +2422,7 @@
                 height="685"
                 rx="12"
               />
-              <text class="region-label" x="1040" y="42">Azure Read APIs</text>
+              <text class="region-label" x="1040" y="42">Tenant Interface</text>
 
               <!--
                 Node geometry (rect x,y,w,h):
@@ -2370,47 +2438,24 @@
               -->
 
               <!-- ====== Connections (drawn first, nodes on top) ====== -->
-              <!-- User → Vue Frontend -->
-              <path class="conn c1" d="M 290,375 C 320,375 330,300 360,300" />
-              <!-- Vue Frontend → .NET Backend -->
-              <path class="conn c2" d="M 500,340 L 500,410" />
-              <!-- .NET Backend → Copilot SDK -->
-              <path class="conn c3" d="M 640,450 C 670,450 670,375 700,375" />
-              <!-- Copilot → Azure ARM REST API -->
-              <path
-                class="conn c4"
-                d="M 980,375 C 1010,375 1010,112 1040,112"
-              />
-              <!-- Copilot → Resource Graph -->
-              <path
-                class="conn c5"
-                d="M 980,375 C 1010,375 1010,207 1040,207"
-              />
-              <!-- Copilot → Log Analytics -->
-              <path
-                class="conn c6"
-                d="M 980,375 C 1010,375 1010,302 1040,302"
-              />
-              <!-- Copilot → App Insights -->
-              <path
-                class="conn c7"
-                d="M 980,375 C 1010,375 1010,397 1040,397"
-              />
-              <!-- Copilot → MS Graph -->
-              <path
-                class="conn c8"
-                d="M 980,375 C 1010,375 1010,492 1040,492"
-              />
-              <!-- Copilot → Retail Prices API -->
-              <path
-                class="conn c10"
-                d="M 980,375 C 1010,375 1010,587 1040,587"
-              />
-              <!-- Copilot → Cost Export Storage -->
-              <path
-                class="conn c11"
-                d="M 980,375 C 1010,375 1010,682 1040,682"
-              />
+              <!-- User → Container Apps -->
+              <path class="conn c1" d="M 290,375 C 320,375 330,335 360,335" />
+              <!-- Container Apps → Microsoft Agent Framework -->
+              <path class="conn c2" d="M 500,400 L 500,460" />
+              <!-- MAF → Azure ARM REST API -->
+              <path class="conn c4" d="M 640,505 C 760,505 920,112 1040,112" />
+              <!-- MAF → Resource Graph -->
+              <path class="conn c5" d="M 640,505 C 760,505 920,207 1040,207" />
+              <!-- MAF → Log Analytics -->
+              <path class="conn c6" d="M 640,505 C 760,505 920,302 1040,302" />
+              <!-- MAF → App Insights -->
+              <path class="conn c7" d="M 640,505 C 760,505 920,397 1040,397" />
+              <!-- MAF → MS Graph -->
+              <path class="conn c8" d="M 640,505 C 760,505 920,492 1040,492" />
+              <!-- MAF → Retail Prices API -->
+              <path class="conn c10" d="M 640,505 C 760,505 920,587 1040,587" />
+              <!-- MAF → Cost Export Storage -->
+              <path class="conn c11" d="M 640,505 C 760,505 920,682 1040,682" />
               <text class="conn-label" x="780" y="22" style="display: none">
                 OpenTelemetry
               </text>
@@ -2431,68 +2476,49 @@
                 <text class="node-sub" x="135" y="395">Browser chat</text>
               </g>
 
-              <!-- Vue Frontend -->
+              <!-- Container Apps -->
               <g>
                 <rect
                   class="node-box primary"
                   x="360"
-                  y="260"
+                  y="295"
                   width="280"
-                  height="80"
+                  height="105"
                   rx="10"
                 />
                 <use
-                  href="#ic-app-service"
+                  href="#ic-container-apps"
                   x="378"
-                  y="275"
-                  width="40"
-                  height="40"
+                  y="320"
+                  width="50"
+                  height="50"
                 />
-                <text class="node-title" x="428" y="295">Vue Frontend</text>
-                <text class="node-sub" x="428" y="317">SPA · ECharts</text>
+                <text class="node-title" x="440" y="340">Container Apps</text>
+                <text class="node-sub" x="440" y="362">Vue SPA + .NET API</text>
+                <text class="node-sub" x="440" y="380">Managed Identity</text>
               </g>
 
-              <!-- .NET Backend -->
+              <!-- Agent Framework -->
               <g>
                 <rect
                   class="node-box primary"
                   x="360"
-                  y="410"
+                  y="460"
                   width="280"
-                  height="80"
-                  rx="10"
-                />
-                <use
-                  href="#ic-app-service"
-                  x="378"
-                  y="425"
-                  width="40"
-                  height="40"
-                />
-                <text class="node-title" x="428" y="445">.NET Backend</text>
-                <text class="node-sub" x="428" y="467">Minimal API · SSE</text>
-              </g>
-
-              <!-- Copilot SDK -->
-              <g>
-                <rect
-                  class="node-box primary"
-                  x="700"
-                  y="335"
-                  width="280"
-                  height="80"
+                  height="105"
                   rx="10"
                 />
                 <use
                   href="#ic-foundry"
-                  x="718"
-                  y="350"
-                  width="40"
-                  height="40"
+                  x="378"
+                  y="485"
+                  width="50"
+                  height="50"
                 />
-                <text class="node-title" x="768" y="370">Azure AI Foundry</text>
-                <text class="node-sub" x="768" y="392">
-                  Entra ID · no API keys
+                <text class="node-title" x="440" y="510">Agent Framework</text>
+                <text class="node-sub" x="440" y="532">+ Azure AI Foundry</text>
+                <text class="node-sub" x="440" y="550">
+                  Tools · Entra ID · no keys
                 </text>
               </g>
 
@@ -2663,25 +2689,21 @@
                 r="4"
                 style="
                   offset-path: path(
-                    &quot;M 290,375 C 320,375 330,300 360,300&quot;
+                    &quot;M 290,375 C 320,375 330,335 360,335&quot;
                   );
                 "
               />
               <circle
                 class="flow-particle fp2"
                 r="4"
-                style="
-                  offset-path: path(
-                    &quot;M 640,450 C 670,450 670,375 700,375&quot;
-                  );
-                "
+                style="offset-path: path(&quot;M 500,400 L 500,460&quot;)"
               />
               <circle
                 class="flow-particle fp3"
                 r="4"
                 style="
                   offset-path: path(
-                    &quot;M 980,375 C 1010,375 1010,397 1040,397&quot;
+                    &quot;M 640,505 C 760,505 920,397 1040,397&quot;
                   );
                 "
               />
@@ -2690,7 +2712,7 @@
                 r="4"
                 style="
                   offset-path: path(
-                    &quot;M 980,375 C 1010,375 1010,112 1040,112&quot;
+                    &quot;M 640,505 C 760,505 920,112 1040,112&quot;
                   );
                 "
               />
@@ -2699,7 +2721,7 @@
                 r="4"
                 style="
                   offset-path: path(
-                    &quot;M 980,375 C 1010,375 1010,492 1040,492&quot;
+                    &quot;M 640,505 C 760,505 920,492 1040,492&quot;
                   );
                 "
               />
@@ -2708,7 +2730,7 @@
                 r="3"
                 style="
                   offset-path: path(
-                    &quot;M 980,375 C 1010,375 1010,682 1040,682&quot;
+                    &quot;M 640,505 C 760,505 920,682 1040,682&quot;
                   );
                   fill: #b77af4;
                 "
@@ -2899,7 +2921,7 @@
             </div>
             <div class="step anim d6">
               <div class="num">03</div>
-              <h4>Chat</h4>
+              <h4>Agentic FinOps</h4>
               <p>App Service or Container Apps.</p>
             </div>
           </div>
