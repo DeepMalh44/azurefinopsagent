@@ -388,7 +388,7 @@
       }
       .arch-wrap {
         width: 100%;
-        max-width: 1400px;
+        max-width: 1900px;
         margin: 0 auto;
       }
       .arch-svg {
@@ -403,7 +403,7 @@
       }
       .region-label {
         fill: var(--ink-mute);
-        font-size: 13px;
+        font-size: 15px;
         font-weight: 600;
         letter-spacing: 0.12em;
         text-transform: uppercase;
@@ -423,13 +423,13 @@
       }
       .node-title {
         fill: var(--ink);
-        font-size: 14px;
+        font-size: 17px;
         font-weight: 700;
         font-family: "Segoe UI", sans-serif;
       }
       .node-sub {
         fill: var(--ink-mute);
-        font-size: 11.5px;
+        font-size: 13.5px;
         font-family: "Segoe UI", sans-serif;
       }
       .node-title-c {
@@ -1374,9 +1374,6 @@
             <div class="punchline tier3" data-step>
               Picks an alternative offer or cloud service.
             </div>
-            <div class="punchline tier4" data-step>
-              Problem still exists — at scale.
-            </div>
           </div>
         </div>
       </section>
@@ -1469,14 +1466,14 @@
             <h2 class="section-title anim d1">How it <em>works</em>.</h2>
             <p class="section-lead anim d2">
               The user chats with a Vue 3 frontend hosted on Azure App Service.
-              A .NET 10 minimal API orchestrates the GitHub Copilot SDK, which
-              calls Azure's read APIs using the user's delegated tokens.
+              A .NET 10 minimal API orchestrates Azure AI Foundry agents that
+              call Azure's read APIs using the user's delegated tokens.
             </p>
           </div>
           <div class="arch-wrap anim d3">
             <svg
               class="arch-svg"
-              viewBox="0 0 1540 540"
+              viewBox="0 0 1660 760"
               preserveAspectRatio="xMidYMid meet"
               xmlns="http://www.w3.org/2000/svg"
             >
@@ -1861,67 +1858,223 @@
                     fill="#fff"
                   />
                 </symbol>
+
+                <symbol id="ic-storage" viewBox="0 0 18 18">
+                  <linearGradient
+                    id="ic-storage-g1"
+                    x1="9"
+                    y1="15.83"
+                    x2="9"
+                    y2="5.79"
+                    gradientUnits="userSpaceOnUse"
+                  >
+                    <stop offset="0" stop-color="#b3b3b3" />
+                    <stop offset="0.26" stop-color="#c1c1c1" />
+                    <stop offset="1" stop-color="#e6e6e6" />
+                  </linearGradient>
+                  <path
+                    d="M.5,5.79h17a0,0,0,0,1,0,0v9.48a.57.57,0,0,1-.57.57H1.07a.57.57,0,0,1-.57-.57V5.79A0,0,0,0,1,.5,5.79Z"
+                    fill="url(#ic-storage-g1)"
+                  />
+                  <path
+                    d="M1.07,2.17H16.93a.57.57,0,0,1,.57.57V5.79a0,0,0,0,1,0,0H.5a0,0,0,0,1,0,0V2.73A.57.57,0,0,1,1.07,2.17Z"
+                    fill="#37c2b1"
+                  />
+                  <path
+                    d="M2.81,6.89H15.18a.27.27,0,0,1,.26.27v1.4a.27.27,0,0,1-.26.27H2.81a.27.27,0,0,1-.26-.27V7.16A.27.27,0,0,1,2.81,6.89Z"
+                    fill="#fff"
+                  />
+                  <path
+                    d="M2.82,9.68H15.19a.27.27,0,0,1,.26.27v1.41a.27.27,0,0,1-.26.27H2.82a.27.27,0,0,1-.26-.27V10A.27.27,0,0,1,2.82,9.68Z"
+                    fill="#37c2b1"
+                  />
+                  <path
+                    d="M2.82,12.5H15.19a.27.27,0,0,1,.26.27v1.41a.27.27,0,0,1-.26.27H2.82a.27.27,0,0,1-.26-.27V12.77A.27.27,0,0,1,2.82,12.5Z"
+                    fill="#258277"
+                  />
+                </symbol>
+
+                <symbol id="ic-foundry" viewBox="0 0 18 18">
+                  <linearGradient
+                    id="ic-foundry-g1"
+                    x1="-603.563"
+                    y1="-218.378"
+                    x2="-606.6"
+                    y2="-206.22"
+                    gradientTransform="translate(617.126 -205.758) scale(1 -1)"
+                    gradientUnits="userSpaceOnUse"
+                  >
+                    <stop offset="0" stop-color="#712575" />
+                    <stop offset=".4" stop-color="#f131a5" />
+                    <stop offset="1" stop-color="#712575" />
+                  </linearGradient>
+                  <linearGradient
+                    id="ic-foundry-g2"
+                    x1="-602.412"
+                    y1="-206.025"
+                    x2="-602.412"
+                    y2="-223.175"
+                    gradientTransform="translate(617.126 -205.758) scale(1 -1)"
+                    gradientUnits="userSpaceOnUse"
+                  >
+                    <stop offset="0" stop-color="#da7ed0" />
+                    <stop offset=".54" stop-color="#2e72e8" />
+                    <stop offset="1" stop-color="#1171ed" />
+                  </linearGradient>
+                  <linearGradient
+                    id="ic-foundry-g3"
+                    x1="-603.438"
+                    y1="-206.414"
+                    x2="-614.807"
+                    y2="-224.644"
+                    gradientTransform="translate(617.126 -205.758) scale(1 -1)"
+                    gradientUnits="userSpaceOnUse"
+                  >
+                    <stop offset="0" stop-color="#da7ed0" />
+                    <stop offset=".54" stop-color="#1a71eb" />
+                    <stop offset="1" stop-color="#1171ed" />
+                  </linearGradient>
+                  <path
+                    d="m12.061.012c.534,0,1.008.401,1.178.984s1.166,4.19,1.166,4.19v7.166h-3.607l.073-12.352h1.19v.012Z"
+                    fill="url(#ic-foundry-g1)"
+                    fill-rule="evenodd"
+                  />
+                  <path
+                    d="m17.356,5.611c0-.255-.206-.449-.449-.449h-2.126c-1.494,0-2.709,1.215-2.709,2.709v4.494h2.575c1.494,0,2.709-1.215,2.709-2.709v-4.045Z"
+                    fill="url(#ic-foundry-g2)"
+                  />
+                  <path
+                    d="m12.061.012c-.413,0-.741.328-.741.741l-.073,13.64c0,1.992-1.615,3.607-3.607,3.607H1.093c-.316,0-.522-.304-.425-.595L5.915,2.429C6.425.984,7.785.012,9.316.012h2.757-.012Z"
+                    fill="url(#ic-foundry-g3)"
+                    fill-rule="evenodd"
+                  />
+                </symbol>
+
+                <symbol id="ic-subscription" viewBox="0 0 18 18">
+                  <radialGradient
+                    id="ic-sub-g1"
+                    cx="-36.63"
+                    cy="17.12"
+                    r="11.18"
+                    gradientTransform="translate(41.88 -7.4) scale(0.94 0.94)"
+                    gradientUnits="userSpaceOnUse"
+                  >
+                    <stop offset="0.27" stop-color="#ffd70f" />
+                    <stop offset="0.49" stop-color="#ffcb12" />
+                    <stop offset="0.88" stop-color="#feac19" />
+                    <stop offset="1" stop-color="#fea11b" />
+                  </radialGradient>
+                  <path
+                    d="M13.56,7.19a2.07,2.07,0,0,0,0-2.93h0L10,.69a2.06,2.06,0,0,0-2.92,0h0L3.52,4.26a2.09,2.09,0,0,0,0,2.93l3,3a.61.61,0,0,1,.17.41v5.52a.7.7,0,0,0,.2.5l1.35,1.35a.45.45,0,0,0,.66,0l1.31-1.31h0l.77-.77a.26.26,0,0,0,0-.38l-.55-.56a.29.29,0,0,1,0-.42l.55-.56a.26.26,0,0,0,0-.38L10.4,13a.28.28,0,0,1,0-.41L11,12a.26.26,0,0,0,0-.38l-.77-.78v-.28Zm-5-5.64A1.18,1.18,0,1,1,7.37,2.73,1.17,1.17,0,0,1,8.54,1.55Z"
+                    fill="url(#ic-sub-g1)"
+                  />
+                  <path
+                    d="M7.62,16.21h0A.25.25,0,0,0,8,16V11.55a.27.27,0,0,0-.11-.22h0a.25.25,0,0,0-.39.22V16A.27.27,0,0,0,7.62,16.21Z"
+                    fill="#ff9300"
+                    opacity="0.75"
+                  />
+                  <rect
+                    x="5.69"
+                    y="5.45"
+                    width="5.86"
+                    height="0.69"
+                    rx="0.32"
+                    fill="#ff9300"
+                    opacity="0.75"
+                  />
+                  <rect
+                    x="5.69"
+                    y="6.57"
+                    width="5.86"
+                    height="0.69"
+                    rx="0.32"
+                    fill="#ff9300"
+                    opacity="0.75"
+                  />
+                </symbol>
+
+                <symbol id="ic-marketplace" viewBox="0 0 18 18">
+                  <linearGradient
+                    id="ic-mkt-g1"
+                    x1="7.63"
+                    y1="15.34"
+                    x2="7.63"
+                    y2="5.84"
+                    gradientUnits="userSpaceOnUse"
+                  >
+                    <stop offset="0" stop-color="#ccc" />
+                    <stop offset="0.15" stop-color="#dadada" />
+                    <stop offset="0.44" stop-color="#eee" />
+                    <stop offset="0.72" stop-color="#fbfbfb" />
+                    <stop offset="1" stop-color="#fff" />
+                  </linearGradient>
+                  <path d="M15,4.77h-1v12.8l1-1.93Z" fill="#50e6ff" />
+                  <path d="M15,15.63h0l-1,1.93,1-.8,1.23-.95Z" fill="#9cebff" />
+                  <path
+                    d="M8.39,2.86A1.57,1.57,0,0,1,10,1.35a1.57,1.57,0,0,1,1.63,1.51V4.77h.78V2.86A2.35,2.35,0,0,0,10,.57a2.35,2.35,0,0,0-2.4,2.29V4.77h.78Z"
+                    fill="#a3a3a3"
+                  />
+                  <path
+                    d="M6,2.86A1.57,1.57,0,0,1,7.62,1.35,1.58,1.58,0,0,1,9.25,2.86V4.77H10V2.86A2.36,2.36,0,0,0,7.62.57a2.35,2.35,0,0,0-2.4,2.29V4.77H6Z"
+                    fill="#767676"
+                  />
+                  <polygon
+                    points="13.92 4.77 13.92 17.57 1.45 16.58 1.83 4.77 13.92 4.77"
+                    fill="#32bedd"
+                  />
+                  <polygon
+                    points="14.95 4.77 14.95 15.64 16.18 15.82 15.81 4.77 14.95 4.77"
+                    fill="#32bedd"
+                  />
+                  <path
+                    d="M12.19,12.31a2.3,2.3,0,0,0-1.79-2.18A2.84,2.84,0,0,0,7.74,7.38,2.47,2.47,0,0,0,5.2,9a2.3,2.3,0,0,0-2.13,2.31A2.74,2.74,0,0,0,5.63,14h.22l4.16.28h.11A2,2,0,0,0,12.19,12.31Z"
+                    fill="url(#ic-mkt-g1)"
+                  />
+                </symbol>
               </defs>
 
               <!-- ====== Region containers ====== -->
               <rect
                 class="region-box"
                 x="40"
-                y="60"
-                width="200"
-                height="420"
+                y="55"
+                width="280"
+                height="685"
                 rx="12"
               />
-              <text class="region-label" x="60" y="88">User</text>
+              <text class="region-label" x="60" y="42">User</text>
 
               <rect
                 class="region-box"
-                x="280"
-                y="60"
-                width="310"
-                height="420"
+                x="340"
+                y="55"
+                width="320"
+                height="685"
                 rx="12"
               />
-              <text class="region-label" x="300" y="88">
+              <text class="region-label" x="360" y="42">
                 App Service · Container
               </text>
 
               <rect
                 class="region-box"
-                x="620"
-                y="60"
-                width="260"
-                height="420"
+                x="680"
+                y="55"
+                width="320"
+                height="685"
                 rx="12"
               />
-              <text class="region-label" x="640" y="88">AI Layer</text>
+              <text class="region-label" x="700" y="42">AI Layer</text>
 
               <rect
                 class="region-box"
-                x="920"
-                y="60"
-                width="470"
-                height="420"
+                x="1020"
+                y="55"
+                width="620"
+                height="685"
                 rx="12"
               />
-              <text class="region-label" x="940" y="88">Azure Read APIs</text>
-
-              <rect
-                class="region-box"
-                x="1400"
-                y="60"
-                width="100"
-                height="420"
-                rx="12"
-              />
-              <text
-                class="region-label"
-                x="1418"
-                y="88"
-                style="font-size: 10px"
-              >
-                Observe
-              </text>
+              <text class="region-label" x="1040" y="42">Azure Read APIs</text>
 
               <!--
                 Node geometry (rect x,y,w,h):
@@ -1938,27 +2091,49 @@
 
               <!-- ====== Connections (drawn first, nodes on top) ====== -->
               <!-- User → Vue Frontend -->
-              <path class="conn c1" d="M 210,270 C 275,270 280,200 340,200" />
-              <!-- Vue Frontend → .NET Backend (vertical inside App Service region) -->
-              <path class="conn c2" d="M 435,240 L 435,300" />
+              <path class="conn c1" d="M 290,375 C 320,375 330,300 360,300" />
+              <!-- Vue Frontend → .NET Backend -->
+              <path class="conn c2" d="M 500,340 L 500,410" />
               <!-- .NET Backend → Copilot SDK -->
-              <path class="conn c3" d="M 530,340 C 585,340 585,270 640,270" />
-              <!-- Copilot → Cost Mgmt (curve up) -->
-              <path class="conn c4" d="M 830,270 C 885,270 885,160 940,160" />
-              <!-- Copilot → Resource Graph (straight) -->
-              <path class="conn c5" d="M 830,270 L 940,270" />
-              <!-- Copilot → MS Graph (curve down) -->
-              <path class="conn c6" d="M 830,270 C 885,270 885,380 940,380" />
-              <!-- Resource Graph → Log Analytics -->
-              <path class="conn c7" d="M 1130,270 L 1170,270" />
-              <!-- Log Analytics → App Insights -->
-              <path class="conn c8" d="M 1360,270 L 1410,270" />
-              <!-- .NET Backend → App Insights (telemetry, top arc — well above nodes) -->
+              <path class="conn c3" d="M 640,450 C 670,450 670,375 700,375" />
+              <!-- Copilot → Azure ARM REST API -->
               <path
-                class="conn c9 telemetry"
-                d="M 530,300 C 530,30 1450,30 1450,250"
+                class="conn c4"
+                d="M 980,375 C 1010,375 1010,112 1040,112"
               />
-              <text class="conn-label" x="990" y="22">OpenTelemetry</text>
+              <!-- Copilot → Resource Graph -->
+              <path
+                class="conn c5"
+                d="M 980,375 C 1010,375 1010,207 1040,207"
+              />
+              <!-- Copilot → Log Analytics -->
+              <path
+                class="conn c6"
+                d="M 980,375 C 1010,375 1010,302 1040,302"
+              />
+              <!-- Copilot → App Insights -->
+              <path
+                class="conn c7"
+                d="M 980,375 C 1010,375 1010,397 1040,397"
+              />
+              <!-- Copilot → MS Graph -->
+              <path
+                class="conn c8"
+                d="M 980,375 C 1010,375 1010,492 1040,492"
+              />
+              <!-- Copilot → Retail Prices API -->
+              <path
+                class="conn c10"
+                d="M 980,375 C 1010,375 1010,587 1040,587"
+              />
+              <!-- Copilot → Cost Export Storage -->
+              <path
+                class="conn c11"
+                d="M 980,375 C 1010,375 1010,682 1040,682"
+              />
+              <text class="conn-label" x="780" y="22" style="display: none">
+                OpenTelemetry
+              </text>
 
               <!-- ====== Nodes ====== -->
               <!-- User -->
@@ -1966,101 +2141,103 @@
                 <rect
                   class="node-box"
                   x="70"
-                  y="230"
-                  width="140"
+                  y="335"
+                  width="220"
                   height="80"
                   rx="10"
                 />
-                <use href="#ic-users" x="85" y="245" width="40" height="40" />
-                <text class="node-title" x="129" y="268">FinOps Lead</text>
-                <text class="node-sub" x="129" y="284">Browser chat</text>
+                <use href="#ic-users" x="85" y="350" width="40" height="40" />
+                <text class="node-title" x="135" y="373">FinOps Lead</text>
+                <text class="node-sub" x="135" y="395">Browser chat</text>
               </g>
 
               <!-- Vue Frontend -->
               <g>
                 <rect
                   class="node-box primary"
-                  x="340"
-                  y="160"
-                  width="190"
+                  x="360"
+                  y="260"
+                  width="280"
                   height="80"
                   rx="10"
                 />
                 <use
                   href="#ic-app-service"
-                  x="358"
-                  y="175"
+                  x="378"
+                  y="275"
                   width="40"
                   height="40"
                 />
-                <text class="node-title" x="408" y="195">Vue Frontend</text>
-                <text class="node-sub" x="408" y="214">SPA · ECharts</text>
+                <text class="node-title" x="428" y="295">Vue Frontend</text>
+                <text class="node-sub" x="428" y="317">SPA · ECharts</text>
               </g>
 
               <!-- .NET Backend -->
               <g>
                 <rect
                   class="node-box primary"
-                  x="340"
-                  y="300"
-                  width="190"
+                  x="360"
+                  y="410"
+                  width="280"
                   height="80"
                   rx="10"
                 />
                 <use
                   href="#ic-app-service"
-                  x="358"
-                  y="315"
+                  x="378"
+                  y="425"
                   width="40"
                   height="40"
                 />
-                <text class="node-title" x="408" y="335">.NET Backend</text>
-                <text class="node-sub" x="408" y="354">Minimal API · SSE</text>
+                <text class="node-title" x="428" y="445">.NET Backend</text>
+                <text class="node-sub" x="428" y="467">Minimal API · SSE</text>
               </g>
 
               <!-- Copilot SDK -->
               <g>
                 <rect
                   class="node-box primary"
-                  x="640"
-                  y="230"
-                  width="190"
+                  x="700"
+                  y="335"
+                  width="280"
                   height="80"
                   rx="10"
                 />
                 <use
-                  href="#ic-azure-openai"
-                  x="658"
-                  y="245"
+                  href="#ic-foundry"
+                  x="718"
+                  y="350"
                   width="40"
                   height="40"
                 />
-                <text class="node-title" x="708" y="265">Copilot SDK</text>
-                <text class="node-sub" x="708" y="284">
-                  BYOK · Azure OpenAI
+                <text class="node-title" x="768" y="370">Azure AI Foundry</text>
+                <text class="node-sub" x="768" y="392">
+                  Entra ID · no API keys
                 </text>
               </g>
 
-              <!-- Cost Management -->
+              <!-- Azure ARM REST API -->
               <g>
                 <rect
                   class="node-box"
-                  x="940"
-                  y="120"
-                  width="190"
+                  x="1040"
+                  y="72"
+                  width="500"
                   height="80"
                   rx="10"
                 />
                 <use
-                  href="#ic-cost-mgmt"
-                  x="958"
-                  y="135"
+                  href="#ic-subscription"
+                  x="1058"
+                  y="87"
                   width="40"
                   height="40"
                 />
-                <text class="node-title" x="1008" y="155">Cost Mgmt</text>
-                <text class="node-sub" x="1008" y="174">
-                  Billing · Forecast
+                <text class="node-title" x="1128" y="107">
+                  Azure ARM REST API
+                </text>
+                <text class="node-sub" x="1128" y="126">
+                  Cost Mgmt · Advisor · Reservations · Compute · Carbon
                 </text>
               </g>
 
@@ -2068,77 +2245,136 @@
               <g>
                 <rect
                   class="node-box"
-                  x="940"
-                  y="230"
-                  width="190"
+                  x="1040"
+                  y="167"
+                  width="500"
                   height="80"
                   rx="10"
                 />
                 <use
                   href="#ic-resource-graph"
-                  x="958"
-                  y="245"
+                  x="1058"
+                  y="182"
                   width="40"
                   height="40"
                 />
-                <text class="node-title" x="1008" y="265">Resource Graph</text>
-                <text class="node-sub" x="1008" y="284">Advisor · Monitor</text>
-              </g>
-
-              <!-- Microsoft Graph -->
-              <g>
-                <rect
-                  class="node-box"
-                  x="940"
-                  y="340"
-                  width="190"
-                  height="80"
-                  rx="10"
-                />
-                <use href="#ic-entra" x="958" y="355" width="40" height="40" />
-                <text class="node-title" x="1008" y="375">MS Graph</text>
-                <text class="node-sub" x="1008" y="394">Licenses · M365</text>
+                <text class="node-title" x="1128" y="202">Resource Graph</text>
+                <text class="node-sub" x="1128" y="221">
+                  Cross-subscription inventory
+                </text>
               </g>
 
               <!-- Log Analytics -->
               <g>
                 <rect
                   class="node-box"
-                  x="1170"
-                  y="230"
-                  width="190"
+                  x="1040"
+                  y="262"
+                  width="500"
                   height="80"
                   rx="10"
                 />
                 <use
                   href="#ic-log-analytics"
-                  x="1188"
-                  y="245"
+                  x="1058"
+                  y="277"
                   width="40"
                   height="40"
                 />
-                <text class="node-title" x="1238" y="265">Log Analytics</text>
-                <text class="node-sub" x="1238" y="284">KQL queries</text>
+                <text class="node-title" x="1128" y="297">Log Analytics</text>
+                <text class="node-sub" x="1128" y="316">
+                  KQL · ingestion costs · idle VMs
+                </text>
               </g>
 
               <!-- App Insights -->
               <g>
                 <rect
                   class="node-box"
-                  x="1410"
-                  y="230"
-                  width="80"
+                  x="1040"
+                  y="357"
+                  width="500"
                   height="80"
                   rx="10"
                 />
                 <use
                   href="#ic-app-insights"
-                  x="1430"
-                  y="245"
+                  x="1058"
+                  y="372"
                   width="40"
                   height="40"
                 />
-                <text class="node-title-c" x="1450" y="305">App Insights</text>
+                <text class="node-title" x="1128" y="392">App Insights</text>
+                <text class="node-sub" x="1128" y="411">
+                  KQL · dependency · perf
+                </text>
+              </g>
+
+              <!-- Microsoft Graph -->
+              <g>
+                <rect
+                  class="node-box"
+                  x="1040"
+                  y="452"
+                  width="500"
+                  height="80"
+                  rx="10"
+                />
+                <use href="#ic-entra" x="1058" y="467" width="40" height="40" />
+                <text class="node-title" x="1128" y="487">Microsoft Graph</text>
+                <text class="node-sub" x="1128" y="506">
+                  M365 licenses · usage · org chart
+                </text>
+              </g>
+
+              <!-- Retail Prices API -->
+              <g>
+                <rect
+                  class="node-box"
+                  x="1040"
+                  y="547"
+                  width="500"
+                  height="80"
+                  rx="10"
+                />
+                <use
+                  href="#ic-marketplace"
+                  x="1058"
+                  y="562"
+                  width="40"
+                  height="40"
+                />
+                <text class="node-title" x="1128" y="582">
+                  Retail Prices API
+                </text>
+                <text class="node-sub" x="1128" y="601">
+                  Public pricing · no auth
+                </text>
+              </g>
+
+              <!-- Cost Export Storage -->
+              <g>
+                <rect
+                  class="node-box"
+                  x="1040"
+                  y="642"
+                  width="500"
+                  height="80"
+                  rx="10"
+                />
+                <use
+                  href="#ic-storage"
+                  x="1058"
+                  y="657"
+                  width="40"
+                  height="40"
+                />
+                <text class="node-title" x="1128" y="677">
+                  Cost Export Storage
+                </text>
+                <text class="node-sub" x="1128" y="696">
+                  Large-scale cost detail blobs
+                </text>
               </g>
 
               <!-- ====== Animated flow particles ====== -->
@@ -2147,7 +2383,7 @@
                 r="4"
                 style="
                   offset-path: path(
-                    &quot;M 210,270 C 275,270 280,200 340,200&quot;
+                    &quot;M 290,375 C 320,375 330,300 360,300&quot;
                   );
                 "
               />
@@ -2156,21 +2392,25 @@
                 r="4"
                 style="
                   offset-path: path(
-                    &quot;M 530,340 C 585,340 585,270 640,270&quot;
+                    &quot;M 640,450 C 670,450 670,375 700,375&quot;
                   );
                 "
               />
               <circle
                 class="flow-particle fp3"
                 r="4"
-                style="offset-path: path(&quot;M 830,270 L 940,270&quot;)"
+                style="
+                  offset-path: path(
+                    &quot;M 980,375 C 1010,375 1010,397 1040,397&quot;
+                  );
+                "
               />
               <circle
                 class="flow-particle fp4"
                 r="4"
                 style="
                   offset-path: path(
-                    &quot;M 830,270 C 885,270 885,160 940,160&quot;
+                    &quot;M 980,375 C 1010,375 1010,112 1040,112&quot;
                   );
                 "
               />
@@ -2179,7 +2419,7 @@
                 r="4"
                 style="
                   offset-path: path(
-                    &quot;M 830,270 C 885,270 885,380 940,380&quot;
+                    &quot;M 980,375 C 1010,375 1010,492 1040,492&quot;
                   );
                 "
               />
@@ -2187,13 +2427,15 @@
                 class="flow-particle fp6"
                 r="3"
                 style="
-                  offset-path: path(&quot;M 1130,270 L 1410,270&quot;);
+                  offset-path: path(
+                    &quot;M 980,375 C 1010,375 1010,682 1040,682&quot;
+                  );
                   fill: #b77af4;
                 "
               />
             </svg>
           </div>
-          <div class="legend-row anim d4">
+          <div class="legend-row anim d4" style="display: none">
             <div class="item">
               <span class="ico"></span> Customer-deployed component
             </div>
