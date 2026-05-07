@@ -9,9 +9,15 @@ Quantified savings, a FinOps maturity score, a CFO-ready deck, and ready-to-run 
 
 The agent fixes the issue for you, or hands you the az&nbsp;cli script. Read &amp; write on your behalf, never delete. Your tenant. Your tokens. Your control.
 
-## [Try it live →](https://azure-finops-agent.com) &nbsp;·&nbsp; [📊 Pitch deck →](https://azure-finops-agent.com/slides)
+## [Try it live →](https://azure-finops-agent.com) &nbsp;&nbsp;&nbsp; [📊 Pitch deck →](https://azure-finops-agent.com/slides)
 
 ![Azure FinOps Agent](docs/assets/screenshot-finops-shortq.png)
+
+## How it works
+
+Vue 3 SPA → .NET 10 minimal API → GitHub Copilot SDK → Azure read APIs (Cost Management, Resource Graph, Microsoft Graph, Log Analytics) using your delegated Entra tokens. Hosted on Azure App Service or Container Apps. OpenTelemetry to your Application Insights.
+
+## [See the architecture diagram →](https://azure-finops-agent.com/slides#4)
 
 ## License
 
