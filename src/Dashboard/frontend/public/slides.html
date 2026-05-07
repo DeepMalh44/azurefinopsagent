@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Azure FinOps Agent — Customer Overview</title>
+    <title>Azure FinOps Agent - Customer Overview</title>
     <meta
       name="description"
       content="An AI-powered FinOps & InfraOps agent for Azure. Customer overview deck."
@@ -333,6 +333,210 @@
         gap: 0.8rem;
         margin-top: 2rem;
       }
+
+      /* ========== Slide 2: Storytelling stage (cards + big image) ========== */
+      .s2 .content {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        max-width: 1480px;
+      }
+      .s2-stage {
+        display: grid;
+        grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.25fr);
+        gap: 2.4rem;
+        align-items: center;
+        flex: 1;
+        min-height: 0;
+        margin-top: 1rem;
+      }
+      .s2-left {
+        display: flex;
+        flex-direction: column;
+        gap: 0.85rem;
+        min-width: 0;
+      }
+      .s2-left .pain-card {
+        display: flex;
+        align-items: center;
+        gap: 1.15rem;
+        text-align: left;
+        padding: 1.05rem 1.35rem;
+        margin: 0;
+        border-radius: 14px;
+      }
+      .s2-left .pain-card .ico {
+        margin: 0;
+        flex: 0 0 auto;
+        width: 56px;
+        height: 56px;
+        border-radius: 12px;
+      }
+      .s2-left .pain-card .ico svg {
+        width: 30px;
+        height: 30px;
+      }
+      .s2-left .pain-card .card-text {
+        min-width: 0;
+      }
+      .s2-left .pain-card h3 {
+        font-size: clamp(1.15rem, 1.35vw, 1.45rem);
+        margin: 0 0 0.25rem;
+      }
+      .s2-left .pain-card p {
+        font-size: clamp(0.95rem, 1.05vw, 1.1rem);
+        margin: 0;
+        line-height: 1.45;
+      }
+      .s2-left .punchline-stack {
+        margin-top: 0.9rem;
+        gap: 0.65rem;
+      }
+      .s2-left .punchline {
+        margin: 0;
+        max-width: none;
+        padding: 0.95rem 1.25rem;
+        text-align: left;
+        font-size: clamp(1.1rem, 1.35vw, 1.4rem);
+      }
+      .s2-left .punchline.tier2 {
+        font-size: clamp(1.25rem, 1.55vw, 1.6rem);
+      }
+      .s2-left .punchline.tier3 {
+        font-size: clamp(1.4rem, 1.75vw, 1.8rem);
+      }
+      .s2-right {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        min-height: 0;
+      }
+      .s2-storyimg {
+        width: 100%;
+        max-width: min(820px, 82vh);
+        aspect-ratio: 1 / 1;
+        object-fit: contain;
+        border-radius: 24px;
+        background: #fff;
+        box-shadow: 0 18px 46px rgba(0, 30, 80, 0.1);
+        opacity: 0;
+        transform: scale(0.96);
+        transition:
+          opacity 0.45s ease,
+          transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+      }
+      .s2-storyimg.is-visible {
+        opacity: 1;
+        transform: scale(1);
+      }
+      .s2-storyimg.swap {
+        opacity: 0;
+        transform: scale(0.96);
+      }
+
+      /* ========== Slide 3: Solution storytelling stage (mirrors s2) ========== */
+      .s3 .content {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        max-width: 1480px;
+      }
+      .s3-stage {
+        display: grid;
+        grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.25fr);
+        gap: 2.4rem;
+        align-items: center;
+        flex: 1;
+        min-height: 0;
+        margin-top: 1rem;
+      }
+      .s3-left {
+        display: flex;
+        flex-direction: column;
+        gap: 0.85rem;
+        min-width: 0;
+      }
+      .s3-left .pain-card {
+        display: flex;
+        align-items: center;
+        gap: 1.15rem;
+        text-align: left;
+        padding: 1.05rem 1.35rem;
+        margin: 0;
+        border-radius: 14px;
+      }
+      .s3-left .pain-card .ico {
+        margin: 0;
+        flex: 0 0 auto;
+        width: 56px;
+        height: 56px;
+        border-radius: 12px;
+      }
+      .s3-left .pain-card .ico svg {
+        width: 30px;
+        height: 30px;
+      }
+      .s3-left .pain-card .card-text {
+        min-width: 0;
+      }
+      .s3-left .pain-card h3 {
+        font-size: clamp(1.15rem, 1.35vw, 1.45rem);
+        margin: 0 0 0.25rem;
+      }
+      .s3-left .pain-card p {
+        font-size: clamp(0.95rem, 1.05vw, 1.1rem);
+        margin: 0;
+        line-height: 1.45;
+      }
+      .s3-right {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        min-height: 0;
+      }
+      .s3-storyimg {
+        width: 100%;
+        max-width: min(820px, 82vh);
+        aspect-ratio: 1 / 1;
+        object-fit: contain;
+        border-radius: 24px;
+        background: #fff;
+        box-shadow: 0 18px 46px rgba(0, 30, 80, 0.1);
+        opacity: 0;
+        transform: scale(0.96);
+        transition:
+          opacity 0.45s ease,
+          transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+      }
+      .s3-storyimg.is-visible {
+        opacity: 1;
+        transform: scale(1);
+      }
+
+      /* ========== Slide 3 (legacy): Solution image at bottom ========== */
+      .s3 .content {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+      }
+      .s3 .solution-img-wrap {
+        margin-top: auto;
+        display: flex;
+        justify-content: center;
+        padding-top: 1.4rem;
+      }
+      .s3 .solution-img {
+        width: 100%;
+        max-width: min(540px, 44vh);
+        aspect-ratio: 1 / 1;
+        object-fit: contain;
+        border-radius: 22px;
+        background: #fff;
+        box-shadow: 0 16px 40px rgba(0, 30, 80, 0.08);
+      }
+
       /* Step-reveal: hidden until revealed by presenter advance.
          Higher specificity + !important so it wins over .slide.active .anim */
       .slide [data-step] {
@@ -1179,7 +1383,7 @@
       body:has(.s7.active) .brand-mark .logo {
         filter: brightness(0) invert(1);
       }
-      /* Clean hero — hide all chrome on the title slide */
+      /* Clean hero - hide all chrome on the title slide */
       body:has(.s1.active) .brand-mark,
       body:has(.s1.active) .counter,
       body:has(.s1.active) .progress {
@@ -1254,7 +1458,7 @@
             Visibility · Forecast · Optimize · Remediate · Clarity in minutes
           </p>
           <p class="sub anim d5">
-            One interface to a team of agentic FinOps workers — surface waste,
+            One interface to a team of agentic FinOps workers - surface waste,
             forecast spend, fix maturity and clarity, and remediate directly
             with delegated permissions or generated Azure CLI scripts. Even
             assembles your exec presentations. Win back trust in your cloud
@@ -1268,111 +1472,135 @@
       <section class="slide s2">
         <div class="content">
           <h2 class="section-title anim d1">
-            FinOps today is a <em>painful job</em>.
+            Problem - FinOps is a <em>painful job</em>.
           </h2>
           <p class="section-lead anim d2">And you're always behind.</p>
-          <div class="grid">
-            <div class="pain-card anim d3">
-              <div class="ico">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.8"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <line x1="18" y1="20" x2="18" y2="10" />
-                  <line x1="12" y1="20" x2="12" y2="4" />
-                  <line x1="6" y1="20" x2="6" y2="14" />
-                  <line x1="3" y1="22" x2="21" y2="22" />
-                </svg>
+          <div class="s2-stage">
+            <div class="s2-left">
+              <div class="pain-card" data-step data-img="1">
+                <div class="ico">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <line x1="18" y1="20" x2="18" y2="10" />
+                    <line x1="12" y1="20" x2="12" y2="4" />
+                    <line x1="6" y1="20" x2="6" y2="14" />
+                    <line x1="3" y1="22" x2="21" y2="22" />
+                  </svg>
+                </div>
+                <div class="card-text">
+                  <h3>Unexpected costs</h3>
+                  <p>Held accountable with no clear visibility.</p>
+                </div>
               </div>
-              <h3>Unexpected costs</h3>
-              <p>Held accountable with no clear visibility.</p>
-            </div>
-            <div class="pain-card anim d4">
-              <div class="ico">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.8"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <rect x="2" y="6" width="20" height="12" rx="2" />
-                  <path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10" />
-                </svg>
+              <div class="pain-card" data-step data-img="2">
+                <div class="ico">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <rect x="2" y="6" width="20" height="12" rx="2" />
+                    <path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10" />
+                  </svg>
+                </div>
+                <div class="card-text">
+                  <h3>Manual queries</h3>
+                  <p>
+                    Hand-written KQL, Log Analytics, Resource Graph, billing
+                    exports.
+                  </p>
+                </div>
               </div>
-              <h3>Manual queries</h3>
-              <p>Hand-written KQL, Resource Graph, billing exports.</p>
-            </div>
-            <div class="pain-card anim d5">
-              <div class="ico">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.8"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <path
-                    d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.37 1.9.72 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.35 1.85.59 2.81.72A2 2 0 0 1 22 16.92z"
-                  />
-                </svg>
+              <div class="pain-card" data-step data-img="3">
+                <div class="ico">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path
+                      d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.37 1.9.72 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.35 1.85.59 2.81.72A2 2 0 0 1 22 16.92z"
+                    />
+                  </svg>
+                </div>
+                <div class="card-text">
+                  <h3>Chasing departments</h3>
+                  <p>
+                    Painful in large organizations where silos are hard to
+                    avoid.
+                  </p>
+                </div>
               </div>
-              <h3>Chasing departments</h3>
-              <p>
-                Painful in large organizations where silos are hard to avoid.
-              </p>
-            </div>
-            <div class="pain-card anim d6">
-              <div class="ico">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.8"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <path
-                    d="M17 1l4 4-4 4M3 11V9a4 4 0 0 1 4-4h14M7 23l-4-4 4-4M21 13v2a4 4 0 0 1-4 4H3"
-                  />
-                </svg>
+              <div class="pain-card" data-step data-img="4">
+                <div class="ico">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path
+                      d="M17 1l4 4-4 4M3 11V9a4 4 0 0 1 4-4h14M7 23l-4-4 4-4M21 13v2a4 4 0 0 1-4 4H3"
+                    />
+                  </svg>
+                </div>
+                <div class="card-text">
+                  <h3>Portal hopping</h3>
+                  <p>Cost Mgmt, Advisor, Monitor, Graph - five tabs deep.</p>
+                </div>
               </div>
-              <h3>Portal hopping</h3>
-              <p>Cost Mgmt, Advisor, Monitor, Graph — five tabs deep.</p>
-            </div>
-            <div class="pain-card anim d6">
-              <div class="ico">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.8"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <path d="M21 12a9 9 0 1 1-3-6.7L21 8" />
-                  <polyline points="21 3 21 8 16 8" />
-                </svg>
+              <div class="pain-card" data-step data-img="5">
+                <div class="ico">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="M21 12a9 9 0 1 1-3-6.7L21 8" />
+                    <polyline points="21 3 21 8 16 8" />
+                  </svg>
+                </div>
+                <div class="card-text">
+                  <h3>Endless catch-up</h3>
+                  <p>Always under pressure, always behind at scale.</p>
+                </div>
               </div>
-              <h3>Endless catch-up</h3>
-              <p>Always under pressure, always behind at scale.</p>
+              <div class="punchline-stack">
+                <div class="punchline tier1" data-step data-img="6">
+                  Repeat for months and years.
+                </div>
+                <div class="punchline tier2" data-step data-img="7">
+                  Leadership loses trust in provider.
+                </div>
+                <div class="punchline tier3" data-step data-img="8">
+                  Picks an alternative offer or cloud service.
+                </div>
+              </div>
             </div>
-          </div>
-          <div class="punchline-stack">
-            <div class="punchline tier1" data-step>
-              Repeat for months and years.
-            </div>
-            <div class="punchline tier2" data-step>
-              Accountable leadership loses trust.
-            </div>
-            <div class="punchline tier3" data-step>
-              Picks an alternative offer or cloud service.
+            <div class="s2-right">
+              <img
+                class="s2-storyimg"
+                src=""
+                alt="Illustration of the current FinOps pain"
+                aria-hidden="true"
+              />
             </div>
           </div>
         </div>
@@ -1381,79 +1609,131 @@
       <!-- ========== Slide 3: What it is ========== -->
       <section class="slide s3">
         <div class="content">
-          <h2 class="section-title anim d1">One <em>chat</em>. Done.</h2>
+          <h2 class="section-title anim d1">
+            Solution - <em>From painful to predictable</em>.
+          </h2>
           <p class="section-lead anim d2">
-            Ask. Get the answer. Apply the fix.
+            Agentic FinOps. One chat. Trust restored.
           </p>
-          <div class="grid">
-            <div class="pain-card anim d3">
-              <div class="ico">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.8"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <path
-                    d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
-                  />
-                </svg>
+          <div class="s3-stage">
+            <div class="s3-left">
+              <div class="pain-card" data-step data-img="9">
+                <div class="ico">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path
+                      d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
+                    />
+                  </svg>
+                </div>
+                <div class="card-text">
+                  <h3>Natural language</h3>
+                  <p>
+                    Just ask. No KQL, no portals - your domain &amp; business
+                    knowledge is all you need.
+                  </p>
+                </div>
               </div>
-              <h3>Plain English</h3>
-              <p>Ask. The agent runs the queries.</p>
+              <div class="pain-card" data-step data-img="9">
+                <div class="ico">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                  </svg>
+                </div>
+                <div class="card-text">
+                  <h3>Agent worker</h3>
+                  <p>
+                    One agent, many arms - reads structured logs, resources,
+                    cost &amp; operations in parallel, and remediates directly.
+                  </p>
+                </div>
+              </div>
+              <div class="pain-card" data-step data-img="9">
+                <div class="ico">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <circle cx="12" cy="12" r="10" />
+                    <circle cx="12" cy="12" r="6" />
+                    <circle cx="12" cy="12" r="2" />
+                  </svg>
+                </div>
+                <div class="card-text">
+                  <h3>Score maturity</h3>
+                  <p>
+                    Efficient grouping, clarity, and concrete optimization tips
+                    against the FinOps Framework.
+                  </p>
+                </div>
+              </div>
+              <div class="pain-card" data-step data-img="9">
+                <div class="ico">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="M20 6L9 17l-5-5" />
+                  </svg>
+                </div>
+                <div class="card-text">
+                  <h3>Win trust again</h3>
+                  <p>
+                    Report back to leadership quickly and with confidence -
+                    clarify remediations already done and what to decide next.
+                  </p>
+                </div>
+              </div>
+              <div class="pain-card" data-step data-img="9">
+                <div class="ico">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="M12 2l3 7h7l-5.5 4 2 7L12 16l-6.5 4 2-7L2 9h7z" />
+                  </svg>
+                </div>
+                <div class="card-text">
+                  <h3>Open Source</h3>
+                  <p>
+                    Free from Microsoft - the first step in the trust and cost
+                    conversation.
+                  </p>
+                </div>
+              </div>
             </div>
-            <div class="pain-card anim d4">
-              <div class="ico">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.8"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-                </svg>
-              </div>
-              <h3>Agent worker</h3>
-              <p>Applies the fix in your tenant. Hands-off.</p>
-            </div>
-            <div class="pain-card anim d5">
-              <div class="ico">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.8"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <polyline points="4 17 10 11 4 5" />
-                  <line x1="12" y1="19" x2="20" y2="19" />
-                </svg>
-              </div>
-              <h3>Az CLI script</h3>
-              <p>Prefer manual control? Export. Review. Run.</p>
-            </div>
-            <div class="pain-card anim d6">
-              <div class="ico">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.8"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <circle cx="12" cy="12" r="10" />
-                  <circle cx="12" cy="12" r="6" />
-                  <circle cx="12" cy="12" r="2" />
-                </svg>
-              </div>
-              <h3>Score again</h3>
-              <p>Re-run Crawl · Walk · Run anytime. Track the gain.</p>
+            <div class="s3-right">
+              <img
+                class="s3-storyimg"
+                src=""
+                alt="Sam happy with the Azure FinOps Agent doing the work"
+                aria-hidden="true"
+              />
             </div>
           </div>
         </div>
@@ -2497,13 +2777,13 @@
           </h2>
           <p class="section-lead anim d2">
             What used to take days of queries, naming standards, and Slack
-            threads — now done in one chat.
+            threads - now done in one chat.
           </p>
           <div class="proof-wrap anim d3">
             <div class="video-frame">
               <iframe
                 src="https://www.youtube.com/embed/0BbM3TNFp_U?rel=0&modestbranding=1&playsinline=1&controls=1&color=white&iv_load_policy=3&fs=1&enablejsapi=1"
-                title="Azure FinOps Agent — tagging maturity demo"
+                title="Azure FinOps Agent - tagging maturity demo"
                 loading="lazy"
                 allow="
                   accelerometer;
@@ -2558,7 +2838,7 @@
                 <li>
                   <span class="mark">✓</span
                   ><span
-                    >Generate scripts — or run them with your approval</span
+                    >Generate scripts - or run them with your approval</span
                   >
                 </li>
                 <li>
@@ -2579,7 +2859,7 @@
                 </li>
                 <li>
                   <span class="mark">✗</span
-                  ><span>Persist your data — always live, never stored</span>
+                  ><span>Persist your data - always live, never stored</span>
                 </li>
                 <li>
                   <span class="mark">✗</span
@@ -2599,7 +2879,7 @@
       <!-- ========== Slide 7: Get started ========== -->
       <section class="slide s7">
         <div class="content">
-          <div class="pre anim d1">— Open Source · MIT —</div>
+          <div class="pre anim d1">- Open Source · MIT -</div>
           <h2 class="anim d2">
             Your tenant.<br />Your data.<br />Your control.
           </h2>
@@ -2802,6 +3082,12 @@
             s.querySelectorAll("[data-step]").forEach((el) =>
               el.classList.remove("revealed"),
             );
+            // Reset story image so re-entering the slide starts fresh
+            const storyImg = s.querySelector(".s2-storyimg, .s3-storyimg");
+            if (storyImg) {
+              storyImg.classList.remove("is-visible", "swap");
+              storyImg.removeAttribute("src");
+            }
           }
         });
         dotEls.forEach((d, i) => d.classList.toggle("active", i === current));
@@ -2817,6 +3103,27 @@
         const pending = active.querySelector("[data-step]:not(.revealed)");
         if (pending) {
           pending.classList.add("revealed");
+          // If this step also drives a story image swap, crossfade the slide's image.
+          const imgIdx = pending.getAttribute("data-img");
+          if (imgIdx) {
+            const storyImg = active.querySelector(".s2-storyimg, .s3-storyimg");
+            if (storyImg) {
+              const newSrc = `sam-finops-images/${imgIdx}.png`;
+              if (!storyImg.src || storyImg.classList.contains("is-visible")) {
+                storyImg.classList.add("swap");
+                setTimeout(() => {
+                  storyImg.src = newSrc;
+                  storyImg.classList.remove("swap");
+                  storyImg.classList.add("is-visible");
+                }, 220);
+              } else {
+                storyImg.src = newSrc;
+                requestAnimationFrame(() =>
+                  storyImg.classList.add("is-visible"),
+                );
+              }
+            }
+          }
           return true;
         }
         return false;
@@ -2832,7 +3139,45 @@
           fadeHint();
         }
       };
+      // Hide the last revealed step inside the active slide; returns true if one was hidden.
+      function unrevealLastStep() {
+        const active = slides[current];
+        if (!active) return false;
+        const revealed = active.querySelectorAll("[data-step].revealed");
+        if (revealed.length === 0) return false;
+        const last = revealed[revealed.length - 1];
+        last.classList.remove("revealed");
+        // If this step drove a story image swap, revert to the previous step's image (or hide).
+        const imgIdx = last.getAttribute("data-img");
+        if (imgIdx) {
+          const storyImg = active.querySelector(".s2-storyimg, .s3-storyimg");
+          if (storyImg) {
+            const remaining = active.querySelectorAll(
+              "[data-step].revealed[data-img]",
+            );
+            if (remaining.length === 0) {
+              storyImg.classList.remove("is-visible");
+              storyImg.classList.add("swap");
+              setTimeout(() => storyImg.removeAttribute("src"), 220);
+            } else {
+              const prevIdx =
+                remaining[remaining.length - 1].getAttribute("data-img");
+              storyImg.classList.add("swap");
+              setTimeout(() => {
+                storyImg.src = `sam-finops-images/${prevIdx}.png`;
+                storyImg.classList.remove("swap");
+                storyImg.classList.add("is-visible");
+              }, 220);
+            }
+          }
+        }
+        return true;
+      }
       const prev = () => {
+        if (unrevealLastStep()) {
+          fadeHint();
+          return;
+        }
         if (current > 0) {
           current--;
           update();
@@ -2857,7 +3202,7 @@
       document.getElementById("zoneLeft").addEventListener("click", prev);
       document.getElementById("zoneRight").addEventListener("click", next);
 
-      // Fullscreen handling — try multiple element targets and vendor prefixes
+      // Fullscreen handling - try multiple element targets and vendor prefixes
       const fsBtn = document.getElementById("fsToggle");
       function fsElement() {
         return (
