@@ -56,3 +56,7 @@ docs/assets/Banedanmark-AzureCostManagement-Session3.md
 # Sample uploads are committed so demos work out of the box.
 # Regenerate with demo-data/generate.py if needed.
 
+
+# Local Dragon's Den / pitch prep notes
+docs/local/
+
