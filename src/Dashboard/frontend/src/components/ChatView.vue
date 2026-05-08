@@ -1010,6 +1010,17 @@
               </div>
             </div>
 
+            <!-- Moderation notice banner -->
+            <div
+              v-if="moderationNotice"
+              class="moderation-notice"
+              role="status"
+              aria-live="polite"
+            >
+              <span class="moderation-notice-icon" aria-hidden="true">⚠</span>
+              <span class="moderation-notice-text">{{ moderationNotice.message }}</span>
+            </div>
+
             <!-- Streaming indicator -->
             <div v-if="streaming" class="message-row message-row--ai">
               <div class="ai-row">
@@ -1570,6 +1581,10 @@ const messagesEl = ref(null);
 const inputEl = ref(null);
 const chartInstances = [];
 let intentAnimTimer = null;
+
+// ── Moderation notice ────────────────────────────────────────────────
+const moderationNotice = ref(null); // { message, transient, reason } | null
+let moderationNoticeTimer = null;
 
 // ── Uploaded attachments ────────────────────────────────────────────
 const attachments = ref([]); // [{ fileId, fileName, kind, sizeBytes, uploading?, error? }]
@@ -2748,6 +2763,7 @@ function mountChart(el, chartData) {
 onBeforeUnmount(() => {
   chartInstances.forEach((c) => c.dispose());
   document.removeEventListener("click", dismissPopover);
+  if (moderationNoticeTimer) clearTimeout(moderationNoticeTimer);
 });
 
 // ── Aggregated tool calls for sidebar ──
@@ -2884,6 +2900,12 @@ async function send() {
   streamBuffer.value = "";
   activeTools.value = [];
   streamToolCalls.value = [];
+  // Clear any lingering moderation notice from the previous turn
+  moderationNotice.value = null;
+  if (moderationNoticeTimer) {
+    clearTimeout(moderationNoticeTimer);
+    moderationNoticeTimer = null;
+  }
   scrollToBottom();
 
   abortController = new AbortController();
@@ -3044,6 +3066,26 @@ async function send() {
                 if (Array.isArray(scores)) {
                   maturityScores[level] = scores;
                 }
+              }
+            } catch {}
+            break;
+
+          case "moderation_notice":
+            try {
+              if (moderationNoticeTimer) {
+                clearTimeout(moderationNoticeTimer);
+                moderationNoticeTimer = null;
+              }
+              moderationNotice.value = {
+                message: data.message,
+                transient: data.transient,
+                reason: data.reason,
+              };
+              if (data.transient) {
+                moderationNoticeTimer = setTimeout(() => {
+                  moderationNotice.value = null;
+                  moderationNoticeTimer = null;
+                }, 5000);
               }
             } catch {}
             break;
@@ -4909,6 +4951,31 @@ async function send() {
 }
 .message-text :deep(li) {
   margin: 2px 0;
+}
+
+/* ── Moderation notice banner ── */
+.moderation-notice {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  margin: 0 auto 8px;
+  max-width: 900px;
+  width: 100%;
+  border-radius: 4px;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  color: #92400e;
+  font-size: 13px;
+  line-height: 1.4;
+  box-sizing: border-box;
+}
+.moderation-notice-icon {
+  flex-shrink: 0;
+  font-size: 14px;
+}
+.moderation-notice-text {
+  flex: 1;
 }
 
 /* ── Charts ── */

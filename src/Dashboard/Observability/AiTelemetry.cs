@@ -24,6 +24,10 @@ public sealed class AiTelemetry
     public UpDownCounter<long> ActiveSessions { get; }
     public Histogram<double> ChatDuration { get; }
 
+    public Counter<long> ModerationEvaluated { get; }
+    public Counter<long> ModerationBlocks { get; }
+    public Histogram<double> ModerationDuration { get; }
+
     public ConcurrentDictionary<long, CopilotSession> UserSessions { get; } = new();
     public ConcurrentDictionary<long, UserTokens> UserTokens { get; } = new();
     public ConcurrentDictionary<long, List<AIFunction>> UserTools { get; } = new();
@@ -37,5 +41,8 @@ public sealed class AiTelemetry
         ToolErrors = Meter.CreateCounter<long>("finops.tool.errors", description: "Tool call errors");
         ActiveSessions = Meter.CreateUpDownCounter<long>("finops.sessions.active", description: "Currently active chat sessions");
         ChatDuration = Meter.CreateHistogram<double>("finops.chat.duration_ms", "ms", "Chat request duration");
+        ModerationEvaluated = Meter.CreateCounter<long>("finops.moderation.evaluated", description: "Moderation calls run");
+        ModerationBlocks = Meter.CreateCounter<long>("finops.moderation.blocks", description: "Moderation blocks issued");
+        ModerationDuration = Meter.CreateHistogram<double>("finops.moderation.duration_ms", "ms", "Moderation call duration");
     }
 }

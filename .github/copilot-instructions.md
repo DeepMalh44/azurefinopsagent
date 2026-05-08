@@ -121,6 +121,21 @@ src/Dashboard/
 - **Exception handling**: Tools do NOT use try/catch internally. The Copilot CLI handles tool errors and returns them to the LLM. `UseAzureMonitor()` auto-instruments all `HttpClient` calls as dependency telemetry in App Insights.
 - The solution is designed for **customer deployment** — customers deploy it in their own Azure subscription.
 
+## Chat Moderation Gate
+
+Every user message hits a pre-flight `ChatModerator.EvaluateAsync` call before reaching `CopilotSession.SendAsync`. The moderator is a single AOAI Chat Completions call (JSON mode, temperature 0) with the **full `CopilotSessionFactory.SystemPrompt`** as evaluation context, returning `{ allow, rule_violated, user_message }`. On block: the user sees a polite agent-style reply rendered as standard `delta`+`message` SSE events; the message is **dropped silently** — `session.SendAsync` is never called and conversation history stays pure. On any error (HTTP failure, JSON parse, timeout): the moderator **fails OPEN** and the message proceeds.
+
+- Implementation: `src/Dashboard/AI/ChatModerator.cs` + `src/Dashboard/AI/ModerationVerdict.cs`
+- Wired in: `Program.cs` constructs once, passed to `ChatEndpoints.MapChatEndpoints`
+- Telemetry: `ChatModeration` ActivitySource span; `finops.moderation.evaluated`, `finops.moderation.blocks`, `finops.moderation.duration_ms` metrics
+- Soft timeout: 5 seconds (fail-open if exceeded)
+- Latency tax: ~500–1500ms added to every chat message
+
+Debug query for moderation blocks:
+```
+az monitor app-insights query --app "<app-id>" --analytics-query "customMetrics | where name == 'finops.moderation.blocks' and timestamp > ago(24h) | extend rule = tostring(customDimensions.rule) | summarize count() by rule, bin(timestamp, 1h) | order by timestamp desc"
+```
+
 ## Security Model (Read + Write, Never Delete)
 
 This agent allows reads and writes but **cannot delete** Azure resources. This is enforced at multiple layers:

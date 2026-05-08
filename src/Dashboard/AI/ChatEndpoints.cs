@@ -20,9 +20,10 @@ public static class ChatEndpoints
         CopilotSessionFactory copilotFactory,
         SessionTokenStore tokenStore,
         AiTelemetry telemetry,
+        ChatModerator moderator,
         ILogger logger)
     {
-        app.MapPost("/api/chat", (Delegate)(async (HttpContext ctx, IHttpClientFactory httpFactory) =>
+        app.MapPost("/api/chat", async (HttpContext ctx, IHttpClientFactory httpFactory) =>
         {
             var userJson = ctx.Session.GetString("user");
             if (userJson is null)
@@ -33,6 +34,7 @@ public static class ChatEndpoints
 
             using var bodyDoc = await JsonDocument.ParseAsync(ctx.Request.Body);
             var prompt = bodyDoc.RootElement.GetProperty("prompt").GetString();
+            var rawPrompt = prompt; // save before enrichment — moderator judges raw intent
 
             if (string.IsNullOrWhiteSpace(prompt))
             {
@@ -114,6 +116,68 @@ public static class ChatEndpoints
             ctx.Response.Headers.Connection = "keep-alive";
             ctx.Response.Headers["X-Accel-Buffering"] = "no";
 
+            // === Moderation gate ===
+            ModerationVerdict verdict;
+            try
+            {
+                verdict = await moderator.EvaluateAsync(rawPrompt!, ctx.RequestAborted);
+            }
+            catch (Exception modEx)
+            {
+                logger.LogWarning(modEx, "Moderation gate threw — failing open");
+                verdict = ModerationVerdict.Allow();
+            }
+
+            if (!verdict.IsAllowed)
+            {
+                var blockMessage = verdict.UserMessage ?? "I can't help with that request.";
+                chatActivity?.SetTag("ai.moderation.blocked", true);
+                chatActivity?.SetTag("ai.moderation.rule_violated", verdict.RuleViolated);
+                logger.LogInformation("Chat moderation BLOCKED for user {User} rule={Rule}", userLogin, verdict.RuleViolated);
+
+                foreach (var chunk in ChunkText(blockMessage, 40))
+                {
+                    var deltaJson = JsonSerializer.Serialize(new { type = "delta", content = chunk });
+                    await ctx.Response.WriteAsync($"data: {deltaJson}\n\n");
+                    await ctx.Response.Body.FlushAsync();
+                }
+                var fullJson = JsonSerializer.Serialize(new { type = "message", content = blockMessage });
+                await ctx.Response.WriteAsync($"data: {fullJson}\n\n");
+                await ctx.Response.WriteAsync("data: [DONE]\n\n");
+                await ctx.Response.Body.FlushAsync();
+
+                chatSw.Stop();
+                telemetry.ChatDuration.Record(chatSw.Elapsed.TotalMilliseconds,
+                    new KeyValuePair<string, object?>("model", copilotFactory.Deployment),
+                    new KeyValuePair<string, object?>("user", userLogin),
+                    new KeyValuePair<string, object?>("outcome", "moderation_blocked"));
+                return;
+            }
+            // === End moderation gate — allowed, proceed to session ===
+
+            // If the moderator failed transiently (rate-limit / timeout / network) and fell open,
+            // emit a brief SSE notice so the frontend can display an inline warning.
+            if (verdict.TransientFailure)
+            {
+                var noticeMessage = verdict.TransientReason switch
+                {
+                    "rate_limit" => "Safety check is rate-limited — proceeding with your request.",
+                    "timeout"    => "Safety check timed out — proceeding with your request.",
+                    "network"    => "Safety check network error — proceeding with your request.",
+                    "http_503"   => "Safety check temporarily unavailable — proceeding with your request.",
+                    _            => "Safety check temporarily unavailable — proceeding with your request."
+                };
+                var noticeJson = JsonSerializer.Serialize(new
+                {
+                    type = "warning",
+                    message = noticeMessage,
+                    transient = true,
+                    reason = verdict.TransientReason
+                });
+                await ctx.Response.WriteAsync($"event: moderation_notice\ndata: {noticeJson}\n\n");
+                await ctx.Response.Body.FlushAsync();
+            }
+
             try
             {
                 var session = await copilotFactory.GetOrCreateSessionAsync(userId, userLogin!);
@@ -182,7 +246,7 @@ public static class ChatEndpoints
                 await ctx.Response.WriteAsync("data: [DONE]\n\n");
                 await ctx.Response.Body.FlushAsync();
             }
-        }));
+        });
 
         app.MapPost("/api/chat/reset", async (HttpContext ctx) =>
         {
@@ -440,5 +504,11 @@ public static class ChatEndpoints
     {
         await ctx.Response.WriteAsync($"data: {sseData}\n\n");
         await ctx.Response.Body.FlushAsync();
+    }
+
+    private static IEnumerable<string> ChunkText(string text, int chunkSize)
+    {
+        for (int i = 0; i < text.Length; i += chunkSize)
+            yield return text.Substring(i, Math.Min(chunkSize, text.Length - i));
     }
 }

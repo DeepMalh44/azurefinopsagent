@@ -88,6 +88,15 @@ logger.LogInformation("Application starting. AppInsights configured: {Configured
 await using var copilotFactory = await CopilotSessionFactory.CreateAsync(
     telemetry, oauthOptions, azureOpenAIEndpoint, azureOpenAIDeployment, loggerFactory);
 
+var moderator = new ChatModerator(
+    credential: copilotFactory.Credential,
+    endpoint: azureOpenAIEndpoint,
+    deployment: azureOpenAIDeployment,
+    systemPrompt: CopilotSessionFactory.SystemPrompt,
+    httpFactory: app.Services.GetRequiredService<IHttpClientFactory>(),
+    telemetry: telemetry,
+    logger: loggerFactory.CreateLogger<ChatModerator>());
+
 // ── Middleware pipeline ────────────────────────────────────────
 var forwardedHeadersOptions = new ForwardedHeadersOptions
 {
@@ -240,7 +249,7 @@ var idTokenValidator = app.Services.GetRequiredService<IdTokenValidator>();
 
 app.MapMicrosoftAuthEndpoints(oauthOptions, entraCredentials, idTokenValidator, telemetry, logger);
 app.MapAzureSessionEndpoints(tokenStore, telemetry, logger);
-app.MapChatEndpoints(copilotFactory, tokenStore, telemetry, logger);
+app.MapChatEndpoints(copilotFactory, tokenStore, telemetry, moderator, logger);
 app.MapMetaEndpoints(appInsightsCs ?? "", azureOpenAIDeployment);
 app.MapDownloadEndpoints();
 app.MapUploadEndpoints();
