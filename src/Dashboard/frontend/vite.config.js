@@ -15,8 +15,8 @@ export default defineConfig({
     emptyOutDir: true,
     rollupOptions: {
       output: {
-        manualChunks: {
-          echarts: ["echarts"],
+        manualChunks: (id) => {
+          if (id.includes("echarts") || id.includes("zrender")) return "echarts";
         },
       },
     },

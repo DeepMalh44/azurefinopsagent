@@ -57,7 +57,11 @@ if (!builder.Environment.IsDevelopment())
 if (!string.IsNullOrEmpty(appInsightsCs))
 {
     builder.Services.AddOpenTelemetry()
-        .UseAzureMonitor(o => o.ConnectionString = appInsightsCs)
+        .UseAzureMonitor(o =>
+        {
+            o.ConnectionString = appInsightsCs;
+            o.SamplingRatio = 1.0f;   // preserve pre-1.5.0 behavior; default in 1.5.0 is RateLimitedSampler (5 req/sec)
+        })
         .WithTracing(t => t
             .AddSource("AzureFinOps.AI")
             // Copilot SDK W3C-propagated tool/LLM spans surface here when the
