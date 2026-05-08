@@ -6,7 +6,7 @@ Before asking the user to test OAuth consent flows locally or in production, **a
 
 ```powershell
 # Revoke all consent grants for the app registration
-$spId = az ad sp show --id "8997774b-06b8-41ab-9870-4acde3dc779e" --query "id" -o tsv 2>$null
+$spId = az ad sp show --id "<YOUR_APP_REGISTRATION_ID>" --query "id" -o tsv 2>$null
 $grants = az rest --method GET --url "https://graph.microsoft.com/v1.0/servicePrincipals/$spId/oauth2PermissionGrants" -o json 2>$null | ConvertFrom-Json
 foreach ($g in $grants.value) { Write-Host "Deleting grant $($g.id)"; az rest --method DELETE --url "https://graph.microsoft.com/v1.0/oauth2PermissionGrants/$($g.id)" 2>&1 }
 Write-Host "All consent grants revoked — user will see fresh consent screens"
@@ -14,17 +14,17 @@ Write-Host "All consent grants revoked — user will see fresh consent screens"
 
 This ensures the incremental consent flow works as expected and the user sees the real Microsoft Entra ID consent UI for each tier.
 
-always check if you are logged into the right tenant + subscription before running Azure CLI commands:
+Always check if you are logged into the right tenant + subscription before running Azure CLI commands. Each developer maintains their own values locally — never commit real values to this file. See README 'Running Locally' for setup.
 
-- **Tenant**: Contoso — `51650aad-d085-4ecb-8b07-d7ed4f5355e0` (`MngEnvMCAP237604.onmicrosoft.com`)
-- **Subscription**: `ME-MngEnvMCAP237604-alfarahn-1` — `3f359915-1adb-4464-a4c0-8b0bc65c7959`
-- **Account**: `admin@MngEnvMCAP237604.onmicrosoft.com`
+- **Tenant**: `<YOUR_TENANT_ID>` (`<YOUR_TENANT_DOMAIN>.onmicrosoft.com`)
+- **Subscription**: `<YOUR_SUBSCRIPTION_NAME>` — `<YOUR_SUBSCRIPTION_ID>`
+- **Account**: `<YOUR_ADMIN_UPN>`
 
 If `az account show` returns a different tenant, run:
 
 ```powershell
-az login --tenant 51650aad-d085-4ecb-8b07-d7ed4f5355e0
-az account set --subscription 3f359915-1adb-4464-a4c0-8b0bc65c7959
+az login --tenant <YOUR_TENANT_ID>
+az account set --subscription <YOUR_SUBSCRIPTION_ID>
 ```
 
 ## Project Purpose
@@ -251,27 +251,9 @@ For Azure App Service: `Microsoft__ClientId`, `Microsoft__ClientSecret`, `Micros
 
 ## Running Locally
 
-> **CRITICAL**: You **must** set `ASPNETCORE_ENVIRONMENT=Development` before running the backend.
-> Without it, ASP.NET Core defaults to Production, which loads `appsettings.Production.json`
-> (production OAuth credentials) and skips `appsettings.Local.json`.
+> See **[README.md § Running Locally](../README.md#running-locally)** for the full, copy-pasteable setup guide — prerequisites, `dotnet user-secrets` commands for all config keys, frontend build, and run instructions.
 
-```bash
-# 0. One-time: Create Entra ID app registration (run from src/Dashboard/)
-.\setup-entra-app.ps1
-# Copy the output ClientId/ClientSecret into appsettings.Local.json
-
-# 1. Frontend (dev mode with hot reload — optional, only for UI development)
-cd src/Dashboard/frontend
-npm install
-npm run build          # Build to wwwroot (required for backend to serve)
-
-# 2. Backend (must set Development environment)
-cd src/Dashboard
-$env:ASPNETCORE_ENVIRONMENT="Development"
-dotnet run --project Dashboard.csproj --urls "http://localhost:5000"
-
-# 3. Open http://localhost:5000
-```
+Local dev secrets are managed via **`dotnet user-secrets`** (not `appsettings.Local.json`). Secrets live outside the repo in your OS user profile and cannot be accidentally committed. `AzureOpenAI:Endpoint` is the only fail-fast key — the app throws on startup if it is missing.
 
 Prompt shortcuts are available in `.github/prompts/`:
 
@@ -354,7 +336,7 @@ The production app is available at `https://azure-finops-agent.com` (canonical) 
   - `A` `@` → `52.228.84.33` (App Service IP)
   - `CNAME` `www` → `finops-agent-container.azurewebsites.net`
   - `TXT` `asuid` → Azure domain verification token
-  - `TXT` `_dmarc` → `v=DMARC1; p=none; rua=mailto:alifarahnak@gmail.com` (domain reputation)
+  - `TXT` `_dmarc` → `v=DMARC1; p=none; rua=mailto:<YOUR_DMARC_CONTACT_EMAIL>` (domain reputation)
 - **Security Headers** (in `Program.cs`): HSTS (1 year, preload), X-Content-Type-Options, X-Frame-Options, Referrer-Policy, Permissions-Policy, Content-Security-Policy, HTTPS redirection
 - **SSL**: Azure Managed Certificates (auto-renewed) bound via SNI for both `www` and root domain
 - **Microsoft Entra ID callbacks**: `https://azure-finops-agent.com/auth/microsoft/callback`, `https://www.azure-finops-agent.com/auth/microsoft/callback`, `http://localhost:5000/auth/microsoft/callback`, `https://finops-agent-container.azurewebsites.net/auth/microsoft/callback`

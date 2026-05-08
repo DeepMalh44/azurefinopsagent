@@ -56,3 +56,32 @@ docs/assets/Banedanmark-AzureCostManagement-Session3.md
 # Sample uploads are committed so demos work out of the box.
 # Regenerate with demo-data/generate.py if needed.
 
+## Secrets — defensive root-level patterns (mirrors src/Dashboard/.gitignore)
+appsettings.Local.json
+appsettings.Production.json
+appsettings.*.local.json
+secrets.json
+*.pfx
+*.p12
+*.key
+*.pem
+
+## Squad infrastructure (local only)
+.squad/
+
+.copilot/skills/agent-collaboration/SKILL.md
+.gitignore
+.copilot/skills/squad-conventions/SKILL.md
+.copilot/skills/reviewer-protocol/SKILL.md
+.gitignore
+.copilot/skills/session-recovery/SKILL.md
+.copilot/skills/error-recovery/SKILL.md
+.copilot/skills/git-workflow/SKILL.md
+.copilot/skills/secret-handling/SKILL.md
+.copilot/skills/test-discipline/SKILL.md
+.copilot/mcp-config.json
+.github/agents/squad.agent.md
+.github/workflows/squad-heartbeat.yml
+.github/workflows/squad-issue-assign.yml
+.github/workflows/squad-triage.yml
+.github/workflows/sync-squad-labels.yml

@@ -23,8 +23,13 @@ var oauthOptions = new MicrosoftOAuthOptions
                    ?? builder.Configuration["Microsoft:TenantId"]
                    ?? "common",
 };
-var azureOpenAIEndpoint = builder.Configuration["AzureOpenAI:Endpoint"]
-                          ?? "https://finops-agent-ai.openai.azure.com/";
+var azureOpenAIEndpoint = builder.Configuration["AzureOpenAI:Endpoint"];
+if (string.IsNullOrWhiteSpace(azureOpenAIEndpoint))
+    throw new InvalidOperationException(
+        "AzureOpenAI:Endpoint is required. " +
+        "For local dev: dotnet user-secrets set \"AzureOpenAI:Endpoint\" \"https://YOUR-RESOURCE.openai.azure.com/\" " +
+        "(run from src/Dashboard). " +
+        "For production: set the AzureOpenAI__Endpoint environment variable.");
 var azureOpenAIDeployment = builder.Configuration["AzureOpenAI:DeploymentName"] ?? "gpt-5.4";
 var appInsightsCs = builder.Configuration["ApplicationInsights:ConnectionString"];
 
