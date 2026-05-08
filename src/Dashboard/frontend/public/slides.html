@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Azure FinOps Agent — Customer Overview</title>
+    <title>Azure FinOps Agent - Customer Overview</title>
     <meta
       name="description"
       content="An AI-powered FinOps & InfraOps agent for Azure. Customer overview deck."
@@ -141,6 +141,65 @@
         max-width: 1240px;
       }
 
+      /* ========== Slide 0: Statement opener ========== */
+      .s0 {
+        background:
+          radial-gradient(
+            ellipse at 20% 30%,
+            rgba(0, 120, 212, 0.08),
+            transparent 60%
+          ),
+          radial-gradient(
+            ellipse at 80% 70%,
+            rgba(0, 188, 242, 0.08),
+            transparent 60%
+          ),
+          #ffffff;
+      }
+      .s0 .content {
+        text-align: center;
+        max-width: 1200px;
+      }
+      .s0 .s0-eyebrow {
+        font-size: clamp(0.78rem, 0.9vw, 0.95rem);
+        font-weight: 700;
+        letter-spacing: 0.3em;
+        color: var(--azure-blue);
+        text-transform: uppercase;
+        margin-bottom: 1.4rem;
+      }
+      .s0 .s0-quote {
+        font-size: clamp(1.5rem, 2.4vw, 2.4rem);
+        font-weight: 700;
+        line-height: 1.3;
+        letter-spacing: -0.015em;
+        color: var(--ink);
+        margin-bottom: 1rem;
+      }
+      .s0 .s0-quote em {
+        font-style: normal;
+        color: var(--azure-blue);
+      }
+      .s0 .s0-why {
+        font-size: clamp(1.6rem, 2.6vw, 2.6rem);
+        font-weight: 800;
+        color: var(--azure-blue);
+        margin: 0.6rem 0;
+      }
+      .s0 .s0-punch {
+        font-size: clamp(1.3rem, 2.1vw, 2rem);
+        font-weight: 800;
+        letter-spacing: -0.015em;
+        color: var(--azure-blue-darker);
+        padding: 1rem 1.8rem;
+        background: var(--bg-blue);
+        border-left: 5px solid var(--azure-blue);
+        border-radius: 10px;
+        display: inline-block;
+        margin-top: 1.4rem;
+        max-width: 1000px;
+      }
+
       /* ========== Slide 1: Hero ========== */
       .s1 {
         background:
@@ -193,11 +252,19 @@
         color: var(--azure-blue);
       }
       .s1 .tagline {
-        font-size: clamp(0.95rem, 1.15vw, 1.1rem);
-        font-weight: 600;
-        letter-spacing: 0.04em;
+        font-size: clamp(1.15rem, 1.45vw, 1.4rem);
+        font-weight: 800;
+        letter-spacing: 0.05em;
         color: var(--azure-blue);
-        margin-bottom: 1.2rem;
+        margin-bottom: 0.4rem;
+        text-transform: uppercase;
+      }
+      .s1 .tagline-sub {
+        font-size: clamp(0.85rem, 1vw, 1rem);
+        font-weight: 600;
+        letter-spacing: 0.18em;
+        color: var(--ink-mute);
+        margin-bottom: 1.4rem;
         text-transform: uppercase;
       }
       .s1 .sub {
@@ -298,16 +365,19 @@
         max-width: 760px;
         margin: 0 auto;
       }
-      .s2 .punchline.tier1 {
+      .s2 .punchline.tier1,
+      .s3 .punchline.tier1 {
         font-size: clamp(1.1rem, 1.5vw, 1.4rem);
       }
-      .s2 .punchline.tier2 {
+      .s2 .punchline.tier2,
+      .s3 .punchline.tier2 {
         font-size: clamp(1.4rem, 2vw, 1.8rem);
         font-weight: 700;
         background: #e0f2fe;
         border-left-color: var(--azure-blue-dark);
       }
-      .s2 .punchline.tier3 {
+      .s2 .punchline.tier3,
+      .s3 .punchline.tier3 {
         font-size: clamp(1.6rem, 2.3vw, 2rem);
         font-weight: 700;
         background: #bae6fd;
@@ -333,6 +403,152 @@
         gap: 0.8rem;
         margin-top: 2rem;
       }
+
+      /* ========== Slides 2 & 3: Storytelling stage (cards + big image) ========== */
+      .s2,
+      .s3 {
+        align-items: flex-start;
+        padding-top: 5vh;
+      }
+      .s2 .content,
+      .s3 .content {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        max-width: 1480px;
+      }
+      .s2-stage,
+      .s3-stage {
+        display: grid;
+        grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.25fr);
+        gap: 2.4rem;
+        align-items: center;
+        flex: 1;
+        min-height: 0;
+        margin-top: 1rem;
+      }
+      .s2-left,
+      .s3-left {
+        display: flex;
+        flex-direction: column;
+        gap: 0.85rem;
+        min-width: 0;
+      }
+      .s2-left .pain-card,
+      .s3-left .pain-card {
+        display: flex;
+        align-items: center;
+        gap: 1.15rem;
+        text-align: left;
+        padding: 1.05rem 1.35rem;
+        margin: 0;
+        border-radius: 14px;
+      }
+      .s2-left .pain-card .ico,
+      .s3-left .pain-card .ico {
+        margin: 0;
+        flex: 0 0 auto;
+        width: 56px;
+        height: 56px;
+        border-radius: 12px;
+      }
+      .s2-left .pain-card .ico svg,
+      .s3-left .pain-card .ico svg {
+        width: 30px;
+        height: 30px;
+      }
+      .s2-left .pain-card .card-text,
+      .s3-left .pain-card .card-text {
+        min-width: 0;
+      }
+      .s2-left .pain-card h3,
+      .s3-left .pain-card h3 {
+        font-size: clamp(1.15rem, 1.35vw, 1.45rem);
+        margin: 0 0 0.25rem;
+      }
+      .s2-left .pain-card p,
+      .s3-left .pain-card p {
+        font-size: clamp(0.95rem, 1.05vw, 1.1rem);
+        margin: 0;
+        line-height: 1.45;
+      }
+      .s2-left .punchline-stack,
+      .s3-left .punchline-stack {
+        margin-top: 0.9rem;
+        gap: 0.65rem;
+      }
+      .s2-left .punchline,
+      .s3-left .punchline {
+        margin: 0;
+        max-width: none;
+        padding: 0.95rem 1.25rem;
+        text-align: left;
+        font-size: clamp(1.1rem, 1.35vw, 1.4rem);
+      }
+      .s2-left .punchline.tier2,
+      .s3-left .punchline.tier2 {
+        font-size: clamp(1.25rem, 1.55vw, 1.6rem);
+      }
+      .s2-left .punchline.tier3,
+      .s3-left .punchline.tier3 {
+        font-size: clamp(1.4rem, 1.75vw, 1.8rem);
+      }
+      .s2-right,
+      .s3-right {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        min-height: 0;
+      }
+      .s2-storyimg,
+      .s3-storyimg {
+        width: 100%;
+        max-width: min(820px, 82vh);
+        aspect-ratio: 1 / 1;
+        object-fit: contain;
+        border-radius: 24px;
+        background: #fff;
+        box-shadow: 0 18px 46px rgba(0, 30, 80, 0.1);
+        opacity: 0;
+        transform: scale(0.96);
+        transition:
+          opacity 0.45s ease,
+          transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+      }
+      .s2-storyimg.is-visible,
+      .s3-storyimg.is-visible {
+        opacity: 1;
+        transform: scale(1);
+      }
+      .s2-storyimg.swap,
+      .s3-storyimg.swap {
+        opacity: 0;
+        transform: scale(0.96);
+      }
+
+      /* ========== Slide 3 (legacy): Solution image at bottom ========== */
+      .s3 .content {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+      }
+      .s3 .solution-img-wrap {
+        margin-top: auto;
+        display: flex;
+        justify-content: center;
+        padding-top: 1.4rem;
+      }
+      .s3 .solution-img {
+        width: 100%;
+        max-width: min(540px, 44vh);
+        aspect-ratio: 1 / 1;
+        object-fit: contain;
+        border-radius: 22px;
+        background: #fff;
+        box-shadow: 0 16px 40px rgba(0, 30, 80, 0.08);
+      }
+
       /* Step-reveal: hidden until revealed by presenter advance.
          Higher specificity + !important so it wins over .slide.active .anim */
       .slide [data-step] {
@@ -372,14 +588,26 @@
       /* ========== Slide 4: Architecture ========== */
       .s4 {
         background: #fff;
+        padding: 2vh 2vw;
       }
       .s4 .content {
         display: flex;
         flex-direction: column;
-        gap: 1.25rem;
+        gap: 1rem;
+        max-width: none;
+        width: 100%;
+        height: 100%;
+      }
+      .s4 .section-title {
+        font-size: clamp(2.4rem, 4.4vw, 3.8rem);
+      }
+      .s4 .section-lead {
+        font-size: clamp(1.2rem, 1.6vw, 1.5rem);
+        color: var(--ink);
+        font-weight: 500;
       }
       .s4-header {
-        max-width: 1100px;
+        max-width: 1500px;
         width: 100%;
         margin: 0 auto;
       }
@@ -388,12 +616,18 @@
       }
       .arch-wrap {
         width: 100%;
-        max-width: 1400px;
+        max-width: none;
         margin: 0 auto;
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
       }
       .arch-svg {
         width: 100%;
-        height: auto;
+        height: 100%;
+        max-height: 88vh;
         display: block;
       }
       .region-box {
@@ -403,7 +637,7 @@
       }
       .region-label {
         fill: var(--ink-mute);
-        font-size: 13px;
+        font-size: 15px;
         font-weight: 600;
         letter-spacing: 0.12em;
         text-transform: uppercase;
@@ -423,13 +657,13 @@
       }
       .node-title {
         fill: var(--ink);
-        font-size: 14px;
+        font-size: 17px;
         font-weight: 700;
         font-family: "Segoe UI", sans-serif;
       }
       .node-sub {
         fill: var(--ink-mute);
-        font-size: 11.5px;
+        font-size: 13.5px;
         font-family: "Segoe UI", sans-serif;
       }
       .node-title-c {
@@ -758,6 +992,88 @@
       }
       .sec-foot strong {
         color: var(--azure-blue-darker);
+      }
+
+      /* ========== Slide 6b: Why this wins ========== */
+      .s6b {
+        background:
+          radial-gradient(
+            ellipse at 20% 30%,
+            rgba(0, 120, 212, 0.08),
+            transparent 60%
+          ),
+          radial-gradient(
+            ellipse at 80% 70%,
+            rgba(0, 188, 242, 0.08),
+            transparent 60%
+          ),
+          #ffffff;
+      }
+      .s6b .content {
+        max-width: 1480px;
+      }
+      .s6b .section-title {
+        font-size: clamp(2.4rem, 4.4vw, 3.8rem);
+      }
+      .s6b .section-lead {
+        font-size: clamp(1.2rem, 1.6vw, 1.5rem);
+        color: var(--ink);
+        font-weight: 500;
+        margin-bottom: 2rem;
+      }
+      .s6b-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 1.1rem;
+      }
+      .s6b-card {
+        display: flex;
+        align-items: flex-start;
+        gap: 1rem;
+        padding: 1.1rem 1.25rem;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: #fff;
+        text-align: left;
+      }
+      .s6b-card .ico {
+        width: 44px;
+        height: 44px;
+        border-radius: 10px;
+        background: var(--bg-blue);
+        color: var(--azure-blue);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 auto;
+      }
+      .s6b-card .ico svg {
+        width: 22px;
+        height: 22px;
+      }
+      .s6b-card h3 {
+        font-size: clamp(1rem, 1.1vw, 1.2rem);
+        font-weight: 700;
+        margin: 0 0 0.2rem;
+        color: var(--ink);
+      }
+      .s6b-card p {
+        font-size: clamp(0.85rem, 0.95vw, 1rem);
+        color: var(--ink-soft);
+        line-height: 1.45;
+        margin: 0;
+      }
+      .s6b-punch {
+        margin-top: 1.6rem;
+        font-size: clamp(1.4rem, 2.2vw, 2rem);
+        font-weight: 800;
+        letter-spacing: -0.015em;
+        color: var(--azure-blue-darker);
+        padding: 1.1rem 1.6rem;
+        background: var(--bg-blue);
+        border-left: 5px solid var(--azure-blue);
+        border-radius: 10px;
+        text-align: center;
       }
 
       /* ========== Slide 7: Get started ========== */
@@ -1179,7 +1495,7 @@
       body:has(.s7.active) .brand-mark .logo {
         filter: brightness(0) invert(1);
       }
-      /* Clean hero — hide all chrome on the title slide */
+      /* Clean hero - hide all chrome on the title slide */
       body:has(.s1.active) .brand-mark,
       body:has(.s1.active) .counter,
       body:has(.s1.active) .progress {
@@ -1251,16 +1567,88 @@
             Your AI agent for<br />Azure <span>FinOps</span>.
           </h1>
           <p class="tagline anim d4">
-            Visibility · Forecast · Optimize · Remediate · Clarity in minutes
+            <span data-step>Visibility</span>
+            <span data-step> · Agentic Remediation</span>
+            <span data-step id="clarity-step"> · Clarity in minutes</span>
           </p>
-          <p class="sub anim d5">
-            One interface to a team of agentic FinOps workers — surface waste,
-            forecast spend, fix maturity and clarity, and remediate directly
-            with delegated permissions or generated Azure CLI scripts. Even
-            assembles your exec presentations. Win back trust in your cloud
-            spend with years of FinOps Framework experience, all in one Agent
-            Portal. Built on the GitHub Copilot SDK.
+          <p
+            class="tagline-sub anim d4"
+            id="tagline-sub-line"
+            style="opacity: 0; transition: opacity 0.5s ease"
+          >
+            Free · Open Source · Built by Microsoft
           </p>
+          <script>
+            (function () {
+              const trigger = document.getElementById("clarity-step");
+              const target = document.getElementById("tagline-sub-line");
+              if (!trigger || !target) return;
+              const sync = () => {
+                target.style.opacity = trigger.classList.contains("revealed")
+                  ? "1"
+                  : "0";
+              };
+              const observer = new MutationObserver(sync);
+              observer.observe(trigger, {
+                attributes: true,
+                attributeFilter: ["class"],
+              });
+              sync();
+            })();
+          </script>
+          <div
+            class="anim d6"
+            style="margin-top: 2rem; text-align: center; line-height: 1.15"
+          >
+            <div style="display: inline-block; text-align: left">
+              <div data-step>
+                <div
+                  style="
+                    font-size: 0.95em;
+                    font-weight: 700;
+                    letter-spacing: 0.18em;
+                    text-transform: uppercase;
+                    opacity: 0.7;
+                    margin-bottom: 0.4rem;
+                  "
+                >
+                  In pilot
+                </div>
+                <div
+                  style="font-size: 2.6em; font-weight: 800; margin: 0.1em 0"
+                >
+                  Novo Nordisk
+                  <span
+                    style="
+                      font-size: 0.45em;
+                      font-weight: 600;
+                      opacity: 0.75;
+                      font-style: italic;
+                    "
+                  >
+                    (MACC renewal)
+                  </span>
+                </div>
+              </div>
+              <div
+                data-step
+                style="font-size: 2.6em; font-weight: 800; margin: 0.3em 0"
+              >
+                Maersk
+              </div>
+              <div
+                data-step
+                style="
+                  font-size: 0.95em;
+                  font-weight: 600;
+                  opacity: 0.75;
+                  margin-top: 1rem;
+                "
+              >
+                Two of EMEA's largest enterprises. Europe North.
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -1268,114 +1656,132 @@
       <section class="slide s2">
         <div class="content">
           <h2 class="section-title anim d1">
-            FinOps today is a <em>painful job</em>.
+            Problem - FinOps is a <em>painful job</em>.
           </h2>
           <p class="section-lead anim d2">And you're always behind.</p>
-          <div class="grid">
-            <div class="pain-card anim d3">
-              <div class="ico">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.8"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <line x1="18" y1="20" x2="18" y2="10" />
-                  <line x1="12" y1="20" x2="12" y2="4" />
-                  <line x1="6" y1="20" x2="6" y2="14" />
-                  <line x1="3" y1="22" x2="21" y2="22" />
-                </svg>
+          <div class="s2-stage">
+            <div class="s2-left">
+              <div class="pain-card" data-step data-img="1">
+                <div class="ico">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <line x1="18" y1="20" x2="18" y2="10" />
+                    <line x1="12" y1="20" x2="12" y2="4" />
+                    <line x1="6" y1="20" x2="6" y2="14" />
+                    <line x1="3" y1="22" x2="21" y2="22" />
+                  </svg>
+                </div>
+                <div class="card-text">
+                  <h3>Unexpected costs</h3>
+                  <p>Held accountable with no clear visibility.</p>
+                </div>
               </div>
-              <h3>Unexpected costs</h3>
-              <p>Held accountable with no clear visibility.</p>
-            </div>
-            <div class="pain-card anim d4">
-              <div class="ico">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.8"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <rect x="2" y="6" width="20" height="12" rx="2" />
-                  <path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10" />
-                </svg>
+              <div class="pain-card" data-step data-img="2">
+                <div class="ico">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <rect x="2" y="6" width="20" height="12" rx="2" />
+                    <path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10" />
+                  </svg>
+                </div>
+                <div class="card-text">
+                  <h3>Manual queries</h3>
+                  <p>
+                    Hand-written KQL, Log Analytics, Resource Graph, billing
+                    exports.
+                  </p>
+                </div>
               </div>
-              <h3>Manual queries</h3>
-              <p>Hand-written KQL, Resource Graph, billing exports.</p>
-            </div>
-            <div class="pain-card anim d5">
-              <div class="ico">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.8"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <path
-                    d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.37 1.9.72 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.35 1.85.59 2.81.72A2 2 0 0 1 22 16.92z"
-                  />
-                </svg>
+              <div class="pain-card" data-step data-img="3">
+                <div class="ico">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path
+                      d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.37 1.9.72 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.35 1.85.59 2.81.72A2 2 0 0 1 22 16.92z"
+                    />
+                  </svg>
+                </div>
+                <div class="card-text">
+                  <h3>Chasing departments</h3>
+                  <p>
+                    Painful in large organizations where silos are hard to
+                    avoid.
+                  </p>
+                </div>
               </div>
-              <h3>Chasing departments</h3>
-              <p>
-                Painful in large organizations where silos are hard to avoid.
-              </p>
-            </div>
-            <div class="pain-card anim d6">
-              <div class="ico">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.8"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <path
-                    d="M17 1l4 4-4 4M3 11V9a4 4 0 0 1 4-4h14M7 23l-4-4 4-4M21 13v2a4 4 0 0 1-4 4H3"
-                  />
-                </svg>
+              <div class="pain-card" data-step data-img="4">
+                <div class="ico">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path
+                      d="M17 1l4 4-4 4M3 11V9a4 4 0 0 1 4-4h14M7 23l-4-4 4-4M21 13v2a4 4 0 0 1-4 4H3"
+                    />
+                  </svg>
+                </div>
+                <div class="card-text">
+                  <h3>Portal hopping</h3>
+                  <p>Cost Mgmt, Advisor, Monitor, Graph - five tabs deep.</p>
+                </div>
               </div>
-              <h3>Portal hopping</h3>
-              <p>Cost Mgmt, Advisor, Monitor, Graph — five tabs deep.</p>
-            </div>
-            <div class="pain-card anim d6">
-              <div class="ico">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.8"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <path d="M21 12a9 9 0 1 1-3-6.7L21 8" />
-                  <polyline points="21 3 21 8 16 8" />
-                </svg>
+              <div class="pain-card" data-step data-img="5">
+                <div class="ico">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="M21 12a9 9 0 1 1-3-6.7L21 8" />
+                    <polyline points="21 3 21 8 16 8" />
+                  </svg>
+                </div>
+                <div class="card-text">
+                  <h3>Endless catch-up</h3>
+                  <p>Always under pressure, always behind at scale.</p>
+                </div>
               </div>
-              <h3>Endless catch-up</h3>
-              <p>Always under pressure, always behind at scale.</p>
+              <div class="punchline-stack">
+                <div class="punchline tier2" data-step data-img="7">
+                  Leadership loses trust in provider.
+                </div>
+                <div class="punchline tier3" data-step data-img="8">
+                  Picks an alternative offer or cloud service.
+                </div>
+              </div>
             </div>
-          </div>
-          <div class="punchline-stack">
-            <div class="punchline tier1" data-step>
-              Repeat for months and years.
-            </div>
-            <div class="punchline tier2" data-step>
-              Accountable leadership loses trust.
-            </div>
-            <div class="punchline tier3" data-step>
-              Picks an alternative offer or cloud service.
-            </div>
-            <div class="punchline tier4" data-step>
-              Problem still exists — at scale.
+            <div class="s2-right">
+              <img
+                class="s2-storyimg"
+                src=""
+                alt="Illustration of the current FinOps pain"
+                aria-hidden="true"
+              />
             </div>
           </div>
         </div>
@@ -1384,79 +1790,139 @@
       <!-- ========== Slide 3: What it is ========== -->
       <section class="slide s3">
         <div class="content">
-          <h2 class="section-title anim d1">One <em>chat</em>. Done.</h2>
+          <h2 class="section-title anim d1">
+            Solution - FinOps <em>Agent</em>.
+          </h2>
           <p class="section-lead anim d2">
-            Ask. Get the answer. Apply the fix.
+            Agentic FinOps. One chat. Trust restored.
           </p>
-          <div class="grid">
-            <div class="pain-card anim d3">
-              <div class="ico">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.8"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <path
-                    d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
-                  />
-                </svg>
+          <div class="s3-stage">
+            <div class="s3-left">
+              <div class="pain-card" data-step data-img="9">
+                <div class="ico">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path
+                      d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
+                    />
+                  </svg>
+                </div>
+                <div class="card-text">
+                  <h3>Natural language</h3>
+                  <p>
+                    Just ask. No KQL, no portals - your domain &amp; business
+                    knowledge is all you need.
+                  </p>
+                </div>
               </div>
-              <h3>Plain English</h3>
-              <p>Ask. The agent runs the queries.</p>
+              <div class="pain-card" data-step data-img="9">
+                <div class="ico">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                  </svg>
+                </div>
+                <div class="card-text">
+                  <h3>Agentic Remediation</h3>
+                  <p>
+                    One agent, many arms - reads structured logs, resources,
+                    cost &amp; operations in parallel, and remediates directly.
+                  </p>
+                </div>
+              </div>
+              <div class="pain-card" data-step data-img="9">
+                <div class="ico">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <circle cx="12" cy="12" r="10" />
+                    <circle cx="12" cy="12" r="6" />
+                    <circle cx="12" cy="12" r="2" />
+                  </svg>
+                </div>
+                <div class="card-text">
+                  <h3>Score maturity</h3>
+                  <p>
+                    Efficient grouping, clarity, and concrete optimization tips
+                    against the FinOps Framework.
+                  </p>
+                </div>
+              </div>
+              <div class="pain-card" data-step data-img="9">
+                <div class="ico">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="M20 6L9 17l-5-5" />
+                  </svg>
+                </div>
+                <div class="card-text">
+                  <h3>Trust is not a licensed product</h3>
+                  <p>
+                    Free from Microsoft. Trust shouldn't sit behind a paywall.
+                  </p>
+                </div>
+              </div>
+              <div class="pain-card" data-step data-img="9">
+                <div class="ico">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="M12 2l3 7h7l-5.5 4 2 7L12 16l-6.5 4 2-7L2 9h7z" />
+                  </svg>
+                </div>
+                <div class="card-text">
+                  <h3>Transparency &mdash; visible AI execution</h3>
+                  <p>
+                    Visible AI execution and Open Source - every tool call,
+                    every decision, auditable. The first step in the trust and
+                    cost conversation.
+                  </p>
+                </div>
+              </div>
+              <div class="punchline-stack">
+                <div class="punchline tier2" data-step data-img="7">
+                  Leadership has clarity on spend.
+                </div>
+                <div class="punchline tier3" data-step data-img="8">
+                  Customer doubles down on Azure.
+                </div>
+              </div>
             </div>
-            <div class="pain-card anim d4">
-              <div class="ico">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.8"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-                </svg>
-              </div>
-              <h3>Agent worker</h3>
-              <p>Applies the fix in your tenant. Hands-off.</p>
-            </div>
-            <div class="pain-card anim d5">
-              <div class="ico">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.8"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <polyline points="4 17 10 11 4 5" />
-                  <line x1="12" y1="19" x2="20" y2="19" />
-                </svg>
-              </div>
-              <h3>Az CLI script</h3>
-              <p>Prefer manual control? Export. Review. Run.</p>
-            </div>
-            <div class="pain-card anim d6">
-              <div class="ico">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.8"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <circle cx="12" cy="12" r="10" />
-                  <circle cx="12" cy="12" r="6" />
-                  <circle cx="12" cy="12" r="2" />
-                </svg>
-              </div>
-              <h3>Score again</h3>
-              <p>Re-run Crawl · Walk · Run anytime. Track the gain.</p>
+            <div class="s3-right">
+              <img
+                class="s3-storyimg"
+                src=""
+                alt="Sam happy with the Azure FinOps Agent doing the work"
+                aria-hidden="true"
+              />
             </div>
           </div>
         </div>
@@ -1467,16 +1933,11 @@
         <div class="content">
           <div class="s4-header">
             <h2 class="section-title anim d1">How it <em>works</em>.</h2>
-            <p class="section-lead anim d2">
-              The user chats with a Vue 3 frontend hosted on Azure App Service.
-              A .NET 10 minimal API orchestrates the GitHub Copilot SDK, which
-              calls Azure's read APIs using the user's delegated tokens.
-            </p>
           </div>
           <div class="arch-wrap anim d3">
             <svg
               class="arch-svg"
-              viewBox="0 0 1540 540"
+              viewBox="0 0 1660 760"
               preserveAspectRatio="xMidYMid meet"
               xmlns="http://www.w3.org/2000/svg"
             >
@@ -1519,6 +1980,67 @@
                     cy="4.58"
                     r="4.58"
                     fill="url(#ic-users-g2)"
+                  />
+                </symbol>
+
+                <symbol id="ic-container-apps" viewBox="0 0 18 18">
+                  <defs>
+                    <linearGradient
+                      id="ic-cae-g1"
+                      x1="11.729"
+                      y1="4.88"
+                      x2="11.729"
+                      y2="13.099"
+                      gradientUnits="userSpaceOnUse"
+                    >
+                      <stop offset="0.001" stop-color="#773adc" />
+                      <stop offset="0.528" stop-color="#6635bb" />
+                      <stop offset="1" stop-color="#552f99" />
+                    </linearGradient>
+                    <linearGradient
+                      id="ic-cae-g2"
+                      x1="6.35"
+                      y1="13.914"
+                      x2="6.35"
+                      y2="4.198"
+                      gradientUnits="userSpaceOnUse"
+                    >
+                      <stop offset="0.001" stop-color="#773adc" />
+                      <stop offset="0.307" stop-color="#793ddd" />
+                      <stop offset="0.532" stop-color="#8046e1" />
+                      <stop offset="0.731" stop-color="#8c56e7" />
+                      <stop offset="0.915" stop-color="#9c6def" />
+                      <stop offset="1" stop-color="#a67af4" />
+                    </linearGradient>
+                  </defs>
+                  <path
+                    d="M8.617,8.644H.639V1.784A1.16,1.16,0,0,1,1.788.624H8.617ZM1.63,7.653h6V1.594H1.788a.158.158,0,0,0-.158.158h0Z"
+                    fill="#949494"
+                  />
+                  <path
+                    d="M17.5,8.644H9.523V.624h6.828A1.16,1.16,0,0,1,17.5,1.784Zm-6.987-.991h6V1.784a.157.157,0,0,0-.123-.187.2.2,0,0,0-.035,0H10.513Z"
+                    fill="#949494"
+                  />
+                  <path
+                    d="M8.617,17.485H1.788A1.149,1.149,0,0,1,.639,16.347V9.476H8.617ZM1.63,10.467v5.88a.158.158,0,0,0,.158.158H7.626V10.467Z"
+                    fill="#949494"
+                  />
+                  <path
+                    d="M16.351,17.485H9.523V9.476H17.5v6.871A1.149,1.149,0,0,1,16.351,17.485Zm-5.838-.991h5.838a.157.157,0,0,0,.158-.158V10.467h-6Z"
+                    fill="#949494"
+                  />
+                  <path
+                    d="M14.6,6.294a.294.294,0,0,0-.2-.278L9.044,4.205A.128.128,0,0,0,9,4.2H9a.132.132,0,0,0-.133.133v9.445A.133.133,0,0,0,9,13.911H9a.138.138,0,0,0,.049-.01l5.365-2.145a.292.292,0,0,0,.184-.272Z"
+                    fill="url(#ic-cae-g1)"
+                  />
+                  <path
+                    d="M8.966,4.2l-5.293.966a.161.161,0,0,0-.13.158V12.63a.16.16,0,0,0,.126.157L8.962,13.91a.161.161,0,0,0,.191-.121.22.22,0,0,0,0-.036V4.358A.16.16,0,0,0,9,4.2.163.163,0,0,0,8.966,4.2Z"
+                    fill="url(#ic-cae-g2)"
+                  />
+                  <path
+                    d="M6.52,5.656v6.8l1.842.3V5.335Zm-2.262.367v5.955l1.6.326V5.754Z"
+                    fill="#b796f9"
+                    opacity="0.5"
                   />
                 </symbol>
 
@@ -1861,67 +2383,213 @@
                     fill="#fff"
                   />
                 </symbol>
+
+                <symbol id="ic-storage" viewBox="0 0 18 18">
+                  <linearGradient
+                    id="ic-storage-g1"
+                    x1="9"
+                    y1="15.83"
+                    x2="9"
+                    y2="5.79"
+                    gradientUnits="userSpaceOnUse"
+                  >
+                    <stop offset="0" stop-color="#b3b3b3" />
+                    <stop offset="0.26" stop-color="#c1c1c1" />
+                    <stop offset="1" stop-color="#e6e6e6" />
+                  </linearGradient>
+                  <path
+                    d="M.5,5.79h17a0,0,0,0,1,0,0v9.48a.57.57,0,0,1-.57.57H1.07a.57.57,0,0,1-.57-.57V5.79A0,0,0,0,1,.5,5.79Z"
+                    fill="url(#ic-storage-g1)"
+                  />
+                  <path
+                    d="M1.07,2.17H16.93a.57.57,0,0,1,.57.57V5.79a0,0,0,0,1,0,0H.5a0,0,0,0,1,0,0V2.73A.57.57,0,0,1,1.07,2.17Z"
+                    fill="#37c2b1"
+                  />
+                  <path
+                    d="M2.81,6.89H15.18a.27.27,0,0,1,.26.27v1.4a.27.27,0,0,1-.26.27H2.81a.27.27,0,0,1-.26-.27V7.16A.27.27,0,0,1,2.81,6.89Z"
+                    fill="#fff"
+                  />
+                  <path
+                    d="M2.82,9.68H15.19a.27.27,0,0,1,.26.27v1.41a.27.27,0,0,1-.26.27H2.82a.27.27,0,0,1-.26-.27V10A.27.27,0,0,1,2.82,9.68Z"
+                    fill="#37c2b1"
+                  />
+                  <path
+                    d="M2.82,12.5H15.19a.27.27,0,0,1,.26.27v1.41a.27.27,0,0,1-.26.27H2.82a.27.27,0,0,1-.26-.27V12.77A.27.27,0,0,1,2.82,12.5Z"
+                    fill="#258277"
+                  />
+                </symbol>
+
+                <symbol id="ic-foundry" viewBox="0 0 18 18">
+                  <linearGradient
+                    id="ic-foundry-g1"
+                    x1="-603.563"
+                    y1="-218.378"
+                    x2="-606.6"
+                    y2="-206.22"
+                    gradientTransform="translate(617.126 -205.758) scale(1 -1)"
+                    gradientUnits="userSpaceOnUse"
+                  >
+                    <stop offset="0" stop-color="#712575" />
+                    <stop offset=".4" stop-color="#f131a5" />
+                    <stop offset="1" stop-color="#712575" />
+                  </linearGradient>
+                  <linearGradient
+                    id="ic-foundry-g2"
+                    x1="-602.412"
+                    y1="-206.025"
+                    x2="-602.412"
+                    y2="-223.175"
+                    gradientTransform="translate(617.126 -205.758) scale(1 -1)"
+                    gradientUnits="userSpaceOnUse"
+                  >
+                    <stop offset="0" stop-color="#da7ed0" />
+                    <stop offset=".54" stop-color="#2e72e8" />
+                    <stop offset="1" stop-color="#1171ed" />
+                  </linearGradient>
+                  <linearGradient
+                    id="ic-foundry-g3"
+                    x1="-603.438"
+                    y1="-206.414"
+                    x2="-614.807"
+                    y2="-224.644"
+                    gradientTransform="translate(617.126 -205.758) scale(1 -1)"
+                    gradientUnits="userSpaceOnUse"
+                  >
+                    <stop offset="0" stop-color="#da7ed0" />
+                    <stop offset=".54" stop-color="#1a71eb" />
+                    <stop offset="1" stop-color="#1171ed" />
+                  </linearGradient>
+                  <path
+                    d="m12.061.012c.534,0,1.008.401,1.178.984s1.166,4.19,1.166,4.19v7.166h-3.607l.073-12.352h1.19v.012Z"
+                    fill="url(#ic-foundry-g1)"
+                    fill-rule="evenodd"
+                  />
+                  <path
+                    d="m17.356,5.611c0-.255-.206-.449-.449-.449h-2.126c-1.494,0-2.709,1.215-2.709,2.709v4.494h2.575c1.494,0,2.709-1.215,2.709-2.709v-4.045Z"
+                    fill="url(#ic-foundry-g2)"
+                  />
+                  <path
+                    d="m12.061.012c-.413,0-.741.328-.741.741l-.073,13.64c0,1.992-1.615,3.607-3.607,3.607H1.093c-.316,0-.522-.304-.425-.595L5.915,2.429C6.425.984,7.785.012,9.316.012h2.757-.012Z"
+                    fill="url(#ic-foundry-g3)"
+                    fill-rule="evenodd"
+                  />
+                </symbol>
+
+                <symbol id="ic-subscription" viewBox="0 0 18 18">
+                  <radialGradient
+                    id="ic-sub-g1"
+                    cx="-36.63"
+                    cy="17.12"
+                    r="11.18"
+                    gradientTransform="translate(41.88 -7.4) scale(0.94 0.94)"
+                    gradientUnits="userSpaceOnUse"
+                  >
+                    <stop offset="0.27" stop-color="#ffd70f" />
+                    <stop offset="0.49" stop-color="#ffcb12" />
+                    <stop offset="0.88" stop-color="#feac19" />
+                    <stop offset="1" stop-color="#fea11b" />
+                  </radialGradient>
+                  <path
+                    d="M13.56,7.19a2.07,2.07,0,0,0,0-2.93h0L10,.69a2.06,2.06,0,0,0-2.92,0h0L3.52,4.26a2.09,2.09,0,0,0,0,2.93l3,3a.61.61,0,0,1,.17.41v5.52a.7.7,0,0,0,.2.5l1.35,1.35a.45.45,0,0,0,.66,0l1.31-1.31h0l.77-.77a.26.26,0,0,0,0-.38l-.55-.56a.29.29,0,0,1,0-.42l.55-.56a.26.26,0,0,0,0-.38L10.4,13a.28.28,0,0,1,0-.41L11,12a.26.26,0,0,0,0-.38l-.77-.78v-.28Zm-5-5.64A1.18,1.18,0,1,1,7.37,2.73,1.17,1.17,0,0,1,8.54,1.55Z"
+                    fill="url(#ic-sub-g1)"
+                  />
+                  <path
+                    d="M7.62,16.21h0A.25.25,0,0,0,8,16V11.55a.27.27,0,0,0-.11-.22h0a.25.25,0,0,0-.39.22V16A.27.27,0,0,0,7.62,16.21Z"
+                    fill="#ff9300"
+                    opacity="0.75"
+                  />
+                  <rect
+                    x="5.69"
+                    y="5.45"
+                    width="5.86"
+                    height="0.69"
+                    rx="0.32"
+                    fill="#ff9300"
+                    opacity="0.75"
+                  />
+                  <rect
+                    x="5.69"
+                    y="6.57"
+                    width="5.86"
+                    height="0.69"
+                    rx="0.32"
+                    fill="#ff9300"
+                    opacity="0.75"
+                  />
+                </symbol>
+
+                <symbol id="ic-marketplace" viewBox="0 0 18 18">
+                  <linearGradient
+                    id="ic-mkt-g1"
+                    x1="7.63"
+                    y1="15.34"
+                    x2="7.63"
+                    y2="5.84"
+                    gradientUnits="userSpaceOnUse"
+                  >
+                    <stop offset="0" stop-color="#ccc" />
+                    <stop offset="0.15" stop-color="#dadada" />
+                    <stop offset="0.44" stop-color="#eee" />
+                    <stop offset="0.72" stop-color="#fbfbfb" />
+                    <stop offset="1" stop-color="#fff" />
+                  </linearGradient>
+                  <path d="M15,4.77h-1v12.8l1-1.93Z" fill="#50e6ff" />
+                  <path d="M15,15.63h0l-1,1.93,1-.8,1.23-.95Z" fill="#9cebff" />
+                  <path
+                    d="M8.39,2.86A1.57,1.57,0,0,1,10,1.35a1.57,1.57,0,0,1,1.63,1.51V4.77h.78V2.86A2.35,2.35,0,0,0,10,.57a2.35,2.35,0,0,0-2.4,2.29V4.77h.78Z"
+                    fill="#a3a3a3"
+                  />
+                  <path
+                    d="M6,2.86A1.57,1.57,0,0,1,7.62,1.35,1.58,1.58,0,0,1,9.25,2.86V4.77H10V2.86A2.36,2.36,0,0,0,7.62.57a2.35,2.35,0,0,0-2.4,2.29V4.77H6Z"
+                    fill="#767676"
+                  />
+                  <polygon
+                    points="13.92 4.77 13.92 17.57 1.45 16.58 1.83 4.77 13.92 4.77"
+                    fill="#32bedd"
+                  />
+                  <polygon
+                    points="14.95 4.77 14.95 15.64 16.18 15.82 15.81 4.77 14.95 4.77"
+                    fill="#32bedd"
+                  />
+                  <path
+                    d="M12.19,12.31a2.3,2.3,0,0,0-1.79-2.18A2.84,2.84,0,0,0,7.74,7.38,2.47,2.47,0,0,0,5.2,9a2.3,2.3,0,0,0-2.13,2.31A2.74,2.74,0,0,0,5.63,14h.22l4.16.28h.11A2,2,0,0,0,12.19,12.31Z"
+                    fill="url(#ic-mkt-g1)"
+                  />
+                </symbol>
               </defs>
 
               <!-- ====== Region containers ====== -->
               <rect
                 class="region-box"
                 x="40"
-                y="60"
-                width="200"
-                height="420"
+                y="55"
+                width="280"
+                height="685"
                 rx="12"
               />
-              <text class="region-label" x="60" y="88">User</text>
+              <text class="region-label" x="60" y="42">User</text>
 
               <rect
                 class="region-box"
-                x="280"
-                y="60"
-                width="310"
-                height="420"
+                x="340"
+                y="55"
+                width="320"
+                height="685"
                 rx="12"
               />
-              <text class="region-label" x="300" y="88">
-                App Service · Container
+              <text class="region-label" x="360" y="42">
+                Application Platform
               </text>
 
               <rect
                 class="region-box"
-                x="620"
-                y="60"
-                width="260"
-                height="420"
+                x="1020"
+                y="55"
+                width="620"
+                height="685"
                 rx="12"
               />
-              <text class="region-label" x="640" y="88">AI Layer</text>
-
-              <rect
-                class="region-box"
-                x="920"
-                y="60"
-                width="470"
-                height="420"
-                rx="12"
-              />
-              <text class="region-label" x="940" y="88">Azure Read APIs</text>
-
-              <rect
-                class="region-box"
-                x="1400"
-                y="60"
-                width="100"
-                height="420"
-                rx="12"
-              />
-              <text
-                class="region-label"
-                x="1418"
-                y="88"
-                style="font-size: 10px"
-              >
-                Observe
-              </text>
+              <text class="region-label" x="1040" y="42">Tenant Interface</text>
 
               <!--
                 Node geometry (rect x,y,w,h):
@@ -1937,28 +2605,27 @@
               -->
 
               <!-- ====== Connections (drawn first, nodes on top) ====== -->
-              <!-- User → Vue Frontend -->
-              <path class="conn c1" d="M 210,270 C 275,270 280,200 340,200" />
-              <!-- Vue Frontend → .NET Backend (vertical inside App Service region) -->
-              <path class="conn c2" d="M 435,240 L 435,300" />
-              <!-- .NET Backend → Copilot SDK -->
-              <path class="conn c3" d="M 530,340 C 585,340 585,270 640,270" />
-              <!-- Copilot → Cost Mgmt (curve up) -->
-              <path class="conn c4" d="M 830,270 C 885,270 885,160 940,160" />
-              <!-- Copilot → Resource Graph (straight) -->
-              <path class="conn c5" d="M 830,270 L 940,270" />
-              <!-- Copilot → MS Graph (curve down) -->
-              <path class="conn c6" d="M 830,270 C 885,270 885,380 940,380" />
-              <!-- Resource Graph → Log Analytics -->
-              <path class="conn c7" d="M 1130,270 L 1170,270" />
-              <!-- Log Analytics → App Insights -->
-              <path class="conn c8" d="M 1360,270 L 1410,270" />
-              <!-- .NET Backend → App Insights (telemetry, top arc — well above nodes) -->
-              <path
-                class="conn c9 telemetry"
-                d="M 530,300 C 530,30 1450,30 1450,250"
-              />
-              <text class="conn-label" x="990" y="22">OpenTelemetry</text>
+              <!-- User → Container Apps -->
+              <path class="conn c1" d="M 290,375 C 320,375 330,335 360,335" />
+              <!-- Container Apps → Microsoft Agent Framework -->
+              <path class="conn c2" d="M 500,400 L 500,460" />
+              <!-- MAF → Azure ARM REST API -->
+              <path class="conn c4" d="M 640,505 C 760,505 920,112 1040,112" />
+              <!-- MAF → Resource Graph -->
+              <path class="conn c5" d="M 640,505 C 760,505 920,207 1040,207" />
+              <!-- MAF → Log Analytics -->
+              <path class="conn c6" d="M 640,505 C 760,505 920,302 1040,302" />
+              <!-- MAF → App Insights -->
+              <path class="conn c7" d="M 640,505 C 760,505 920,397 1040,397" />
+              <!-- MAF → MS Graph -->
+              <path class="conn c8" d="M 640,505 C 760,505 920,492 1040,492" />
+              <!-- MAF → Retail Prices API -->
+              <path class="conn c10" d="M 640,505 C 760,505 920,587 1040,587" />
+              <!-- MAF → Cost Export Storage -->
+              <path class="conn c11" d="M 640,505 C 760,505 920,682 1040,682" />
+              <text class="conn-label" x="780" y="22" style="display: none">
+                OpenTelemetry
+              </text>
 
               <!-- ====== Nodes ====== -->
               <!-- User -->
@@ -1966,101 +2633,86 @@
                 <rect
                   class="node-box"
                   x="70"
-                  y="230"
-                  width="140"
+                  y="335"
+                  width="220"
                   height="80"
                   rx="10"
                 />
-                <use href="#ic-users" x="85" y="245" width="40" height="40" />
-                <text class="node-title" x="129" y="268">FinOps Lead</text>
-                <text class="node-sub" x="129" y="284">Browser chat</text>
+                <use href="#ic-users" x="85" y="350" width="40" height="40" />
+                <text class="node-title" x="135" y="373">FinOps Lead</text>
+                <text class="node-sub" x="135" y="395">Browser chat</text>
               </g>
 
-              <!-- Vue Frontend -->
+              <!-- Container Apps -->
               <g>
                 <rect
                   class="node-box primary"
-                  x="340"
-                  y="160"
-                  width="190"
-                  height="80"
+                  x="360"
+                  y="295"
+                  width="280"
+                  height="105"
                   rx="10"
                 />
                 <use
-                  href="#ic-app-service"
-                  x="358"
-                  y="175"
-                  width="40"
-                  height="40"
+                  href="#ic-container-apps"
+                  x="378"
+                  y="320"
+                  width="50"
+                  height="50"
                 />
-                <text class="node-title" x="408" y="195">Vue Frontend</text>
-                <text class="node-sub" x="408" y="214">SPA · ECharts</text>
+                <text class="node-title" x="440" y="340">Container Apps</text>
+                <text class="node-sub" x="440" y="362">Vue SPA + .NET API</text>
+                <text class="node-sub" x="440" y="380">Managed Identity</text>
               </g>
 
-              <!-- .NET Backend -->
+              <!-- Agent Framework -->
               <g>
                 <rect
                   class="node-box primary"
-                  x="340"
-                  y="300"
-                  width="190"
-                  height="80"
+                  x="360"
+                  y="460"
+                  width="280"
+                  height="105"
                   rx="10"
                 />
                 <use
-                  href="#ic-app-service"
-                  x="358"
-                  y="315"
-                  width="40"
-                  height="40"
+                  href="#ic-foundry"
+                  x="378"
+                  y="485"
+                  width="50"
+                  height="50"
                 />
-                <text class="node-title" x="408" y="335">.NET Backend</text>
-                <text class="node-sub" x="408" y="354">Minimal API · SSE</text>
-              </g>
-
-              <!-- Copilot SDK -->
-              <g>
-                <rect
-                  class="node-box primary"
-                  x="640"
-                  y="230"
-                  width="190"
-                  height="80"
-                  rx="10"
-                />
-                <use
-                  href="#ic-azure-openai"
-                  x="658"
-                  y="245"
-                  width="40"
-                  height="40"
-                />
-                <text class="node-title" x="708" y="265">Copilot SDK</text>
-                <text class="node-sub" x="708" y="284">
-                  BYOK · Azure OpenAI
+                <text class="node-title" x="440" y="510">
+                  Microsoft Foundry
+                </text>
+                <text class="node-sub" x="440" y="532">+ Azure AI Foundry</text>
+                <text class="node-sub" x="440" y="550">
+                  Tools · Entra ID · no keys
                 </text>
               </g>
 
-              <!-- Cost Management -->
+              <!-- Azure ARM REST API -->
               <g>
                 <rect
                   class="node-box"
-                  x="940"
-                  y="120"
-                  width="190"
+                  x="1040"
+                  y="72"
+                  width="500"
                   height="80"
                   rx="10"
                 />
                 <use
-                  href="#ic-cost-mgmt"
-                  x="958"
-                  y="135"
+                  href="#ic-subscription"
+                  x="1058"
+                  y="87"
                   width="40"
                   height="40"
                 />
-                <text class="node-title" x="1008" y="155">Cost Mgmt</text>
-                <text class="node-sub" x="1008" y="174">
-                  Billing · Forecast
+                <text class="node-title" x="1128" y="107">
+                  Azure ARM REST API
+                </text>
+                <text class="node-sub" x="1128" y="126">
+                  Cost Mgmt · Advisor · Reservations · Compute · Carbon
                 </text>
               </g>
 
@@ -2068,77 +2720,136 @@
               <g>
                 <rect
                   class="node-box"
-                  x="940"
-                  y="230"
-                  width="190"
+                  x="1040"
+                  y="167"
+                  width="500"
                   height="80"
                   rx="10"
                 />
                 <use
                   href="#ic-resource-graph"
-                  x="958"
-                  y="245"
+                  x="1058"
+                  y="182"
                   width="40"
                   height="40"
                 />
-                <text class="node-title" x="1008" y="265">Resource Graph</text>
-                <text class="node-sub" x="1008" y="284">Advisor · Monitor</text>
-              </g>
-
-              <!-- Microsoft Graph -->
-              <g>
-                <rect
-                  class="node-box"
-                  x="940"
-                  y="340"
-                  width="190"
-                  height="80"
-                  rx="10"
-                />
-                <use href="#ic-entra" x="958" y="355" width="40" height="40" />
-                <text class="node-title" x="1008" y="375">MS Graph</text>
-                <text class="node-sub" x="1008" y="394">Licenses · M365</text>
+                <text class="node-title" x="1128" y="202">Resource Graph</text>
+                <text class="node-sub" x="1128" y="221">
+                  Cross-subscription inventory
+                </text>
               </g>
 
               <!-- Log Analytics -->
               <g>
                 <rect
                   class="node-box"
-                  x="1170"
-                  y="230"
-                  width="190"
+                  x="1040"
+                  y="262"
+                  width="500"
                   height="80"
                   rx="10"
                 />
                 <use
                   href="#ic-log-analytics"
-                  x="1188"
-                  y="245"
+                  x="1058"
+                  y="277"
                   width="40"
                   height="40"
                 />
-                <text class="node-title" x="1238" y="265">Log Analytics</text>
-                <text class="node-sub" x="1238" y="284">KQL queries</text>
+                <text class="node-title" x="1128" y="297">Log Analytics</text>
+                <text class="node-sub" x="1128" y="316">
+                  KQL · ingestion costs · idle VMs
+                </text>
               </g>
 
               <!-- App Insights -->
               <g>
                 <rect
                   class="node-box"
-                  x="1410"
-                  y="230"
-                  width="80"
+                  x="1040"
+                  y="357"
+                  width="500"
                   height="80"
                   rx="10"
                 />
                 <use
                   href="#ic-app-insights"
-                  x="1430"
-                  y="245"
+                  x="1058"
+                  y="372"
                   width="40"
                   height="40"
                 />
-                <text class="node-title-c" x="1450" y="305">App Insights</text>
+                <text class="node-title" x="1128" y="392">App Insights</text>
+                <text class="node-sub" x="1128" y="411">
+                  KQL · dependency · perf
+                </text>
+              </g>
+
+              <!-- Microsoft Graph -->
+              <g>
+                <rect
+                  class="node-box"
+                  x="1040"
+                  y="452"
+                  width="500"
+                  height="80"
+                  rx="10"
+                />
+                <use href="#ic-entra" x="1058" y="467" width="40" height="40" />
+                <text class="node-title" x="1128" y="487">Microsoft Graph</text>
+                <text class="node-sub" x="1128" y="506">
+                  M365 licenses · usage · org chart
+                </text>
+              </g>
+
+              <!-- Retail Prices API -->
+              <g>
+                <rect
+                  class="node-box"
+                  x="1040"
+                  y="547"
+                  width="500"
+                  height="80"
+                  rx="10"
+                />
+                <use
+                  href="#ic-marketplace"
+                  x="1058"
+                  y="562"
+                  width="40"
+                  height="40"
+                />
+                <text class="node-title" x="1128" y="582">
+                  Retail Prices API
+                </text>
+                <text class="node-sub" x="1128" y="601">
+                  Public pricing · no auth
+                </text>
+              </g>
+
+              <!-- Cost Export Storage -->
+              <g>
+                <rect
+                  class="node-box"
+                  x="1040"
+                  y="642"
+                  width="500"
+                  height="80"
+                  rx="10"
+                />
+                <use
+                  href="#ic-storage"
+                  x="1058"
+                  y="657"
+                  width="40"
+                  height="40"
+                />
+                <text class="node-title" x="1128" y="677">
+                  Cost Export Storage
+                </text>
+                <text class="node-sub" x="1128" y="696">
+                  Large-scale cost detail blobs
+                </text>
               </g>
 
               <!-- ====== Animated flow particles ====== -->
@@ -2147,30 +2858,30 @@
                 r="4"
                 style="
                   offset-path: path(
-                    &quot;M 210,270 C 275,270 280,200 340,200&quot;
+                    &quot;M 290,375 C 320,375 330,335 360,335&quot;
                   );
                 "
               />
               <circle
                 class="flow-particle fp2"
                 r="4"
-                style="
-                  offset-path: path(
-                    &quot;M 530,340 C 585,340 585,270 640,270&quot;
-                  );
-                "
+                style="offset-path: path(&quot;M 500,400 L 500,460&quot;)"
               />
               <circle
                 class="flow-particle fp3"
                 r="4"
-                style="offset-path: path(&quot;M 830,270 L 940,270&quot;)"
+                style="
+                  offset-path: path(
+                    &quot;M 640,505 C 760,505 920,397 1040,397&quot;
+                  );
+                "
               />
               <circle
                 class="flow-particle fp4"
                 r="4"
                 style="
                   offset-path: path(
-                    &quot;M 830,270 C 885,270 885,160 940,160&quot;
+                    &quot;M 640,505 C 760,505 920,112 1040,112&quot;
                   );
                 "
               />
@@ -2179,7 +2890,7 @@
                 r="4"
                 style="
                   offset-path: path(
-                    &quot;M 830,270 C 885,270 885,380 940,380&quot;
+                    &quot;M 640,505 C 760,505 920,492 1040,492&quot;
                   );
                 "
               />
@@ -2187,13 +2898,15 @@
                 class="flow-particle fp6"
                 r="3"
                 style="
-                  offset-path: path(&quot;M 1130,270 L 1410,270&quot;);
+                  offset-path: path(
+                    &quot;M 640,505 C 760,505 920,682 1040,682&quot;
+                  );
                   fill: #b77af4;
                 "
               />
             </svg>
           </div>
-          <div class="legend-row anim d4">
+          <div class="legend-row anim d4" style="display: none">
             <div class="item">
               <span class="ico"></span> Customer-deployed component
             </div>
@@ -2255,13 +2968,13 @@
           </h2>
           <p class="section-lead anim d2">
             What used to take days of queries, naming standards, and Slack
-            threads — now done in one chat.
+            threads - now done in one chat.
           </p>
           <div class="proof-wrap anim d3">
             <div class="video-frame">
               <iframe
                 src="https://www.youtube.com/embed/0BbM3TNFp_U?rel=0&modestbranding=1&playsinline=1&controls=1&color=white&iv_load_policy=3&fs=1&enablejsapi=1"
-                title="Azure FinOps Agent — tagging maturity demo"
+                title="Azure FinOps Agent - tagging maturity demo"
                 loading="lazy"
                 allow="
                   accelerometer;
@@ -2316,7 +3029,7 @@
                 <li>
                   <span class="mark">✓</span
                   ><span
-                    >Generate scripts — or run them with your approval</span
+                    >Generate scripts - or run them with your approval</span
                   >
                 </li>
                 <li>
@@ -2337,7 +3050,7 @@
                 </li>
                 <li>
                   <span class="mark">✗</span
-                  ><span>Persist your data — always live, never stored</span>
+                  ><span>Persist your data - always live, never stored</span>
                 </li>
                 <li>
                   <span class="mark">✗</span
@@ -2354,10 +3067,176 @@
         </div>
       </section>
 
+      <!-- ========== Slide 6b: Why this wins ========== -->
+      <section class="slide s6b">
+        <div class="content">
+          <h2 class="section-title anim d1">Why this <em>wins</em>.</h2>
+          <p class="section-lead anim d2">Real, working, ready.</p>
+          <div class="s6b-grid">
+            <div class="s6b-card" data-step>
+              <div class="ico">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <polyline points="16 18 22 12 16 6" />
+                  <polyline points="8 6 2 12 8 18" />
+                </svg>
+              </div>
+              <div>
+                <h3>Real, working agent</h3>
+                <p>+200 commits. Production-quality, not slideware.</p>
+              </div>
+            </div>
+            <div class="s6b-card" data-step>
+              <div class="ico">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <circle cx="12" cy="12" r="3" />
+                  <path
+                    d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"
+                  />
+                </svg>
+              </div>
+              <div>
+                <h3>Microsoft Agent Framework</h3>
+                <p>
+                  Built on the official Microsoft agentic stack - Pro Code, not
+                  no-code.
+                </p>
+              </div>
+            </div>
+            <div class="s6b-card" data-step>
+              <div class="ico">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+              </div>
+              <div>
+                <h3>Transparent execution</h3>
+                <p>
+                  Every prompt, tool call, and answer visible in the portal.
+                </p>
+              </div>
+            </div>
+            <div class="s6b-card" data-step>
+              <div class="ico">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <rect x="3" y="3" width="18" height="18" rx="2" />
+                  <path d="M9 12l2 2 4-4" />
+                </svg>
+              </div>
+              <div>
+                <h3>Free · Open Source · MIT</h3>
+                <p>
+                  Zero procurement friction. Customer-deployable in minutes.
+                </p>
+              </div>
+            </div>
+            <div class="s6b-card" data-step>
+              <div class="ico">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="17 8 12 3 7 8" />
+                  <line x1="12" y1="3" x2="12" y2="15" />
+                </svg>
+              </div>
+              <div>
+                <h3>Drag &amp; drop CSV</h3>
+                <p>Reads the customer's own billing exports - intelligently.</p>
+              </div>
+            </div>
+            <div class="s6b-card" data-step>
+              <div class="ico">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                  <line x1="9" y1="9" x2="15" y2="15" />
+                  <line x1="15" y1="9" x2="9" y2="15" />
+                </svg>
+              </div>
+              <div>
+                <h3>Never deletes</h3>
+                <p>
+                  Enforced in code, not policy. The safest agent in the
+                  customer's tenant.
+                </p>
+              </div>
+            </div>
+            <div class="s6b-card" data-step>
+              <div class="ico">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path
+                    d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56 0-.28-.01-1.01-.02-1.99-3.2.69-3.87-1.54-3.87-1.54-.52-1.32-1.27-1.67-1.27-1.67-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.18 1.76 1.18 1.02 1.75 2.69 1.25 3.35.96.1-.74.4-1.25.73-1.54-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.18-3.1-.12-.29-.51-1.46.11-3.05 0 0 .96-.31 3.15 1.18a10.97 10.97 0 0 1 5.74 0c2.19-1.49 3.15-1.18 3.15-1.18.62 1.59.23 2.76.11 3.05.74.81 1.18 1.84 1.18 3.1 0 4.42-2.69 5.39-5.26 5.68.41.36.78 1.06.78 2.13 0 1.54-.01 2.78-.01 3.16 0 .31.21.68.8.56C20.21 21.39 23.5 17.08 23.5 12 23.5 5.65 18.35.5 12 .5z"
+                    fill="currentColor"
+                    stroke="none"
+                  />
+                </svg>
+              </div>
+              <div>
+                <h3>In Azure-Samples</h3>
+                <p>
+                  Microsoft's official open-source repo - vetted, endorsed,
+                  ready for any customer.
+                </p>
+              </div>
+            </div>
+          </div>
+          <div class="s6b-punch" data-step>
+            We can't sell trust and transparency.
+          </div>
+        </div>
+      </section>
+
       <!-- ========== Slide 7: Get started ========== -->
       <section class="slide s7">
         <div class="content">
-          <div class="pre anim d1">— Open Source · MIT —</div>
+          <div class="pre anim d1">- Open Source · MIT -</div>
           <h2 class="anim d2">
             Your tenant.<br />Your data.<br />Your control.
           </h2>
@@ -2377,7 +3256,7 @@
             </div>
             <div class="step anim d6">
               <div class="num">03</div>
-              <h4>Chat</h4>
+              <h4>Agentic FinOps</h4>
               <p>App Service or Container Apps.</p>
             </div>
           </div>
@@ -2560,6 +3439,12 @@
             s.querySelectorAll("[data-step]").forEach((el) =>
               el.classList.remove("revealed"),
             );
+            // Reset story image so re-entering the slide starts fresh
+            const storyImg = s.querySelector(".s2-storyimg, .s3-storyimg");
+            if (storyImg) {
+              storyImg.classList.remove("is-visible", "swap");
+              storyImg.removeAttribute("src");
+            }
           }
         });
         dotEls.forEach((d, i) => d.classList.toggle("active", i === current));
@@ -2575,6 +3460,27 @@
         const pending = active.querySelector("[data-step]:not(.revealed)");
         if (pending) {
           pending.classList.add("revealed");
+          // If this step also drives a story image swap, crossfade the slide's image.
+          const imgIdx = pending.getAttribute("data-img");
+          if (imgIdx) {
+            const storyImg = active.querySelector(".s2-storyimg, .s3-storyimg");
+            if (storyImg) {
+              const newSrc = `sam-finops-images/${imgIdx}.png`;
+              if (!storyImg.src || storyImg.classList.contains("is-visible")) {
+                storyImg.classList.add("swap");
+                setTimeout(() => {
+                  storyImg.src = newSrc;
+                  storyImg.classList.remove("swap");
+                  storyImg.classList.add("is-visible");
+                }, 220);
+              } else {
+                storyImg.src = newSrc;
+                requestAnimationFrame(() =>
+                  storyImg.classList.add("is-visible"),
+                );
+              }
+            }
+          }
           return true;
         }
         return false;
@@ -2590,7 +3496,45 @@
           fadeHint();
         }
       };
+      // Hide the last revealed step inside the active slide; returns true if one was hidden.
+      function unrevealLastStep() {
+        const active = slides[current];
+        if (!active) return false;
+        const revealed = active.querySelectorAll("[data-step].revealed");
+        if (revealed.length === 0) return false;
+        const last = revealed[revealed.length - 1];
+        last.classList.remove("revealed");
+        // If this step drove a story image swap, revert to the previous step's image (or hide).
+        const imgIdx = last.getAttribute("data-img");
+        if (imgIdx) {
+          const storyImg = active.querySelector(".s2-storyimg, .s3-storyimg");
+          if (storyImg) {
+            const remaining = active.querySelectorAll(
+              "[data-step].revealed[data-img]",
+            );
+            if (remaining.length === 0) {
+              storyImg.classList.remove("is-visible");
+              storyImg.classList.add("swap");
+              setTimeout(() => storyImg.removeAttribute("src"), 220);
+            } else {
+              const prevIdx =
+                remaining[remaining.length - 1].getAttribute("data-img");
+              storyImg.classList.add("swap");
+              setTimeout(() => {
+                storyImg.src = `sam-finops-images/${prevIdx}.png`;
+                storyImg.classList.remove("swap");
+                storyImg.classList.add("is-visible");
+              }, 220);
+            }
+          }
+        }
+        return true;
+      }
       const prev = () => {
+        if (unrevealLastStep()) {
+          fadeHint();
+          return;
+        }
         if (current > 0) {
           current--;
           update();
@@ -2615,7 +3559,7 @@
       document.getElementById("zoneLeft").addEventListener("click", prev);
       document.getElementById("zoneRight").addEventListener("click", next);
 
-      // Fullscreen handling — try multiple element targets and vendor prefixes
+      // Fullscreen handling - try multiple element targets and vendor prefixes
       const fsBtn = document.getElementById("fsToggle");
       function fsElement() {
         return (

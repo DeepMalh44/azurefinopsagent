@@ -85,3 +85,6 @@ secrets.json
 .github/workflows/squad-issue-assign.yml
 .github/workflows/squad-triage.yml
 .github/workflows/sync-squad-labels.yml
+
+# Local Dragon's Den / pitch prep notes
+docs/local/
