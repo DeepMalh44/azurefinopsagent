@@ -1563,39 +1563,30 @@
       <!-- ========== Slide 1: Hero ========== -->
       <section class="slide s1 active">
         <div class="content">
-          <h1 class="anim d3">
+          <h1 class="anim d3" style="line-height: 1.05">
             Your AI agent for<br />Azure <span>FinOps</span>.
           </h1>
-          <p class="tagline anim d4">
-            <span data-step>Visibility</span>
-            <span data-step> · Agentic Remediation</span>
-            <span data-step id="clarity-step"> · Clarity in minutes</span>
-          </p>
-          <p
-            class="tagline-sub anim d4"
-            id="tagline-sub-line"
-            style="opacity: 0; transition: opacity 0.5s ease"
-          >
-            Free · Open Source · Built by Microsoft
-          </p>
-          <script>
-            (function () {
-              const trigger = document.getElementById("clarity-step");
-              const target = document.getElementById("tagline-sub-line");
-              if (!trigger || !target) return;
-              const sync = () => {
-                target.style.opacity = trigger.classList.contains("revealed")
-                  ? "1"
-                  : "0";
-              };
-              const observer = new MutationObserver(sync);
-              observer.observe(trigger, {
-                attributes: true,
-                attributeFilter: ["class"],
-              });
-              sync();
-            })();
-          </script>
+          <div data-step>
+            <p
+              class="tagline anim d4"
+              style="font-size: 1.5em; font-weight: 700; line-height: 1.25"
+            >
+              <span>Visibility</span>
+              <span> · Agentic Remediation</span>
+              <span> · Clarity in minutes</span>
+            </p>
+            <p
+              class="tagline-sub anim d4"
+              style="
+                font-size: 1.15em;
+                font-weight: 600;
+                margin-top: 0.8rem;
+                opacity: 0.9;
+              "
+            >
+              Free · Open Source · Built by Microsoft
+            </p>
+          </div>
           <div
             class="anim d6"
             style="margin-top: 2rem; text-align: center; line-height: 1.15"
@@ -1617,35 +1608,24 @@
                 <div
                   style="font-size: 2.6em; font-weight: 800; margin: 0.1em 0"
                 >
-                  Novo Nordisk
-                  <span
-                    style="
-                      font-size: 0.45em;
-                      font-weight: 600;
-                      opacity: 0.75;
-                      font-style: italic;
-                    "
-                  >
-                    (MACC renewal)
-                  </span>
+                  Maersk
                 </div>
               </div>
               <div
                 data-step
                 style="font-size: 2.6em; font-weight: 800; margin: 0.3em 0"
               >
-                Maersk
-              </div>
-              <div
-                data-step
-                style="
-                  font-size: 0.95em;
-                  font-weight: 600;
-                  opacity: 0.75;
-                  margin-top: 1rem;
-                "
-              >
-                Two of EMEA's largest enterprises. Europe North.
+                Novo Nordisk
+                <span
+                  style="
+                    font-size: 0.45em;
+                    font-weight: 600;
+                    opacity: 0.75;
+                    font-style: italic;
+                  "
+                >
+                  (MACC renewal)
+                </span>
               </div>
             </div>
           </div>
@@ -1923,6 +1903,114 @@
                 alt="Sam happy with the Azure FinOps Agent doing the work"
                 aria-hidden="true"
               />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== Slide 3.5: Bigger than FinOps ========== -->
+      <section class="slide s3half" style="background: #0a1733; color: #fff">
+        <div class="content" style="text-align: center">
+          <h2 class="section-title anim d1" style="color: #fff">
+            Bigger than <em>FinOps</em>.
+          </h2>
+          <p
+            class="section-lead anim d2"
+            style="color: rgba(255, 255, 255, 0.75)"
+          >
+            The most common enterprise pattern in EMEA banking &amp; insurance:
+          </p>
+          <div
+            style="
+              margin-top: 3rem;
+              display: flex;
+              flex-direction: column;
+              gap: 1.8rem;
+              align-items: center;
+            "
+          >
+            <div
+              data-step
+              style="font-size: 2.2em; font-weight: 800; line-height: 1.2"
+            >
+              Banks trust <span style="color: #50e3c2">Microsoft</span> with
+              identity.
+              <div
+                style="
+                  font-size: 0.42em;
+                  font-weight: 600;
+                  opacity: 0.7;
+                  margin-top: 0.4rem;
+                  font-style: italic;
+                "
+              >
+                Entra ID = the enterprise control plane.
+              </div>
+            </div>
+            <div
+              data-step
+              style="font-size: 2.2em; font-weight: 800; line-height: 1.2"
+            >
+              They trust <span style="color: #ff9966">AWS</span> with workloads.
+              <div
+                style="
+                  font-size: 0.42em;
+                  font-weight: 600;
+                  opacity: 0.7;
+                  margin-top: 0.4rem;
+                  font-style: italic;
+                "
+              >
+                Historical default - not a real choice today.
+              </div>
+            </div>
+            <div
+              data-step
+              style="
+                font-size: 2.2em;
+                font-weight: 800;
+                line-height: 1.2;
+                max-width: 1100px;
+              "
+            >
+              A trusted FinOps agent
+              <span style="color: #50e3c2">flips the script.</span>
+              <div
+                style="
+                  font-size: 0.42em;
+                  font-weight: 600;
+                  opacity: 0.85;
+                  margin-top: 0.4rem;
+                "
+              >
+                Identity → Governance → Workloads. Microsoft becomes the
+                operational control layer.
+              </div>
+            </div>
+            <div
+              data-step
+              style="
+                font-size: 1.1em;
+                font-weight: 700;
+                opacity: 0.95;
+                margin-top: 1.6rem;
+                max-width: 1100px;
+                line-height: 1.4;
+              "
+            >
+              Firsthand from the field: US airlines · Saudi ministries · Danish
+              banks · pharma · FSI.
+              <div
+                style="
+                  font-size: 0.85em;
+                  font-weight: 500;
+                  opacity: 0.7;
+                  margin-top: 0.3rem;
+                  font-style: italic;
+                "
+              >
+                Same pattern, every continent. The FinOps Agent is the start.
+              </div>
             </div>
           </div>
         </div>

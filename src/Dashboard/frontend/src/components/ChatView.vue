@@ -1536,17 +1536,17 @@
 <script setup>
 import * as echarts from "echarts";
 import {
-  computed,
-  nextTick,
-  onBeforeUnmount,
-  onMounted,
-  reactive,
-  ref,
-  watch,
+    computed,
+    nextTick,
+    onBeforeUnmount,
+    onMounted,
+    reactive,
+    ref,
+    watch,
 } from "vue";
 import {
-  maturityCategories,
-  pricingCategory,
+    maturityCategories,
+    pricingCategory,
 } from "../data/sidebarCategories.js";
 
 const props = defineProps({
@@ -2662,8 +2662,11 @@ function needsMapRegistration(opts) {
 
 function applyMapDefaults(opts) {
   if (!opts) return;
-  const lightArea = { areaColor: "#f0f0f0", borderColor: "#ccc" };
-  // Map series
+  // Light gray map styling — fits white chart card
+  const lightArea = {
+    areaColor: "#f0f0f0",
+    borderColor: "#d0d7de",
+  };
   if (opts.series) {
     const series = Array.isArray(opts.series) ? opts.series : [opts.series];
     for (const s of series) {
@@ -2672,16 +2675,429 @@ function applyMapDefaults(opts) {
       }
     }
   }
-  // Geo config
   if (opts.geo) {
     const geos = Array.isArray(opts.geo) ? opts.geo : [opts.geo];
     for (const g of geos) {
       g.itemStyle = { ...lightArea, ...(g.itemStyle || {}) };
     }
   }
-  // Transparent background so page white shows through
   if (!opts.backgroundColor) {
     opts.backgroundColor = "transparent";
+  }
+}
+
+// Azure brand palette — keeps the existing white/Azure-blue identity.
+// Wow comes from gradients, glow, smooth lines, hover effects and animations,
+// not from a different palette.
+const WOW_PALETTE = [
+  "#0078D4", // Azure Blue (primary)
+  "#50E6FF", // Azure Cyan
+  "#008575", // Azure Teal
+  "#8661C5", // Azure Purple
+  "#0063B1", // Azure Dark Blue
+  "#00B7C3", // Azure Light Teal
+  "#D83B01", // Azure Orange
+  "#107C10", // Azure Green
+  "#E3008C", // Azure Magenta
+  "#FFB900", // Azure Yellow
+  "#4F6BED", // Azure Indigo
+  "#002050", // Azure Navy
+];
+const WOW_GRADIENT_STOPS = {
+  "#0078D4": ["#50A8F5", "#0078D4"],
+  "#50E6FF": ["#9DF1FF", "#00B7C3"],
+  "#008575": ["#26C0AD", "#008575"],
+  "#8661C5": ["#B49BE0", "#8661C5"],
+  "#0063B1": ["#3B8DD5", "#0063B1"],
+  "#00B7C3": ["#5DD8E0", "#00B7C3"],
+  "#D83B01": ["#FF7A3D", "#D83B01"],
+  "#107C10": ["#4CB14C", "#107C10"],
+  "#E3008C": ["#F260B6", "#E3008C"],
+  "#FFB900": ["#FFD75A", "#FFB900"],
+  "#4F6BED": ["#8295F2", "#4F6BED"],
+  "#002050": ["#1E4A8C", "#002050"],
+};
+
+function wowGradient(hex, vertical = true) {
+  const stops = WOW_GRADIENT_STOPS[hex] || [hex, hex];
+  // ECharts LinearGradient signature: (x0, y0, x1, y1) in 0..1 space
+  // vertical: top → bottom (0,0)→(0,1)
+  // horizontal: left → right (0,0)→(1,0)
+  const x0 = 0;
+  const y0 = 0;
+  const x1 = vertical ? 0 : 1;
+  const y1 = vertical ? 1 : 0;
+  return new echarts.graphic.LinearGradient(x0, y0, x1, y1, [
+    { offset: 0, color: stops[0] },
+    { offset: 1, color: stops[1] },
+  ]);
+}
+
+function wowAreaGradient(hex) {
+  return new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+    { offset: 0, color: hex + "66" },
+    { offset: 1, color: hex + "00" },
+  ]);
+}
+
+// Wow theme overlay applied to every ECharts option just before setOption.
+// Keeps the existing white/Azure-blue look but adds:
+//  - vertical gradient bars
+//  - smoothed lines with soft glow + area gradients
+//  - pie hover lift + scale
+//  - rich axis-pointer tooltip with crosshair
+//  - staggered entry animations on every series
+function applyWowTheme(opts) {
+  if (!opts || typeof opts !== "object") return;
+  const ink = "#1f2328";
+  const inkDim = "#656d76";
+  const inkMute = "#8b96a0";
+  const grid = "#eef0f3";
+  const tooltipBg = "rgba(255,255,255,0.98)";
+
+  if (opts.backgroundColor === undefined) opts.backgroundColor = "transparent";
+
+  // Override the default palette with Azure brand colors only if not customised
+  if (!opts.color || (Array.isArray(opts.color) && opts.color.length <= 1)) {
+    opts.color = [...WOW_PALETTE];
+  }
+
+  if (opts.title) {
+    const titles = Array.isArray(opts.title) ? opts.title : [opts.title];
+    for (const t of titles) {
+      t.textStyle = {
+        color: ink,
+        fontWeight: 600,
+        fontSize: 14,
+        ...(t.textStyle || {}),
+      };
+      if (t.subtextStyle)
+        t.subtextStyle = { color: inkMute, ...t.subtextStyle };
+    }
+  }
+  if (opts.legend) {
+    const legends = Array.isArray(opts.legend) ? opts.legend : [opts.legend];
+    for (const l of legends) {
+      l.textStyle = {
+        color: inkDim,
+        fontSize: 11,
+        ...(l.textStyle || {}),
+      };
+      l.pageTextStyle = { color: inkDim, ...(l.pageTextStyle || {}) };
+      l.icon = l.icon || "circle";
+      l.itemWidth = l.itemWidth || 8;
+      l.itemHeight = l.itemHeight || 8;
+      l.inactiveColor = l.inactiveColor || "rgba(101,109,118,0.35)";
+    }
+  }
+  if (opts.tooltip) {
+    const tts = Array.isArray(opts.tooltip) ? opts.tooltip : [opts.tooltip];
+    for (const tt of tts) {
+      tt.backgroundColor = tt.backgroundColor || tooltipBg;
+      tt.borderColor = tt.borderColor || "rgba(0,120,212,0.35)";
+      tt.borderWidth = tt.borderWidth ?? 1;
+      tt.padding = tt.padding ?? 10;
+      tt.textStyle = {
+        color: ink,
+        fontSize: 12,
+        ...(tt.textStyle || {}),
+      };
+      tt.extraCssText =
+        tt.extraCssText ||
+        "backdrop-filter:blur(8px);box-shadow:0 8px 28px rgba(0,32,80,0.18);border-radius:8px;";
+      // Add axis pointer crosshair on cartesian charts
+      if (tt.trigger === "axis" && !tt.axisPointer) {
+        tt.axisPointer = {
+          type: "line",
+          lineStyle: {
+            color: "rgba(0,120,212,0.35)",
+            width: 1,
+            type: "dashed",
+          },
+          crossStyle: { color: "rgba(0,120,212,0.35)" },
+        };
+      }
+    }
+  }
+  const axes = ["xAxis", "yAxis", "radiusAxis", "angleAxis"];
+  for (const ak of axes) {
+    if (!opts[ak]) continue;
+    const arr = Array.isArray(opts[ak]) ? opts[ak] : [opts[ak]];
+    for (const ax of arr) {
+      ax.nameTextStyle = {
+        color: inkDim,
+        fontSize: 10,
+        ...(ax.nameTextStyle || {}),
+      };
+      ax.axisLabel = {
+        color: inkDim,
+        fontSize: 10,
+        ...(ax.axisLabel || {}),
+      };
+      ax.axisLine = {
+        ...(ax.axisLine || {}),
+        lineStyle: {
+          color: "#d0d7de",
+          ...((ax.axisLine || {}).lineStyle || {}),
+        },
+      };
+      ax.splitLine = {
+        ...(ax.splitLine || {}),
+        lineStyle: {
+          color: grid,
+          type: "dashed",
+          ...((ax.splitLine || {}).lineStyle || {}),
+        },
+      };
+      ax.axisTick = {
+        ...(ax.axisTick || {}),
+        lineStyle: {
+          color: "#d0d7de",
+          ...((ax.axisTick || {}).lineStyle || {}),
+        },
+      };
+    }
+  }
+  if (opts.visualMap) {
+    const vms = Array.isArray(opts.visualMap)
+      ? opts.visualMap
+      : [opts.visualMap];
+    for (const v of vms) {
+      v.textStyle = { color: inkDim, ...(v.textStyle || {}) };
+    }
+  }
+  if (opts.radar) {
+    const radars = Array.isArray(opts.radar) ? opts.radar : [opts.radar];
+    for (const r of radars) {
+      r.axisName = {
+        color: inkDim,
+        fontSize: 11,
+        ...(r.axisName || {}),
+      };
+      r.splitLine = {
+        lineStyle: { color: grid },
+        ...(r.splitLine || {}),
+      };
+      r.splitArea = {
+        areaStyle: {
+          color: ["#f8fafc", "#ffffff"],
+        },
+        ...(r.splitArea || {}),
+      };
+      r.axisLine = {
+        lineStyle: { color: "#d0d7de" },
+        ...(r.axisLine || {}),
+      };
+    }
+  }
+  // Calendar/heatmap
+  if (opts.calendar) {
+    const cals = Array.isArray(opts.calendar) ? opts.calendar : [opts.calendar];
+    for (const c of cals) {
+      c.itemStyle = {
+        borderColor: grid,
+        color: "#fafbfc",
+        ...(c.itemStyle || {}),
+      };
+      c.dayLabel = { color: inkDim, ...(c.dayLabel || {}) };
+      c.monthLabel = { color: inkDim, ...(c.monthLabel || {}) };
+      c.yearLabel = { color: ink, ...(c.yearLabel || {}) };
+    }
+  }
+  // Series-level wow: gradients, glow, elastic stagger, rich emphasis
+  if (opts.series) {
+    const arr = Array.isArray(opts.series) ? opts.series : [opts.series];
+    arr.forEach((s, idx) => {
+      const baseColor = pickSeriesColor(s, idx, opts.color);
+      decorateSeries(s, baseColor, idx);
+    });
+  }
+}
+
+function pickSeriesColor(s, idx, palette) {
+  // Honor an explicit per-series color if the LLM set one
+  const explicit =
+    (s.itemStyle && s.itemStyle.color) || (s.lineStyle && s.lineStyle.color);
+  if (typeof explicit === "string") return explicit;
+  const arr = Array.isArray(palette) ? palette : WOW_PALETTE;
+  return arr[idx % arr.length];
+}
+
+function decorateSeries(s, baseColor, idx) {
+  if (!s || typeof s !== "object") return;
+  // Animation defaults (gentle stagger)
+  if (s.animationDuration === undefined) s.animationDuration = 1100;
+  if (s.animationEasing === undefined) s.animationEasing = "cubicOut";
+  if (s.animationDelay === undefined) {
+    s.animationDelay = (i) => i * 50 + idx * 70;
+  }
+  if (s.animationDurationUpdate === undefined) s.animationDurationUpdate = 600;
+
+  const t = s.type;
+  if (t === "bar") {
+    s.itemStyle = {
+      color: wowGradient(baseColor, true),
+      borderRadius: [6, 6, 0, 0],
+      shadowBlur: 8,
+      shadowColor: baseColor + "33",
+      shadowOffsetY: 2,
+      ...(s.itemStyle || {}),
+    };
+    s.barMaxWidth = s.barMaxWidth || 44;
+    s.emphasis = {
+      focus: "series",
+      itemStyle: {
+        shadowBlur: 16,
+        shadowColor: baseColor + "88",
+      },
+      ...(s.emphasis || {}),
+    };
+  } else if (t === "line") {
+    s.lineStyle = {
+      width: 3,
+      shadowBlur: 6,
+      shadowColor: baseColor + "66",
+      shadowOffsetY: 2,
+      ...(s.lineStyle || {}),
+    };
+    s.itemStyle = {
+      color: baseColor,
+      borderColor: "#ffffff",
+      borderWidth: 2,
+      ...(s.itemStyle || {}),
+    };
+    s.symbol = s.symbol || "circle";
+    s.symbolSize = s.symbolSize ?? 6;
+    if (s.smooth === undefined) s.smooth = true;
+    if (s.areaStyle === undefined) {
+      // Subtle area fill by default for line charts
+      s.areaStyle = { color: wowAreaGradient(baseColor) };
+    } else if (s.areaStyle) {
+      s.areaStyle = {
+        color: wowAreaGradient(baseColor),
+        ...s.areaStyle,
+      };
+    }
+    s.emphasis = {
+      focus: "series",
+      scale: 1.35,
+      itemStyle: {
+        shadowBlur: 12,
+        shadowColor: baseColor,
+      },
+      ...(s.emphasis || {}),
+    };
+  } else if (t === "pie") {
+    s.itemStyle = {
+      borderColor: "#ffffff",
+      borderWidth: 2,
+      borderRadius: 6,
+      shadowBlur: 8,
+      shadowColor: "rgba(0,120,212,0.18)",
+      ...(s.itemStyle || {}),
+    };
+    if (!s.radius) s.radius = ["45%", "70%"];
+    s.label = {
+      color: "#656d76",
+      fontSize: 11,
+      ...(s.label || {}),
+    };
+    s.labelLine = {
+      lineStyle: { color: "#d0d7de" },
+      ...(s.labelLine || {}),
+    };
+    s.emphasis = {
+      scaleSize: 10,
+      itemStyle: {
+        shadowBlur: 18,
+        shadowColor: "rgba(0,120,212,0.4)",
+      },
+      label: { show: true, fontSize: 14, fontWeight: 600, color: "#1f2328" },
+      ...(s.emphasis || {}),
+    };
+  } else if (t === "scatter" || t === "effectScatter") {
+    s.itemStyle = {
+      shadowBlur: 6,
+      shadowColor: baseColor + "66",
+      ...(s.itemStyle || {}),
+    };
+    s.emphasis = {
+      scale: 1.5,
+      itemStyle: { shadowBlur: 14, shadowColor: baseColor },
+      ...(s.emphasis || {}),
+    };
+  } else if (t === "funnel") {
+    s.itemStyle = {
+      borderColor: "#ffffff",
+      borderWidth: 2,
+      ...(s.itemStyle || {}),
+    };
+  } else if (t === "map") {
+    s.emphasis = {
+      itemStyle: {
+        areaColor: "rgba(0,120,212,0.25)",
+        borderColor: "#0078D4",
+        shadowBlur: 8,
+        shadowColor: "rgba(0,120,212,0.4)",
+      },
+      label: { color: "#1f2328", fontWeight: 600 },
+      ...(s.emphasis || {}),
+    };
+  } else if (t === "heatmap") {
+    s.itemStyle = {
+      borderColor: "#ffffff",
+      borderWidth: 1,
+      ...(s.itemStyle || {}),
+    };
+    s.emphasis = {
+      itemStyle: { shadowBlur: 10, shadowColor: "rgba(0,120,212,0.5)" },
+      ...(s.emphasis || {}),
+    };
+  } else if (t === "treemap") {
+    s.itemStyle = {
+      borderColor: "#ffffff",
+      borderWidth: 2,
+      gapWidth: 2,
+      ...(s.itemStyle || {}),
+    };
+    s.label = {
+      color: "#fff",
+      textShadowColor: "rgba(0,0,0,0.4)",
+      textShadowBlur: 3,
+      ...(s.label || {}),
+    };
+  } else if (t === "radar") {
+    s.lineStyle = {
+      width: 2,
+      shadowBlur: 6,
+      shadowColor: baseColor + "66",
+      ...(s.lineStyle || {}),
+    };
+    s.areaStyle = {
+      opacity: 0.2,
+      color: baseColor,
+      ...(s.areaStyle || {}),
+    };
+    s.symbol = s.symbol || "circle";
+    s.symbolSize = s.symbolSize ?? 5;
+  } else if (t === "gauge") {
+    s.progress = {
+      show: true,
+      width: 10,
+      itemStyle: {
+        color: wowGradient(baseColor, false),
+        shadowBlur: 8,
+        shadowColor: baseColor + "88",
+      },
+      ...(s.progress || {}),
+    };
+    s.axisLine = {
+      lineStyle: {
+        width: 10,
+        color: [[1, "#eef0f3"]],
+      },
+      ...(s.axisLine || {}),
+    };
   }
 }
 
@@ -2706,6 +3122,7 @@ function mountChart(el, chartData) {
       const instance = echarts.init(el, null, {
         renderer: isMap ? "canvas" : "svg",
       });
+      applyWowTheme(option);
       instance.setOption(option);
       // Log chart rendering to App Insights
       const seriesTypes = (option.series || []).map((s) => s.type).join(",");
@@ -2804,6 +3221,167 @@ watch(streaming, async (val) => {
   }
 });
 
+// ── Wow markdown tables ──
+// Builds a glassmorphism table styled like the FinOps Cosmos reference:
+//  - uppercase letter-spaced headers
+//  - mono numerics, hover row tint
+//  - auto-color delta cells (▲/▼/+/-N%) green/red/orange
+//  - status pills (OK / Watch / Alert / Optimal / Critical)
+//  - mini gradient bar in the rightmost numeric column showing relative magnitude
+function buildWowTable(headerCells, dataRows) {
+  const colCount = headerCells.length;
+  // Detect numeric columns and find rightmost numeric column for the mini bar
+  const numericCounts = new Array(colCount).fill(0);
+  const totalRows = dataRows.length;
+  const colNumericValues = new Array(colCount).fill(0).map(() => []);
+  for (const row of dataRows) {
+    for (let c = 0; c < colCount; c++) {
+      const cell = row[c] || "";
+      const n = parseNumeric(cell);
+      if (n !== null) {
+        numericCounts[c]++;
+        colNumericValues[c].push(Math.abs(n));
+      }
+    }
+  }
+  const numericColumns = numericCounts.map(
+    (n, c) => n > 0 && n / Math.max(1, totalRows) >= 0.6,
+  );
+  // Pick rightmost numeric column for mini bar
+  let barColumn = -1;
+  for (let c = colCount - 1; c >= 0; c--) {
+    if (numericColumns[c]) {
+      barColumn = c;
+      break;
+    }
+  }
+  const barColMax =
+    barColumn >= 0 ? Math.max(1, ...colNumericValues[barColumn]) : 1;
+
+  const headHtml = headerCells
+    .map(
+      (h, c) =>
+        `<th class="${numericColumns[c] ? "wt-num" : ""}">${escapeHtml(h)}</th>`,
+    )
+    .join("");
+
+  const bodyHtml = dataRows
+    .map((row) => {
+      const cells = headerCells
+        .map((_, c) => {
+          const raw = row[c] ?? "";
+          const isNum = numericColumns[c];
+          let inner = enhanceCell(raw);
+          let extra = "";
+          if (c === barColumn) {
+            const v = parseNumeric(raw);
+            if (v !== null) {
+              const pct = Math.min(
+                100,
+                Math.max(0, (Math.abs(v) / barColMax) * 100),
+              );
+              extra = `<span class="wt-bar"><i style="width:${pct.toFixed(1)}%"></i></span>`;
+            }
+          }
+          return `<td class="${isNum ? "wt-num" : ""}">${inner}${extra}</td>`;
+        })
+        .join("");
+      return `<tr>${cells}</tr>`;
+    })
+    .join("");
+  return `<div class="wt-wrap"><table class="wow-table"><thead><tr>${headHtml}</tr></thead><tbody>${bodyHtml}</tbody></table></div>`;
+}
+
+function parseNumeric(cell) {
+  if (!cell) return null;
+  // Strip $, %, commas, leading +/▲/▼, trailing K/M/B
+  const m = String(cell)
+    .replace(/[▲▼↑↓]/g, "")
+    .match(/-?[\d,]+\.?\d*\s*[kKmMbB%]?/);
+  if (!m) return null;
+  let raw = m[0].replace(/,/g, "").trim();
+  let mult = 1;
+  if (/k$/i.test(raw)) {
+    mult = 1e3;
+    raw = raw.slice(0, -1);
+  } else if (/m$/i.test(raw)) {
+    mult = 1e6;
+    raw = raw.slice(0, -1);
+  } else if (/b$/i.test(raw)) {
+    mult = 1e9;
+    raw = raw.slice(0, -1);
+  } else if (/%$/.test(raw)) {
+    raw = raw.slice(0, -1);
+  }
+  const n = parseFloat(raw);
+  return isFinite(n) ? n * mult : null;
+}
+
+function enhanceCell(raw) {
+  const safe = escapeHtml(raw);
+  // Status pills
+  const trimmed = raw.trim();
+  const lower = trimmed.toLowerCase();
+  const goodWords = [
+    "ok",
+    "optimal",
+    "healthy",
+    "good",
+    "pass",
+    "✓",
+    "yes",
+    "active",
+  ];
+  const warnWords = [
+    "watch",
+    "warning",
+    "warn",
+    "caution",
+    "pending",
+    "medium",
+  ];
+  const badWords = [
+    "alert",
+    "critical",
+    "fail",
+    "failed",
+    "error",
+    "high",
+    "✗",
+    "no",
+    "down",
+    "orphan",
+    "orphaned",
+    "unattached",
+    "idle",
+  ];
+  if (goodWords.includes(lower))
+    return `<span class="wt-tag wt-tag-g">${safe}</span>`;
+  if (warnWords.includes(lower))
+    return `<span class="wt-tag wt-tag-w">${safe}</span>`;
+  if (badWords.includes(lower))
+    return `<span class="wt-tag wt-tag-b">${safe}</span>`;
+
+  // Delta arrows  ▲ +14%   ▼ -8%   — flat
+  const upMatch = trimmed.match(/^(?:▲|↑|\+)\s*([\d.,]+\s*%?)$/);
+  if (upMatch) return `<span class="wt-up">▲ ${escapeHtml(upMatch[1])}</span>`;
+  const downMatch = trimmed.match(/^(?:▼|↓|-)\s*([\d.,]+\s*%?)$/);
+  if (downMatch)
+    return `<span class="wt-down">▼ ${escapeHtml(downMatch[1])}</span>`;
+  if (/^(—|flat|n\/a|-)$/i.test(trimmed))
+    return `<span class="wt-flat">—</span>`;
+
+  // Currency / percent stays as-is but rendered via mono in CSS
+  return safe;
+}
+
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
 function renderContent(text) {
   if (!text) return "";
   let html = text.replace(
@@ -2815,23 +3393,17 @@ function renderContent(text) {
     (match) => {
       const lines = match.trim().split("\n");
       if (lines.length < 2) return match;
-      const headers = lines[0]
+      const headerCells = lines[0]
         .split("|")
         .filter((c) => c.trim())
-        .map((c) => `<th>${c.trim()}</th>`)
-        .join("");
-      const rows = lines
-        .slice(2)
-        .map((row) => {
-          const cells = row
-            .split("|")
-            .filter((c) => c.trim())
-            .map((c) => `<td>${c.trim()}</td>`)
-            .join("");
-          return `<tr>${cells}</tr>`;
-        })
-        .join("");
-      return `<table><thead><tr>${headers}</tr></thead><tbody>${rows}</tbody></table>`;
+        .map((c) => c.trim());
+      const dataRows = lines.slice(2).map((row) =>
+        row
+          .split("|")
+          .filter((c) => c.trim().length > 0 || c === "")
+          .map((c) => c.trim()),
+      );
+      return buildWowTable(headerCells, dataRows);
     },
   );
   html = html.replace(/^### (.+)$/gm, "<h4>$1</h4>");
@@ -4865,7 +5437,119 @@ async function send() {
   background: none;
   padding: 0;
 }
-.message-text :deep(table) {
+.message-text :deep(.wt-wrap) {
+  margin: 12px 0;
+  border-radius: 12px;
+  background: #ffffff;
+  border: 1px solid #e1dfdd;
+  box-shadow:
+    0 4px 16px rgba(0, 120, 212, 0.06),
+    0 1px 3px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+}
+.message-text :deep(.wow-table) {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 13px;
+  color: #1f2328;
+  background: transparent;
+  display: table;
+  overflow-x: auto;
+}
+.message-text :deep(.wow-table th) {
+  text-align: left;
+  padding: 11px 14px;
+  color: #656d76;
+  font-weight: 600;
+  font-size: 10.5px;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  border-bottom: 1px solid #e1dfdd;
+  background: #f6f8fa;
+  white-space: nowrap;
+}
+.message-text :deep(.wow-table td) {
+  padding: 10px 14px;
+  border: none;
+  border-bottom: 1px solid #f0f2f5;
+  color: #1f2328;
+  vertical-align: middle;
+}
+.message-text :deep(.wow-table tbody tr:last-child td) {
+  border-bottom: none;
+}
+.message-text :deep(.wow-table tbody tr) {
+  transition: background 0.18s ease;
+}
+.message-text :deep(.wow-table tbody tr:hover) {
+  background: rgba(0, 120, 212, 0.05);
+}
+.message-text :deep(.wow-table .wt-num) {
+  text-align: right;
+  font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+  color: #1f2328;
+}
+.message-text :deep(.wow-table .wt-up) {
+  color: #107c10;
+  font-weight: 600;
+}
+.message-text :deep(.wow-table .wt-down) {
+  color: #d83b01;
+  font-weight: 600;
+}
+.message-text :deep(.wow-table .wt-flat) {
+  color: #8b96a0;
+  font-weight: 600;
+}
+.message-text :deep(.wow-table .wt-tag) {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: 12px;
+  font-size: 10.5px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+.message-text :deep(.wow-table .wt-tag-g) {
+  background: rgba(16, 124, 16, 0.1);
+  color: #107c10;
+}
+.message-text :deep(.wow-table .wt-tag-w) {
+  background: rgba(255, 185, 0, 0.15);
+  color: #b08000;
+}
+.message-text :deep(.wow-table .wt-tag-b) {
+  background: rgba(216, 59, 1, 0.1);
+  color: #d83b01;
+}
+.message-text :deep(.wow-table .wt-bar) {
+  display: inline-block;
+  position: relative;
+  width: 56px;
+  height: 4px;
+  margin-left: 10px;
+  border-radius: 2px;
+  background: #eef0f3;
+  vertical-align: middle;
+  overflow: hidden;
+}
+.message-text :deep(.wow-table .wt-bar > i) {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, #50a8f5, #0078d4);
+  border-radius: 2px;
+  animation: wt-bar-grow 1s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes wt-bar-grow {
+  from {
+    width: 0 !important;
+  }
+}
+
+.message-text :deep(table:not(.wow-table)) {
   border-collapse: collapse;
   width: 100%;
   margin: 8px 0;
@@ -4873,18 +5557,18 @@ async function send() {
   display: block;
   overflow-x: auto;
 }
-.message-text :deep(th),
-.message-text :deep(td) {
+.message-text :deep(table:not(.wow-table) th),
+.message-text :deep(table:not(.wow-table) td) {
   border: 1px solid #e1dfdd;
   padding: 6px 10px;
   text-align: left;
 }
-.message-text :deep(th) {
+.message-text :deep(table:not(.wow-table) th) {
   background: #f3f2f1;
   font-weight: 600;
   font-size: 12px;
 }
-.message-text :deep(tr:nth-child(even)) {
+.message-text :deep(table:not(.wow-table) tr:nth-child(even)) {
   background: #faf9f8;
 }
 .message-text :deep(h2),
@@ -4916,10 +5600,22 @@ async function send() {
   width: 100%;
   height: 340px;
   margin: 0 0 12px;
+  border-radius: 12px;
+  background: #ffffff;
   border: 1px solid #e1dfdd;
-  border-radius: 8px;
-  background: #fff;
+  box-shadow:
+    0 4px 16px rgba(0, 120, 212, 0.06),
+    0 1px 3px rgba(0, 0, 0, 0.04);
   overflow: hidden;
+  padding: 12px;
+  transition:
+    box-shadow 0.25s ease,
+    transform 0.25s ease;
+}
+.chart-container:hover {
+  box-shadow:
+    0 8px 28px rgba(0, 120, 212, 0.14),
+    0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
 /* ── Input area ── */
