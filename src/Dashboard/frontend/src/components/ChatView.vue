@@ -1571,10 +1571,19 @@
       <!-- Right sidebar: Tool calls -->
       <aside
         class="tools-sidebar"
-        :class="{ 'tools-sidebar--open': allToolCalls.length > 0 }"
+        :class="{ 'tools-sidebar--open': allToolCalls.length > 0 || streaming }"
       >
         <div class="tools-sidebar-header">
-          <span class="tools-sidebar-title">Tools</span>
+          <div class="tools-sidebar-header-text">
+            <span class="tools-sidebar-title">Agent</span>
+            <span class="tools-sidebar-status">
+              <span
+                v-if="streaming"
+                class="tools-sidebar-status-dot tools-sidebar-status-dot--live"
+              ></span>
+              <span class="tools-sidebar-status-text">{{ agentStatus }}</span>
+            </span>
+          </div>
           <span class="st-count">{{ allToolCalls.length }}</span>
         </div>
         <div class="tools-sidebar-scroll">
@@ -2331,6 +2340,18 @@ function stopGeneration() {
 }
 
 const reversedToolCalls = computed(() => [...allToolCalls.value].reverse());
+
+// Live status line under the "Agent" header — shows what the agent is doing right now.
+const agentStatus = computed(() => {
+  if (!streaming.value) {
+    return allToolCalls.value.length > 0 ? "idle" : "ready";
+  }
+  // Find the most recent in-flight tool call
+  const running = [...allToolCalls.value].reverse().find((t) => !t.done);
+  if (running) return friendlyToolLabel(running) + "…";
+  return "thinking…";
+});
+
 function formatDuration(ms) {
   if (ms == null) return "";
   if (ms < 1000) return ms + "ms";
@@ -6187,8 +6208,8 @@ async function send() {
   min-width: 0;
 }
 .input-wrapper:focus-within {
-  border-color: #0078d4;
-  box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.1);
+  border-color: #605e5c;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.04);
 }
 .input-wrapper--disabled {
   background: #f3f2f1;
@@ -6308,12 +6329,56 @@ async function send() {
   padding: 8px 16px;
   border-bottom: 1px solid #e1dfdd;
 }
+.tools-sidebar-header-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
 .tools-sidebar-title {
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #1a1a1a;
+}
+.tools-sidebar-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10.5px;
+  font-weight: 500;
   color: #605e5c;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tools-sidebar-status-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tools-sidebar-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #d0d0d0;
+  flex-shrink: 0;
+}
+.tools-sidebar-status-dot--live {
+  background: #1a7f37;
+  box-shadow: 0 0 0 0 rgba(26, 127, 55, 0.5);
+  animation: agent-pulse 1.4s ease-out infinite;
+}
+@keyframes agent-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(26, 127, 55, 0.45);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(26, 127, 55, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(26, 127, 55, 0);
+  }
 }
 .tools-sidebar-scroll {
   flex: 1;
