@@ -937,7 +937,7 @@
                   Azure <span class="hero-title-accent">FinOps</span> Agent
                 </h1>
                 <p class="hero-tagline">
-                  Turn weeks of FinOps analysis into action — in minutes.
+                  Weeks of FinOps analysis. Done in minutes.
                 </p>
                 <div class="hero-cards">
                   <div class="hero-card">
@@ -4051,6 +4051,33 @@ async function send() {
 </script>
 
 <style scoped>
+/* ===== Modern, smooth scrollbars (all scrollables) ===== */
+:deep(*) {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(15, 23, 42, 0.18) transparent;
+}
+:deep(*::-webkit-scrollbar) {
+  width: 10px;
+  height: 10px;
+}
+:deep(*::-webkit-scrollbar-track) {
+  background: transparent;
+}
+:deep(*::-webkit-scrollbar-thumb) {
+  background: rgba(15, 23, 42, 0.18);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  transition: background 0.15s;
+}
+:deep(*::-webkit-scrollbar-thumb:hover) {
+  background: rgba(15, 23, 42, 0.32);
+  background-clip: padding-box;
+  border: 2px solid transparent;
+}
+:deep(*::-webkit-scrollbar-corner) {
+  background: transparent;
+}
 /*
  * ══════════════════════════════════════════════════════════
  * Design tokens (Fluent / Azure Portal)
@@ -5382,7 +5409,7 @@ async function send() {
   font-size: clamp(1rem, 1.4vw, 1.25rem);
   font-weight: 500;
   color: #4b5563;
-  margin: 0 0 clamp(1.6rem, 4vh, 2.6rem);
+  margin: 0.4rem 0 clamp(1.6rem, 4vh, 2.6rem);
   max-width: 640px;
   line-height: 1.5;
 }
@@ -5920,6 +5947,11 @@ async function send() {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+.agent-lottie {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
 }
 .ai-header {
   display: flex;
