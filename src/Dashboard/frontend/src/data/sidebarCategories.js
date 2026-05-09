@@ -91,8 +91,7 @@ const maturityCategories = [
     prompts: [
       {
         label: "Score Crawl maturity",
-        prompt:
-          "Score my Crawl-level FinOps maturity (0-5 per dimension). Check these using Azure APIs: (1) Tagging — what % of resources have cost-center, environment, or department tags? (2) Orphaned Resources — how many unattached disks exist? (3) Advisor — how many open cost recommendations? (4) Budget Alerts — what % of subscriptions have budgets configured? For each, give a score 0-5 and a one-line reason, then call ReportMaturityScore with level 'crawl' and the scores array.",
+        prompt: "What are my biggest issues in my FinOps maturity?",
       },
       // Cost visibility
       {

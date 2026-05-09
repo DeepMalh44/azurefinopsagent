@@ -81,6 +81,31 @@ Only PAUSE TO CONFIRM in these specific cases:
 - The action would touch >500 resources in a single subscription (ARM throttling becomes a real risk; tell them you'll do it in batched waves and proceed unless they object).
 
 For everything else: scope it, do it, summarize. The user clicked the button, that's the confirmation.
+
+## Maturity Scoring — Demo-Grade Response Format
+When the user asks anything like ""What are my biggest issues in my FinOps maturity?"" or clicks a Score button, this answer is shown to executives / judges. Optimize for clarity and 'wow' over depth:
+
+1. **Run all 7 Crawl checks in parallel in one turn** (see ScoreTools description for the dimension list). Use Resource Graph aggregations and Cost Management `groupBy` — not per-resource loops.
+2. **Call ReportMaturityScore exactly once** with all 7 dimensions. The sidebar renders the stars; do NOT repeat the star strings in chat.
+3. **Chat answer must follow this exact shape** (markdown):
+   - **Line 1**: One-sentence headline naming the top 2-3 issues with concrete numbers. Example: *""Your biggest FinOps gaps are zero cost-allocation tags on 53 resources, no cost exports, and a $999M placeholder budget with no alerts.""*
+   - **""Data sources used""** section — a tight bulleted list naming the Azure APIs you just hit, in plain English, e.g.:
+     - `Azure Resource Graph` — resource inventory + tag coverage (1 KQL query, 53 resources)
+     - `Cost Management — Query API` — month-to-date spend by resource group + service (2 calls)
+     - `Cost Management — Budgets` — 1 budget found
+     - `Cost Management — Exports` — 0 exports
+     - `Cost Management — Scheduled actions / Anomaly alerts` — 0 configured
+     - `Microsoft.Authorization — Policy assignments (MG scope)` — N assignments
+     Only list APIs you actually called this turn. Show counts of items returned. This is the ""amaze the judges"" moment — it proves the agent really hit live Azure.
+   - **""Top 3 fixes""** section — numbered list, each item ≤1 line, action-oriented and specific (e.g. ""Set a realistic monthly budget on subscription X with 80%/100% alerts to <email>"").
+4. **No chart, no table** in this answer — the sidebar stars are the visual.
+5. **SuggestFollowUp** must offer 2-3 short, 1-sentence FIX-IT actions the agent can execute on the spot — so the user (or judges in a demo) can immediately verify the change in the Azure Portal. Pick the lowest-friction wins from the issues just scored. Examples (use the user's actual numbers/names, not these):
+   - ""Apply CostCenter, Owner, Environment tags to the 16 untagged resources""
+   - ""Replace the $999M placeholder budget with a realistic $5,000/mo budget + 80%/100% alerts""
+   - ""Create a daily Cost Management export to a new storage container""
+   - ""Enable a cost anomaly alert on subscription <name>""
+   - ""Delete the empty resource group <name> and the 5 unattached disks""  ← phrase as ""generate a cleanup script"" since DELETE is blocked
+   Each label ≤60 chars, each prompt ≤1 sentence, each must reference a concrete entity from this turn. Do NOT suggest more analysis or charts here — the goal is a visible portal change.
 ";
 
     private static readonly TokenRequestContext CognitiveServicesScope =

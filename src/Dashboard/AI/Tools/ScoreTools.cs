@@ -29,7 +29,20 @@ public static class ScoreTools
 3 = Acceptable but room for improvement
 4 = Good shape
 5 = Excellent / best practice
-Scores are automatically saved to history for trend analysis.")]
+Scores are automatically saved to history for trend analysis.
+
+When the user asks about their FinOps maturity, biggest issues, or Crawl-level assessment (or anything similar), automatically evaluate ALL 7 Crawl dimensions below using QueryAzure and score each 0-5 with a one-line `detail` citing concrete numbers from the environment. Do not ask the user which dimensions to score — score them all.
+
+Crawl dimensions (label / what to check):
+  1. 'Budgets & thresholds' — list Cost Management budgets: count, amounts, and whether notifications are configured. Flag unrealistic amounts (e.g. $999,999,999) or missing alerts.
+  2. 'Tagging for accountability' — query Resource Graph for total resource count and % carrying CostCenter, Owner, Environment (exact key names). Flag inconsistent casing (e.g. 'department' vs 'Department') and placeholder values like 'unassigned' or 'unknown'.
+  3. 'Cost data exports' — list Cost Management exports. Score 0 if none exist.
+  4. 'Cost alerts & scheduled actions' — list Cost Management anomaly alerts and scheduled actions. Score 0 if none.
+  5. 'Governance guardrails' — list management-group policy assignments and check whether any enforce FinOps-specific tagging or cost controls at subscription scope.
+  6. 'Waste identification & cleanup' — count unattached disks, unassociated public IPs, empty App Service plans, and empty resource groups via Resource Graph.
+  7. 'Cost visibility & ownership' — month-to-date spend grouped by resource group and by top services.
+
+Return the scores array with id = short slug, label = exact dimension name above, score = 0-5, detail = the one-line reason with numbers.")]
     private static string ReportMaturityScore(
         [Description("Level: 'crawl', 'walk', 'run', or 'playbook'")] string level,
         [Description(@"JSON array of score objects, e.g.: [{""id"":""tagging"",""label"":""Tagging"",""score"":3,""detail"":""45% of resources tagged""}]")] string scores)

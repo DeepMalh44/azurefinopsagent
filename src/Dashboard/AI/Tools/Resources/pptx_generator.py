@@ -24,21 +24,28 @@ try:
 except ImportError:
     HAS_MPL = False
 
-# -- Color palette (Azure Fluent — modern, light) --
-AZURE_BLUE = RGBColor(0x00, 0x78, 0xD4)
-AZURE_LIGHT = RGBColor(0xDE, 0xEC, 0xF9)
-TITLE_BG = RGBColor(0x00, 0x3B, 0x73)
+# -- Color palette (Microsoft Fluent v2 — refined, executive) --
+AZURE_BLUE = RGBColor(0x00, 0x67, 0xC0)
+AZURE_DEEP = RGBColor(0x00, 0x3F, 0x87)
+AZURE_LIGHT = RGBColor(0xEA, 0xF2, 0xFB)
+TITLE_BG = RGBColor(0x0B, 0x1F, 0x3A)
+TITLE_BG_2 = RGBColor(0x10, 0x35, 0x66)
 WHITE = RGBColor(0xFF, 0xFF, 0xFF)
-SLIDE_BG = RGBColor(0xFA, 0xFA, 0xFA)
+SLIDE_BG = RGBColor(0xFB, 0xFB, 0xFD)
 ACCENT_TEAL = RGBColor(0x00, 0xB7, 0xC3)
-ACCENT_GREEN = RGBColor(0x2D, 0x7D, 0x46)
-TEXT_DARK = RGBColor(0x1A, 0x1A, 0x2E)
-TEXT_MED = RGBColor(0x60, 0x5E, 0x5C)
-TEXT_LIGHT = RGBColor(0x8A, 0x8A, 0x8A)
+ACCENT_GREEN = RGBColor(0x10, 0x7C, 0x10)
+ACCENT_AMBER = RGBColor(0xCA, 0x5E, 0x00)
+ACCENT_RED = RGBColor(0xC4, 0x32, 0x4C)
+TEXT_DARK = RGBColor(0x14, 0x1E, 0x2C)
+TEXT_MED = RGBColor(0x4A, 0x52, 0x5C)
+TEXT_LIGHT = RGBColor(0x8A, 0x90, 0x99)
+RULE_GREY = RGBColor(0xE4, 0xE7, 0xEC)
+KPI_BG = RGBColor(0xFF, 0xFF, 0xFF)
+KPI_BORDER = RGBColor(0xDC, 0xE2, 0xEA)
 
-CHART_COLORS = ['#0078D4', '#50E6FF', '#008575', '#D83B01', '#8661C5',
-                '#0063B1', '#00B7C3', '#E3008C', '#FFB900', '#107C10',
-                '#B4009E', '#002050', '#4F6BED', '#C239B3', '#767676']
+CHART_COLORS = ['#0067C0', '#00B7C3', '#107C10', '#CA5E00', '#8661C5',
+                '#003F87', '#50E6FF', '#2D7D46', '#E3008C', '#FFB900',
+                '#B4009E', '#0B1F3A', '#4F6BED', '#C239B3', '#767676']
 
 slides_data = json.loads(sys.stdin.read())
 output_path = os.environ['PPTX_OUTPUT_PATH']
@@ -73,7 +80,7 @@ def add_textbox(slide, left, top, width, height, text, font_size=14,
 
 def add_brand_footer(slide, slide_num, total, customer):
     rule = slide.shapes.add_shape(1, Inches(0.5), Inches(SLIDE_H_IN - 0.45), Inches(SLIDE_W_IN - 1.0), Inches(0.012))
-    rule.fill.solid(); rule.fill.fore_color.rgb = RGBColor(0xE1, 0xE1, 0xE1)
+    rule.fill.solid(); rule.fill.fore_color.rgb = RULE_GREY
     rule.line.fill.background()
     mark = slide.shapes.add_shape(1, Inches(0.5), Inches(SLIDE_H_IN - 0.32), Inches(0.14), Inches(0.14))
     mark.fill.solid(); mark.fill.fore_color.rgb = AZURE_BLUE
@@ -85,11 +92,100 @@ def add_brand_footer(slide, slide_num, total, customer):
     p = tb.text_frame.paragraphs[0]
     p.text = left_label
     p.font.size = Pt(9); p.font.name = 'Segoe UI'; p.font.color.rgb = TEXT_MED
+    p.font.bold = True
     tb2 = slide.shapes.add_textbox(Inches(SLIDE_W_IN - 1.5), Inches(SLIDE_H_IN - 0.36), Inches(1.0), Inches(0.25))
     p2 = tb2.text_frame.paragraphs[0]
     p2.text = f'{slide_num} / {total}'
-    p2.font.size = Pt(9); p2.font.name = 'Segoe UI'; p2.font.color.rgb = TEXT_MED
+    p2.font.size = Pt(9); p2.font.name = 'Segoe UI'; p2.font.color.rgb = TEXT_LIGHT
     p2.alignment = PP_ALIGN.RIGHT
+
+def apply_picture_shadow(picture):
+    """Add a subtle drop shadow to a picture via XML so chart images feel lifted."""
+    try:
+        from pptx.oxml.ns import qn
+        from lxml import etree
+        spPr = picture._element.spPr
+        for child in spPr.findall(qn('a:effectLst')):
+            spPr.remove(child)
+        eff = etree.SubElement(spPr, qn('a:effectLst'))
+        outer = etree.SubElement(eff, qn('a:outerShdw'),
+                                 {'blurRad': '50800', 'dist': '25400', 'dir': '5400000',
+                                  'algn': 'tl', 'rotWithShape': '0'})
+        srgb = etree.SubElement(outer, qn('a:srgbClr'), {'val': '141E2C'})
+        etree.SubElement(srgb, qn('a:alpha'), {'val': '18000'})
+    except Exception:
+        pass
+
+def add_kpi_card(slide, left, top, width, height, label, value, sublabel='', accent=AZURE_BLUE):
+    """A single executive KPI tile: rounded card, thin colored top bar, big value, small label below."""
+    card = slide.shapes.add_shape(5, Inches(left), Inches(top), Inches(width), Inches(height))
+    card.adjustments[0] = 0.08
+    card.fill.solid(); card.fill.fore_color.rgb = KPI_BG
+    card.line.color.rgb = KPI_BORDER
+    card.line.width = Pt(0.75)
+    bar = slide.shapes.add_shape(1, Inches(left + 0.12), Inches(top + 0.12), Inches(width - 0.24), Inches(0.06))
+    bar.fill.solid(); bar.fill.fore_color.rgb = accent
+    bar.line.fill.background()
+    add_textbox(slide, left + 0.25, top + 0.3, width - 0.5, 0.35,
+                label.upper(), font_size=10, bold=True, color=TEXT_LIGHT)
+    add_textbox(slide, left + 0.25, top + 0.65, width - 0.5, 0.9,
+                value, font_size=32, bold=True, color=TEXT_DARK)
+    if sublabel:
+        add_textbox(slide, left + 0.25, top + 1.55, width - 0.5, 0.4,
+                    sublabel, font_size=11, color=TEXT_MED)
+
+def stars_text(score):
+    s = max(0, min(5, int(round(float(score)))))
+    return '★' * s + '☆' * (5 - s)
+
+def star_color(score):
+    s = float(score)
+    if s >= 4: return ACCENT_GREEN
+    if s >= 3: return AZURE_BLUE
+    if s >= 2: return ACCENT_AMBER
+    return ACCENT_RED
+
+def add_maturity_table(slide, left, top, width, height, rows):
+    """rows = [{label, before, after, action}] — renders a clean before/after grid with star ratings."""
+    n_rows = len(rows) + 1  # +header
+    n_cols = 4
+    tbl_shape = slide.shapes.add_table(n_rows, n_cols, Inches(left), Inches(top), Inches(width), Inches(height))
+    table = tbl_shape.table
+    # column widths: dimension | before | after | action
+    col_widths = [3.2, 1.6, 1.6, width - 6.4]
+    for i, w in enumerate(col_widths):
+        table.columns[i].width = Inches(w)
+    headers = ['Dimension', 'Before', 'After', 'What we did']
+    for i, h in enumerate(headers):
+        cell = table.cell(0, i)
+        cell.text = ''
+        cell.fill.solid(); cell.fill.fore_color.rgb = TITLE_BG
+        p = cell.text_frame.paragraphs[0]
+        p.text = h
+        p.font.size = Pt(11); p.font.bold = True; p.font.color.rgb = WHITE; p.font.name = 'Segoe UI'
+        cell.margin_left = Inches(0.12); cell.margin_right = Inches(0.12)
+        cell.margin_top = Inches(0.06); cell.margin_bottom = Inches(0.06)
+    for r, row in enumerate(rows, start=1):
+        zebra = SLIDE_BG if r % 2 == 0 else WHITE
+        for c in range(n_cols):
+            cell = table.cell(r, c)
+            cell.fill.solid(); cell.fill.fore_color.rgb = zebra
+            cell.margin_left = Inches(0.12); cell.margin_right = Inches(0.12)
+            cell.margin_top = Inches(0.05); cell.margin_bottom = Inches(0.05)
+        # Dimension name
+        p0 = table.cell(r, 0).text_frame.paragraphs[0]
+        p0.text = row.get('label', ''); p0.font.size = Pt(11); p0.font.bold = True; p0.font.color.rgb = TEXT_DARK; p0.font.name = 'Segoe UI'
+        # Before stars
+        before = row.get('before', 0)
+        p1 = table.cell(r, 1).text_frame.paragraphs[0]
+        p1.text = stars_text(before); p1.font.size = Pt(14); p1.font.color.rgb = star_color(before); p1.font.name = 'Segoe UI'
+        # After stars
+        after = row.get('after', 0)
+        p2 = table.cell(r, 2).text_frame.paragraphs[0]
+        p2.text = stars_text(after); p2.font.size = Pt(14); p2.font.color.rgb = star_color(after); p2.font.name = 'Segoe UI'
+        # Action description
+        p3 = table.cell(r, 3).text_frame.paragraphs[0]
+        p3.text = row.get('action', ''); p3.font.size = Pt(10); p3.font.color.rgb = TEXT_MED; p3.font.name = 'Segoe UI'
 
 def add_bullets(slide, left, top, width, height, items, font_size=14, color=TEXT_DARK):
     txBox = slide.shapes.add_textbox(Inches(left), Inches(top), Inches(width), Inches(height))
@@ -172,6 +268,41 @@ def render_chart_image(chart_cfg, path):
         ax.set_xticks(x_pos)
         ax.set_xticklabels(labels, rotation=45, ha='right', fontsize=9, color='#605E5C')
         ax.set_xlim(-0.5, len(labels) - 0.5)
+    elif ctype == 'waterfall':
+        # Waterfall: first bar = baseline (neutral), middle bars = deltas (green +, red -), last = total (blue).
+        # `values` is the array of deltas; first item = starting baseline, last item = final total (auto-computed if 0).
+        baseline = float(values[0]) if values else 0
+        deltas = [float(v) for v in values[1:-1]] if len(values) > 2 else []
+        running = baseline
+        positions = [0]
+        bar_vals = [baseline]
+        bar_colors = ['#4A525C']
+        bottoms = [0]
+        for d in deltas:
+            positions.append(len(positions))
+            bottoms.append(running if d >= 0 else running + d)
+            bar_vals.append(abs(d))
+            bar_colors.append('#107C10' if d >= 0 else '#C4324C')
+            running += d
+        positions.append(len(positions))
+        final_total = float(values[-1]) if len(values) > 1 and values[-1] != 0 else running
+        bar_vals.append(final_total)
+        bar_colors.append('#0067C0')
+        bottoms.append(0)
+        bars = ax.bar(positions, bar_vals, bottom=bottoms, color=bar_colors,
+                      width=0.6, edgecolor='white', linewidth=1)
+        ax.set_xticks(positions)
+        ax.set_xticklabels(labels, fontsize=10, color='#323130', rotation=20, ha='right')
+        # Value labels above each bar
+        all_deltas_padded = [baseline] + deltas + [final_total]
+        for i, (b, v, btm) in enumerate(zip(bars, bar_vals, bottoms)):
+            top = btm + v
+            label_val = all_deltas_padded[i]
+            sign = '+' if 0 < i < len(positions) - 1 and label_val >= 0 else ('' if i == 0 or i == len(positions) - 1 else '−')
+            display = f'{sign}{abs(label_val):,.0f}' if i not in (0, len(positions) - 1) else f'{label_val:,.0f}'
+            ax.text(b.get_x() + b.get_width() / 2, top + max(bar_vals) * 0.02,
+                    display, ha='center', va='bottom', fontsize=10, fontweight='600', color='#323130')
+        ax.set_ylim(0, max([b + h for b, h in zip(bottoms, bar_vals)]) * 1.15)
     else:
         bars = ax.bar(labels, values, color=colors[:len(labels)], width=0.65, edgecolor='white', linewidth=0.5)
         plt.xticks(rotation=45, ha='right', fontsize=9, color='#605E5C')
@@ -188,7 +319,7 @@ def render_chart_image(chart_cfg, path):
     ax.tick_params(colors='#605E5C', labelsize=9)
     if ctype == 'horizontal_bar':
         ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x, p: f'${x:,.0f}'))
-    elif ctype != 'pie':
+    elif ctype not in ('pie', 'waterfall'):
         ax.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, p: f'${x:,.0f}'))
     plt.tight_layout()
     fig.savefig(path, dpi=150, bbox_inches='tight', facecolor='#FAFAFA')
@@ -208,29 +339,44 @@ for idx, slide_def in enumerate(slides_data):
 
     if layout == 'title':
         add_bg(slide, TITLE_BG)
-        shape = slide.shapes.add_shape(1, Inches(0), Inches(0), prs.slide_width, Inches(0.1))
+        # Two-tone diagonal accent block — gives the title slide depth
+        accent_block = slide.shapes.add_shape(1, Inches(0), Inches(0), Inches(SLIDE_W_IN * 0.55), prs.slide_height)
+        accent_block.fill.solid(); accent_block.fill.fore_color.rgb = TITLE_BG_2
+        accent_block.line.fill.background()
+        # Thin teal bar at the very top
+        shape = slide.shapes.add_shape(1, Inches(0), Inches(0), prs.slide_width, Inches(0.08))
         shape.fill.solid(); shape.fill.fore_color.rgb = ACCENT_TEAL
         shape.line.fill.background()
-        add_textbox(slide, 1, 2.0, 11, 1.2, title, font_size=42, bold=True, color=WHITE)
+        # Brand mark dot
+        dot = slide.shapes.add_shape(9, Inches(1), Inches(1.4), Inches(0.32), Inches(0.32))
+        dot.fill.solid(); dot.fill.fore_color.rgb = ACCENT_TEAL
+        dot.line.fill.background()
+        add_textbox(slide, 1.5, 1.35, 11, 0.45, 'AZURE FINOPS', font_size=12, bold=True,
+                    color=ACCENT_TEAL)
+        add_textbox(slide, 1, 2.4, 11, 1.6, title, font_size=46, bold=True, color=WHITE)
         if subtitle:
-            add_textbox(slide, 1, 3.5, 11, 0.8, subtitle, font_size=20, color=RGBColor(0xBE, 0xD7, 0xEF))
-        mark = slide.shapes.add_shape(1, Inches(1), Inches(5.55), Inches(0.18), Inches(0.18))
-        mark.fill.solid(); mark.fill.fore_color.rgb = ACCENT_TEAL
-        mark.line.fill.background()
-        brand_label = 'Microsoft Azure FinOps'
+            add_textbox(slide, 1, 4.2, 11, 0.8, subtitle, font_size=20, color=RGBColor(0xBE, 0xD7, 0xEF))
+        # Hairline divider
+        rule = slide.shapes.add_shape(1, Inches(1), Inches(5.4), Inches(5), Inches(0.012))
+        rule.fill.solid(); rule.fill.fore_color.rgb = ACCENT_TEAL
+        rule.line.fill.background()
+        brand_label = 'Microsoft Azure FinOps Agent'
         if customer_name:
-            brand_label = f'{customer_name}  \u2022  Microsoft Azure FinOps'
-        add_textbox(slide, 1.3, 5.5, 11, 0.4, brand_label, font_size=12, bold=True, color=RGBColor(0xBE, 0xD7, 0xEF))
-        add_textbox(slide, 1, 6.0, 11, 0.4, 'Generated by Azure FinOps Agent', font_size=10, color=RGBColor(0x80, 0x9D, 0xB8))
+            brand_label = f'Prepared for {customer_name}'
+        add_textbox(slide, 1, 5.6, 11, 0.4, brand_label, font_size=13, bold=True, color=WHITE)
+        add_textbox(slide, 1, 6.05, 11, 0.4, 'Generated live from Azure APIs', font_size=10, color=RGBColor(0x80, 0x9D, 0xB8))
 
     elif layout == 'section':
         add_bg(slide, AZURE_LIGHT)
-        shape = slide.shapes.add_shape(1, Inches(0), Inches(0), Inches(0.12), prs.slide_height)
+        shape = slide.shapes.add_shape(1, Inches(0), Inches(0), Inches(0.18), prs.slide_height)
         shape.fill.solid(); shape.fill.fore_color.rgb = AZURE_BLUE
         shape.line.fill.background()
-        add_textbox(slide, 1, 2.5, 11, 1.5, title, font_size=36, bold=True, color=TITLE_BG)
+        eyebrow = slide_def.get('eyebrow', '')
+        if eyebrow:
+            add_textbox(slide, 1, 2.2, 11, 0.4, eyebrow.upper(), font_size=12, bold=True, color=AZURE_DEEP)
+        add_textbox(slide, 1, 2.7, 11, 1.8, title, font_size=44, bold=True, color=TITLE_BG)
         if subtitle:
-            add_textbox(slide, 1, 4.2, 11, 0.8, subtitle, font_size=18, color=RGBColor(0x00, 0x5A, 0x9E))
+            add_textbox(slide, 1, 4.5, 11, 0.8, subtitle, font_size=18, color=RGBColor(0x00, 0x5A, 0x9E))
 
     elif layout == 'chart':
         add_bg(slide, SLIDE_BG)
@@ -242,11 +388,60 @@ for idx, slide_def in enumerate(slides_data):
         if chart_cfg and HAS_MPL:
             chart_path = output_path.replace('.pptx', f'_chart_{idx}.png')
             if render_chart_image(chart_cfg, chart_path):
-                slide.shapes.add_picture(chart_path, Inches(1.5), Inches(1.3), Inches(8), Inches(4.5))
+                pic = slide.shapes.add_picture(chart_path, Inches(1.5), Inches(1.3), Inches(8), Inches(4.5))
+                apply_picture_shadow(pic)
                 os.remove(chart_path)
         if bullets:
             bullet_top = 1.3 if not chart_cfg else 6.0
             add_bullets(slide, 0.8, bullet_top, 11, 1.2, bullets, font_size=12, color=TEXT_MED)
+
+    elif layout == 'kpi':
+        add_bg(slide, SLIDE_BG)
+        shape = slide.shapes.add_shape(1, Inches(0), Inches(0), prs.slide_width, Inches(0.06))
+        shape.fill.solid(); shape.fill.fore_color.rgb = AZURE_BLUE
+        shape.line.fill.background()
+        add_textbox(slide, 0.8, 0.3, 11, 0.7, title, font_size=24, bold=True, color=TEXT_DARK)
+        if subtitle:
+            add_textbox(slide, 0.8, 0.95, 11, 0.4, subtitle, font_size=13, color=TEXT_MED)
+        kpis = slide_def.get('kpis', [])[:4]
+        if kpis:
+            n = len(kpis)
+            gutter = 0.3
+            margin = 0.8
+            avail = SLIDE_W_IN - 2 * margin - (n - 1) * gutter
+            card_w = avail / n
+            card_h = 2.1
+            top = 1.9
+            accent_cycle = [AZURE_BLUE, ACCENT_TEAL, ACCENT_GREEN, ACCENT_AMBER]
+            for i, k in enumerate(kpis):
+                left = margin + i * (card_w + gutter)
+                accent_name = (k.get('accent') or '').lower()
+                accent_map = {'blue': AZURE_BLUE, 'teal': ACCENT_TEAL, 'green': ACCENT_GREEN,
+                              'amber': ACCENT_AMBER, 'red': ACCENT_RED}
+                accent = accent_map.get(accent_name, accent_cycle[i % len(accent_cycle)])
+                add_kpi_card(slide, left, top, card_w, card_h,
+                             k.get('label', ''), k.get('value', ''), k.get('sublabel', ''), accent)
+        if bullets:
+            add_bullets(slide, 0.8, 4.3, 11.7, 2.5, bullets, font_size=14, color=TEXT_DARK)
+
+    elif layout == 'maturity':
+        add_bg(slide, SLIDE_BG)
+        shape = slide.shapes.add_shape(1, Inches(0), Inches(0), prs.slide_width, Inches(0.06))
+        shape.fill.solid(); shape.fill.fore_color.rgb = AZURE_BLUE
+        shape.line.fill.background()
+        add_textbox(slide, 0.8, 0.3, 11, 0.7, title, font_size=24, bold=True, color=TEXT_DARK)
+        if subtitle:
+            add_textbox(slide, 0.8, 0.95, 11.7, 0.4, subtitle, font_size=13, color=TEXT_MED)
+        rows = slide_def.get('rows', [])
+        if rows:
+            tbl_top = 1.5 if subtitle else 1.2
+            tbl_h = max(2.5, len(rows) * 0.45 + 0.5)
+            add_maturity_table(slide, 0.8, tbl_top, SLIDE_W_IN - 1.6, tbl_h, rows)
+        # Optional summary line under the table
+        footnote = slide_def.get('footnote', '')
+        if footnote:
+            add_textbox(slide, 0.8, SLIDE_H_IN - 0.85, SLIDE_W_IN - 1.6, 0.35,
+                        footnote, font_size=12, bold=True, color=AZURE_DEEP)
 
     elif layout == 'two_column':
         add_bg(slide, SLIDE_BG)
@@ -276,7 +471,8 @@ for idx, slide_def in enumerate(slides_data):
             chart_path = output_path.replace('.pptx', f'_chart_{idx}.png')
             if render_chart_image(chart_cfg, chart_path):
                 chart_top = 1.3 + len(bullets) * 0.35 if bullets else 1.3
-                slide.shapes.add_picture(chart_path, Inches(1.5), Inches(min(chart_top, 3.0)), Inches(8), Inches(4.0))
+                pic = slide.shapes.add_picture(chart_path, Inches(1.5), Inches(min(chart_top, 3.0)), Inches(8), Inches(4.0))
+                apply_picture_shadow(pic)
                 os.remove(chart_path)
 
     if notes:

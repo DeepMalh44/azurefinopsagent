@@ -127,13 +127,14 @@
                 :key="sc.id"
                 class="assessment-row"
               >
-                <span
+                <div class="assessment-label">{{ sc.label }}</div>
+                <div
                   class="assessment-stars"
                   :style="{ color: starColor(sc.score) }"
-                  >{{ starsText(sc.score) }}</span
                 >
-                <span class="assessment-label">{{ sc.label }}</span>
-                <span class="assessment-detail-text">{{ sc.detail }}</span>
+                  {{ starsText(sc.score) }}
+                </div>
+                <div class="assessment-detail-text">{{ sc.detail }}</div>
               </div>
             </div>
             <div
@@ -1536,17 +1537,17 @@
 <script setup>
 import * as echarts from "echarts";
 import {
-    computed,
-    nextTick,
-    onBeforeUnmount,
-    onMounted,
-    reactive,
-    ref,
-    watch,
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  reactive,
+  ref,
+  watch,
 } from "vue";
 import {
-    maturityCategories,
-    pricingCategory,
+  maturityCategories,
+  pricingCategory,
 } from "../data/sidebarCategories.js";
 
 const props = defineProps({
@@ -4019,29 +4020,30 @@ async function send() {
 }
 .assessment-row {
   display: flex;
-  align-items: baseline;
-  gap: 6px;
-  padding: 3px 4px;
-  font-size: 11px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 4px 10px;
+  border-bottom: 1px dashed #edebe9;
 }
-.assessment-stars {
-  font-size: 10px;
-  letter-spacing: 0.5px;
-  flex-shrink: 0;
+.assessment-row:last-child {
+  border-bottom: none;
 }
 .assessment-label {
-  flex: 1;
   color: #323130;
-  font-weight: 500;
+  font-weight: 600;
+  font-size: 14px;
+  line-height: 1.3;
+}
+.assessment-stars {
+  font-size: 22px;
+  letter-spacing: 3px;
+  line-height: 1;
+  padding: 2px 0;
 }
 .assessment-detail-text {
-  width: 100%;
-  font-size: 10px;
-  color: #a19f9d;
-  padding-left: 0;
-  line-height: 1.3;
-  margin-top: -1px;
+  font-size: 11px;
+  color: #605e5c;
+  line-height: 1.4;
 }
 .sidebar-source {
   display: flex;
