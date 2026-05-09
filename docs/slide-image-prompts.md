@@ -6,6 +6,15 @@ Pitch context: Sam is an Azure FinOps practitioner (cost owner / cloud admin / F
 
 ---
 
+## Image 0 — Slide 1 hero banner ("FinOps department grilled by leadership")
+
+Reference input: Image 7 (preserve all three executives' exact appearances) + Image 2 (preserve Sam's exact appearance). Output **1792×1024 wide banner** to sit above the Flexera/PwC quote block on slide 1.
+
+Prompt:
+Cartoon illustration, wide 7:4 banner, Pixar-meets-flat-illustration style, clean thick black outlines (~3px), soft pastel fills, subtle cel-shading. Solid pure white background (#FFFFFF), edge-to-edge, no environment, only soft drop shadows beneath each character. Scene: a FinOps department being grilled by leadership about cloud spending. Right two-thirds: the same three executives from the reference image, IDENTICAL — CFO (woman, medium-dark skin, shoulder-length straight black hair, navy suit) leaning forward with palms up demanding answers; CIO (light-skinned man, short blond hair, charcoal-gray suit) pointing an accusing index finger toward the FinOps team; BU lead (bald, dark skin, dark brown suit) holding up a sheet showing a red upward cost chart and dollar signs, tapping it angrily. Above their heads: three overlapping speech bubbles each containing a single bold red question mark. Left third: the FinOps team. Center is Sam from the reference image — IDENTICAL (mid-30s, slim, light olive skin, chestnut brown side-parted hair, round black thin-rimmed glasses, dark navy hoodie with white cloud logo, khaki chinos, white sneakers), shoulders hunched, sweat drop on temple, holding a laptop in front of his chest like a shield. To his left: a female colleague, late-20s, fair skin, shoulder-length wavy auburn hair, light gray hoodie, dark jeans, clutching a clipboard defensively. To his right: a male colleague, early-40s, medium-brown skin, short black hair, light beard, olive-green hoodie, dark jeans, palms-up shrugging "no answer." All three have purple bags under their eyes. At their feet: a spilled stack of folders with small pastel-blue cloud-server icons and red dollar-sign coins floating up. Center, between the two groups: a wavy red zigzag tension line with a few lightning sparks, and floating above it a semicircular "trust meter" gauge with a red needle pointing left at empty. Color accents: cool grays/navy on the executives (authority); pastel blue and dusty pink on FinOps (vulnerable); red for question marks, gauge, and dollar signs. Mood: tense, accusatory. No text, no logos.
+
+---
+
 ## Image 1 — Unexpected costs ("Held accountable with no clear visibility")
 
 Reference input: none (this image establishes the character "Sam"). Output 1024×1024.
@@ -89,14 +98,17 @@ Cartoon illustration, square 1:1 (1024×1024), Pixar-meets-flat-illustration sty
 
 ## Reference Chain
 
-| #   | Slide bucket                                                     | Visual hook                                                      | Input image          | Carries forward            |
-| --- | ---------------------------------------------------------------- | ---------------------------------------------------------------- | -------------------- | -------------------------- |
-| 1   | Unexpected costs (no visibility)                                 | Stack of cloud-servers + red cost curve + $$                     | —                    | Sam (established)          |
-| 2   | Manual queries (KQL / Resource Graph / exports)                  | Code/graph/CSV panels + Azure resource icons                     | 1                    | Sam                        |
-| 3   | Chasing departments (silos)                                      | Five towering departmental silos                                 | 2                    | Sam                        |
-| 4   | Portal hopping (Cost Mgmt / Advisor / Monitor / Graph / Billing) | Octopus-Sam + 5 fanned-out browser tabs                          | 2 (img 3 hides face) | Sam                        |
-| 5   | Endless catch-up (always behind at scale)                        | Hamster wheel of clouds + avalanche of Azure icons               | 4                    | Sam                        |
-| 6   | Repeat for months and years                                      | Calendar/year vortex + faded ghost Sams                          | 5                    | Sam (aged)                 |
-| 7   | Accountable leadership loses trust                               | 3 execs turned away + broken chain + trust gauge empty           | 6                    | Sam + introduces 3 execs   |
-| 8   | Picks an alternative cloud service                               | Execs shake hands with competitor cloud, Sam faded               | 7                    | 3 execs (Sam small, faded) |
-| 9   | **Solution: Azure FinOps Agent takes over**                      | Happy Sam + friendly octopus-arm robot doing all portals & spend | 2 (rejuvenated Sam)  | Sam + Robot                |
+| #   | Slide bucket                                                                     | Visual hook                                                      | Input image          | Carries forward            |
+| --- | -------------------------------------------------------------------------------- | ---------------------------------------------------------------- | -------------------- | -------------------------- |
+| 1   | Unexpected costs (no visibility)                                                 | Stack of cloud-servers + red cost curve + $$                     | —                    | Sam (established)          |
+| 2   | Manual queries (hand-written queries / static exports)                           | Code/graph/CSV panels + Azure resource icons                     | 1                    | Sam                        |
+| 3   | Chasing departments (silos) — file: `3.png`                                      | Five towering departmental silos                                 | 2                    | Sam                        |
+| 4   | Portal hopping (Cost Mgmt / Advisor / Monitor / Graph / Billing) — file: `4.png` | Octopus-Sam + 5 fanned-out browser tabs                          | 2 (img 3 hides face) | Sam                        |
+| 5   | Endless catch-up (always behind at scale)                                        | Hamster wheel of clouds + avalanche of Azure icons               | 4                    | Sam                        |
+| 6   | Repeat for months and years                                                      | Calendar/year vortex + faded ghost Sams                          | 5                    | Sam (aged)                 |
+| 7   | Accountable leadership loses trust                                               | 3 execs turned away + broken chain + trust gauge empty           | 6                    | Sam + introduces 3 execs   |
+| 8   | Picks an alternative cloud service                                               | Execs shake hands with competitor cloud, Sam faded               | 7                    | 3 execs (Sam small, faded) |
+| 9   | **Solution: Azure FinOps Agent takes over**                                      | Happy Sam + friendly octopus-arm robot doing all portals & spend | 2 (rejuvenated Sam)  | Sam + Robot                |
+
+> **Slide-2 narrative order (May 2026):** 1 Unexpected costs · 2 Manual queries · **3 Portal hopping** · **4 Chasing departments** · 5 Endless catch-up.
+> The image-file numbering above (`3.png` = silos, `4.png` = browser tabs) is preserved on disk — the HTML cards reference them via `data-img` to match the new narrative order.

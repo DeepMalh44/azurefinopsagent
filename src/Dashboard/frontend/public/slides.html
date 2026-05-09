@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Azure FinOps Agent - Customer Overview</title>
+    <title>Azure FinOps Agent · Customer Overview</title>
     <meta
       name="description"
       content="An AI-powered FinOps & InfraOps agent for Azure. Customer overview deck."
@@ -205,12 +205,12 @@
         background:
           radial-gradient(
             ellipse at 15% 20%,
-            rgba(0, 120, 212, 0.1),
+            rgba(0, 120, 212, 0.035),
             transparent 55%
           ),
           radial-gradient(
             ellipse at 85% 80%,
-            rgba(0, 188, 242, 0.1),
+            rgba(0, 188, 242, 0.035),
             transparent 55%
           ),
           #ffffff;
@@ -221,8 +221,8 @@
         inset: 0;
         pointer-events: none;
         background-image:
-          linear-gradient(rgba(0, 120, 212, 0.05) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(0, 120, 212, 0.05) 1px, transparent 1px);
+          linear-gradient(rgba(0, 120, 212, 0.018) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(0, 120, 212, 0.018) 1px, transparent 1px);
         background-size: 56px 56px;
         mask-image: radial-gradient(
           ellipse at center,
@@ -235,10 +235,40 @@
           transparent 75%
         );
       }
+      /* Slide 1 — content offset and footer use clamp so they hold shape across heights */
       .s1 .content {
         text-align: center;
         max-width: 1100px;
         position: relative;
+        transform: translateY(clamp(-12vh, -10vh, -3vh));
+      }
+      .s1-footer {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: clamp(10vh, 22vh, 28vh);
+        text-align: center;
+        z-index: 4;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        line-height: 1.35;
+      }
+      .s1-footer .s1-footer-line {
+        font-size: clamp(1.6rem, 2.7vw, 2.7rem);
+        color: var(--ink);
+        letter-spacing: -0.01em;
+      }
+      .s1-footer .s1-footer-line em {
+        font-style: normal;
+        color: var(--azure-blue);
+      }
+      .s1-footer .s1-footer-sub {
+        margin-top: clamp(0.4rem, 0.8vh, 0.85rem);
+        font-size: clamp(1rem, 1.35vw, 1.35rem);
+        font-weight: 700;
+        letter-spacing: 0.24em;
+        text-transform: uppercase;
+        color: var(--ink-mute);
       }
       .s1 h1 {
         font-size: clamp(2.6rem, 7vw, 6rem);
@@ -273,6 +303,191 @@
         max-width: 680px;
         margin: 0 auto 2.4rem;
         line-height: 1.6;
+      }
+
+      /* Slide 1 — centered "market signal" text (shows on first click, hides when title appears) */
+      .s1-signal {
+        position: absolute;
+        inset: 0;
+        z-index: 5;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 4vh 5vw clamp(4vh, 16vh, 22vh);
+        background: transparent;
+        border: none;
+        box-shadow: none;
+        font-size: clamp(1.05rem, 1.25vw, 1.3rem);
+        font-weight: 500;
+        color: var(--ink);
+        line-height: 1.5;
+        text-align: center;
+        overflow: visible;
+        pointer-events: none;
+      }
+      .s1-signal > * {
+        max-width: min(880px, 92vw);
+        pointer-events: auto;
+        width: 100%;
+      }
+      /* When the title (or any later step inside .content) is revealed, hide the signal */
+      .s1:has(.content [data-step].revealed) .s1-signal {
+        opacity: 0 !important;
+        transform: scale(0.94) !important;
+        pointer-events: none;
+        transition:
+          opacity 0.55s ease,
+          transform 0.55s cubic-bezier(0.22, 1, 0.36, 1) !important;
+      }
+      /* Override the generic [data-step] translateY so it stays centered */
+      .s1-signal[data-step] {
+        transform: translateY(8px) !important;
+      }
+      .s1-signal[data-step].revealed {
+        transform: translateY(0) !important;
+      }
+      .s1-signal::before {
+        content: none;
+      }
+      .s1-signal .s1-signal-head {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.55rem;
+        margin-bottom: 0.9rem;
+      }
+      .s1-signal .dot {
+        position: relative;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: #e3342f;
+        box-shadow: 0 0 0 0 rgba(227, 52, 47, 0.55);
+        animation: s1DotPulse 1.6s ease-out infinite;
+        flex: 0 0 auto;
+      }
+      .s1-signal .label {
+        text-transform: uppercase;
+        letter-spacing: 0.22em;
+        font-size: 0.85em;
+        font-weight: 800;
+        color: var(--azure-blue);
+      }
+      .s1-signal .lede {
+        font-size: 1.45em;
+        font-weight: 800;
+        line-height: 1.25;
+        margin-bottom: 1.4rem;
+        color: var(--ink);
+        letter-spacing: -0.01em;
+      }
+      .s1-signal .lede em {
+        font-style: normal;
+        color: var(--azure-blue);
+      }
+      .s1-signal blockquote {
+        position: relative;
+        margin: 0 auto 2.6rem;
+        padding: 0.5rem 0;
+        border: none;
+        font-size: clamp(1.9rem, 2.8vw, 2.9rem);
+        font-weight: 700;
+        color: var(--ink);
+        font-style: italic;
+        line-height: 1.3;
+        max-width: 1000px;
+        letter-spacing: -0.01em;
+      }
+      .s1-signal .s1-hero-img {
+        display: block;
+        width: 100%;
+        max-width: min(1100px, 92vw);
+        height: auto;
+        max-height: clamp(28vh, 38vh, 44vh);
+        object-fit: contain;
+        margin: 0 auto 1.4rem;
+      }
+      .s1-signal blockquote:last-of-type {
+        margin-bottom: 2rem;
+      }
+      .s1-signal blockquote cite {
+        display: block;
+        margin-top: 0.45rem;
+        font-size: 0.88em;
+        font-style: normal;
+        font-weight: 600;
+        color: var(--ink-mute);
+        letter-spacing: 0.01em;
+      }
+      .s1-signal blockquote cite a {
+        color: var(--azure-blue);
+        text-decoration: none;
+        border-bottom: 1px dotted rgba(0, 120, 212, 0.5);
+        transition:
+          color 0.2s,
+          border-color 0.2s;
+      }
+      .s1-signal blockquote cite a:hover {
+        color: var(--azure-blue-darker);
+        border-bottom-color: var(--azure-blue-darker);
+      }
+      .s1-signal .sources {
+        margin-top: 0.6rem;
+        padding-top: 0;
+        border-top: none;
+        font-size: 0.78em;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        color: var(--ink-mute);
+        text-transform: uppercase;
+      }
+      .s1-signal .sources a {
+        color: var(--azure-blue);
+        text-decoration: none;
+        margin-right: 0.4rem;
+      }
+      .s1-signal .sources a:hover {
+        text-decoration: underline;
+      }
+      @keyframes s1DotPulse {
+        0% {
+          box-shadow: 0 0 0 0 rgba(227, 52, 47, 0.55);
+        }
+        70% {
+          box-shadow: 0 0 0 12px rgba(227, 52, 47, 0);
+        }
+        100% {
+          box-shadow: 0 0 0 0 rgba(227, 52, 47, 0);
+        }
+      }
+      @keyframes s1SignalGlow {
+        0%,
+        100% {
+          box-shadow:
+            0 14px 44px rgba(0, 120, 212, 0.16),
+            0 0 0 5px rgba(0, 120, 212, 0.04);
+        }
+        50% {
+          box-shadow:
+            0 18px 56px rgba(0, 120, 212, 0.28),
+            0 0 0 7px rgba(0, 188, 242, 0.09);
+        }
+      }
+      @keyframes s1SignalSweep {
+        0% {
+          background-position: 220% 0;
+        }
+        100% {
+          background-position: -120% 0;
+        }
+      }
+      @media (max-width: 900px) {
+        .s1-signal {
+          position: static;
+          margin: 0 auto 1.5rem;
+          max-width: 92%;
+        }
       }
 
       /* ========== Slide 2: Problem ========== */
@@ -440,9 +655,18 @@
         align-items: center;
         gap: 1.15rem;
         text-align: left;
-        padding: 1.05rem 1.35rem;
+        padding: 0.6rem 0;
         margin: 0;
-        border-radius: 14px;
+        border: none;
+        border-radius: 0;
+        background: transparent;
+        transition: none;
+      }
+      .s2-left .pain-card:hover,
+      .s3-left .pain-card:hover {
+        border: none;
+        box-shadow: none;
+        transform: none;
       }
       .s2-left .pain-card .ico,
       .s3-left .pain-card .ico {
@@ -463,12 +687,12 @@
       }
       .s2-left .pain-card h3,
       .s3-left .pain-card h3 {
-        font-size: clamp(1.15rem, 1.35vw, 1.45rem);
-        margin: 0 0 0.25rem;
+        font-size: clamp(1.4rem, 1.7vw, 1.8rem);
+        margin: 0 0 0.3rem;
       }
       .s2-left .pain-card p,
       .s3-left .pain-card p {
-        font-size: clamp(0.95rem, 1.05vw, 1.1rem);
+        font-size: clamp(1.05rem, 1.2vw, 1.25rem);
         margin: 0;
         line-height: 1.45;
       }
@@ -507,9 +731,9 @@
         max-width: min(820px, 82vh);
         aspect-ratio: 1 / 1;
         object-fit: contain;
-        border-radius: 24px;
-        background: #fff;
-        box-shadow: 0 18px 46px rgba(0, 30, 80, 0.1);
+        border-radius: 0;
+        background: transparent;
+        box-shadow: none;
         opacity: 0;
         transform: scale(0.96);
         transition:
@@ -610,9 +834,44 @@
         max-width: 1500px;
         width: 100%;
         margin: 0 auto;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 2rem;
       }
       .s4-header .section-lead {
         margin-bottom: 0;
+      }
+      .s4-oss {
+        display: flex;
+        align-items: center;
+        gap: 0.9rem;
+        padding: 0.7rem 1.1rem;
+        background: var(--bg-blue);
+        border: 1px solid var(--azure-blue-pale);
+        border-left: 4px solid var(--azure-blue);
+        border-radius: 10px;
+        flex-shrink: 0;
+        max-width: 520px;
+      }
+      .s4-oss svg {
+        flex-shrink: 0;
+        color: var(--ink);
+      }
+      .s4-oss .s4-oss-text {
+        line-height: 1.25;
+      }
+      .s4-oss .s4-oss-title {
+        font-size: clamp(0.95rem, 1.05vw, 1.1rem);
+        font-weight: 800;
+        color: var(--azure-blue-darker);
+        letter-spacing: -0.005em;
+      }
+      .s4-oss .s4-oss-sub {
+        font-size: clamp(0.78rem, 0.9vw, 0.92rem);
+        font-weight: 500;
+        color: var(--ink-soft);
+        margin-top: 0.15rem;
       }
       .arch-wrap {
         width: 100%;
@@ -647,6 +906,15 @@
         fill: #fff;
         stroke: var(--line);
         stroke-width: 1.5;
+      }
+      .node-stack {
+        fill: #fff;
+        stroke: var(--line);
+        stroke-width: 1.2;
+        opacity: 0.55;
+      }
+      .node-stack.s2 {
+        opacity: 0.32;
       }
       .node-box.primary {
         stroke: var(--azure-blue);
@@ -1562,34 +1830,54 @@
     <div class="deck" id="deck">
       <!-- ========== Slide 1: Hero ========== -->
       <section class="slide s1 active">
+        <aside class="s1-signal" data-step>
+          <img
+            class="s1-hero-img"
+            src="sam-finops-images/0.png"
+            alt="FinOps team grilled by leadership about cloud spending"
+          />
+          <blockquote>
+            "29% of cloud spend is wasted, and getting worse."
+          </blockquote>
+          <blockquote>
+            "In the cloud, what you can't measure, you can't manage."
+          </blockquote>
+          <div class="sources">
+            Sources:
+            <a
+              href="https://info.flexera.com/CM-REPORT-State-of-the-Cloud"
+              target="_blank"
+              rel="noopener noreferrer"
+              >Flexera 2026 State of the Cloud</a
+            >
+            ·
+            <a
+              href="https://www.pwc.com/gx/en/services/consulting/cloud-transformation/emea-cloud-survey-tech-leaders.html"
+              target="_blank"
+              rel="noopener noreferrer"
+              >PwC EMEA Cloud Survey, Nov 2025</a
+            >
+          </div>
+        </aside>
         <div class="content">
-          <h1 class="anim d3" style="line-height: 1.05">
-            Your AI agent for<br />Azure <span>FinOps</span>.
-          </h1>
+          <div data-step>
+            <h1 style="line-height: 1.05">
+              Your AI agent for<br />Azure <span>FinOps</span>.
+            </h1>
+          </div>
           <div data-step>
             <p
               class="tagline anim d4"
-              style="font-size: 1.5em; font-weight: 700; line-height: 1.25"
+              style="font-size: 1.85em; font-weight: 700; line-height: 1.25"
             >
               <span>Visibility</span>
               <span> · Agentic Remediation</span>
               <span> · Clarity in minutes</span>
             </p>
-            <p
-              class="tagline-sub anim d4"
-              style="
-                font-size: 1.15em;
-                font-weight: 600;
-                margin-top: 0.8rem;
-                opacity: 0.9;
-              "
-            >
-              Free · Open Source · Built by Microsoft
-            </p>
           </div>
           <div
             class="anim d6"
-            style="margin-top: 2rem; text-align: center; line-height: 1.15"
+            style="margin-top: 4rem; text-align: center; line-height: 1.15"
           >
             <div style="display: inline-block; text-align: left">
               <div data-step>
@@ -1606,28 +1894,36 @@
                   In pilot
                 </div>
                 <div
-                  style="font-size: 2.6em; font-weight: 800; margin: 0.1em 0"
+                  style="
+                    font-size: 3.6em;
+                    font-weight: 800;
+                    margin: 0.1em 0;
+                    letter-spacing: -0.02em;
+                  "
                 >
                   Maersk
                 </div>
               </div>
               <div
                 data-step
-                style="font-size: 2.6em; font-weight: 800; margin: 0.3em 0"
+                style="
+                  font-size: 3.6em;
+                  font-weight: 800;
+                  margin: 0 0;
+                  letter-spacing: -0.02em;
+                "
               >
                 Novo Nordisk
-                <span
-                  style="
-                    font-size: 0.45em;
-                    font-weight: 600;
-                    opacity: 0.75;
-                    font-style: italic;
-                  "
-                >
-                  (MACC renewal)
-                </span>
               </div>
             </div>
+          </div>
+        </div>
+        <div class="s1-footer anim d6" data-step>
+          <div class="s1-footer-line">
+            Let's <em>change the narrative</em>, and rebuild <em>trust</em>.
+          </div>
+          <div class="s1-footer-sub">
+            Free · Open Source · Built by Microsoft
           </div>
         </div>
       </section>
@@ -1636,7 +1932,7 @@
       <section class="slide s2">
         <div class="content">
           <h2 class="section-title anim d1">
-            Problem - FinOps is a <em>painful job</em>.
+            Problem. FinOps is a <em>painful job</em>.
           </h2>
           <p class="section-lead anim d2">And you're always behind.</p>
           <div class="s2-stage">
@@ -1677,11 +1973,31 @@
                   </svg>
                 </div>
                 <div class="card-text">
-                  <h3>Manual queries</h3>
+                  <h3>Static toolkits</h3>
                   <p>
-                    Hand-written KQL, Log Analytics, Resource Graph, billing
-                    exports.
+                    Hand-written queries, scheduled exports, scripts that don't
+                    think.
                   </p>
+                </div>
+              </div>
+              <div class="pain-card" data-step data-img="4">
+                <div class="ico">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path
+                      d="M17 1l4 4-4 4M3 11V9a4 4 0 0 1 4-4h14M7 23l-4-4 4-4M21 13v2a4 4 0 0 1-4 4H3"
+                    />
+                  </svg>
+                </div>
+                <div class="card-text">
+                  <h3>Portal hopping</h3>
+                  <p>Five tabs deep, same data, different views.</p>
                 </div>
               </div>
               <div class="pain-card" data-step data-img="3">
@@ -1707,26 +2023,6 @@
                   </p>
                 </div>
               </div>
-              <div class="pain-card" data-step data-img="4">
-                <div class="ico">
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.8"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <path
-                      d="M17 1l4 4-4 4M3 11V9a4 4 0 0 1 4-4h14M7 23l-4-4 4-4M21 13v2a4 4 0 0 1-4 4H3"
-                    />
-                  </svg>
-                </div>
-                <div class="card-text">
-                  <h3>Portal hopping</h3>
-                  <p>Cost Mgmt, Advisor, Monitor, Graph - five tabs deep.</p>
-                </div>
-              </div>
               <div class="pain-card" data-step data-img="5">
                 <div class="ico">
                   <svg
@@ -1748,10 +2044,11 @@
               </div>
               <div class="punchline-stack">
                 <div class="punchline tier2" data-step data-img="7">
-                  Leadership loses trust in provider.
+                  Leadership questions spendings.
                 </div>
                 <div class="punchline tier3" data-step data-img="8">
-                  Picks an alternative offer or cloud service.
+                  Plans to cut aggressively or simply picks an alternative
+                  offer.
                 </div>
               </div>
             </div>
@@ -1771,7 +2068,7 @@
       <section class="slide s3">
         <div class="content">
           <h2 class="section-title anim d1">
-            Solution - FinOps <em>Agent</em>.
+            Solution. FinOps <em>Agent</em>.
           </h2>
           <p class="section-lead anim d2">
             Agentic FinOps. One chat. Trust restored.
@@ -1794,11 +2091,8 @@
                   </svg>
                 </div>
                 <div class="card-text">
-                  <h3>Natural language</h3>
-                  <p>
-                    Just ask. No KQL, no portals - your domain &amp; business
-                    knowledge is all you need.
-                  </p>
+                  <h3>Unified FinOps portal</h3>
+                  <p>One place to ask, see, act. No more tabs or queries.</p>
                 </div>
               </div>
               <div class="pain-card" data-step data-img="9">
@@ -1816,10 +2110,7 @@
                 </div>
                 <div class="card-text">
                   <h3>Agentic Remediation</h3>
-                  <p>
-                    One agent, many arms - reads structured logs, resources,
-                    cost &amp; operations in parallel, and remediates directly.
-                  </p>
+                  <p>Live and dynamic. Reads current state, reasons, acts.</p>
                 </div>
               </div>
               <div class="pain-card" data-step data-img="9">
@@ -1840,8 +2131,8 @@
                 <div class="card-text">
                   <h3>Score maturity</h3>
                   <p>
-                    Efficient grouping, clarity, and concrete optimization tips
-                    against the FinOps Framework.
+                    Clear scorecard, concrete next steps. FinOps Framework
+                    aligned.
                   </p>
                 </div>
               </div>
@@ -1855,36 +2146,52 @@
                     stroke-linecap="round"
                     stroke-linejoin="round"
                   >
-                    <path d="M20 6L9 17l-5-5" />
+                    <rect x="3" y="3" width="18" height="14" rx="2" />
+                    <path d="M3 17l5-5 4 4 3-3 6 6" />
+                    <line x1="8" y1="21" x2="16" y2="21" />
+                    <line x1="12" y1="17" x2="12" y2="21" />
+                  </svg>
+                </div>
+                <div class="card-text">
+                  <h3>Present remediations</h3>
+                  <p>From insight to executive PowerPoint in one chat.</p>
+                </div>
+              </div>
+              <div class="pain-card" data-step data-img="9">
+                <div class="ico">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                  </svg>
+                </div>
+                <div class="card-text">
+                  <h3>Act at scale</h3>
+                  <p>Tags, budgets, alerts — applied across subscriptions.</p>
+                </div>
+              </div>
+              <div class="pain-card" data-step data-img="9">
+                <div class="ico">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                    <path d="M9 12l2 2 4-4" />
                   </svg>
                 </div>
                 <div class="card-text">
                   <h3>Trust is not a licensed product</h3>
-                  <p>
-                    Free from Microsoft. Trust shouldn't sit behind a paywall.
-                  </p>
-                </div>
-              </div>
-              <div class="pain-card" data-step data-img="9">
-                <div class="ico">
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.8"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <path d="M12 2l3 7h7l-5.5 4 2 7L12 16l-6.5 4 2-7L2 9h7z" />
-                  </svg>
-                </div>
-                <div class="card-text">
-                  <h3>Transparency &mdash; visible AI execution</h3>
-                  <p>
-                    Visible AI execution and Open Source - every tool call,
-                    every decision, auditable. The first step in the trust and
-                    cost conversation.
-                  </p>
+                  <p>Open source. Free. Every action visible and auditable.</p>
                 </div>
               </div>
               <div class="punchline-stack">
@@ -1892,7 +2199,8 @@
                   Leadership has clarity on spend.
                 </div>
                 <div class="punchline tier3" data-step data-img="8">
-                  Customer doubles down on Azure.
+                  Trust shouldn't be paywalled. Customer doubles down on a
+                  trusted provider.
                 </div>
               </div>
             </div>
@@ -1918,7 +2226,7 @@
             class="section-lead anim d2"
             style="color: rgba(255, 255, 255, 0.75)"
           >
-            The most common enterprise pattern in EMEA banking &amp; insurance:
+            A common enterprise pattern we see across industries:
           </p>
           <div
             style="
@@ -1933,8 +2241,8 @@
               data-step
               style="font-size: 2.2em; font-weight: 800; line-height: 1.2"
             >
-              Banks trust <span style="color: #50e3c2">Microsoft</span> with
-              identity.
+              One provider trusted for
+              <span style="color: #50e3c2">identity</span>.
               <div
                 style="
                   font-size: 0.42em;
@@ -1944,14 +2252,15 @@
                   font-style: italic;
                 "
               >
-                Entra ID = the enterprise control plane.
+                The enterprise control plane.
               </div>
             </div>
             <div
               data-step
               style="font-size: 2.2em; font-weight: 800; line-height: 1.2"
             >
-              They trust <span style="color: #ff9966">AWS</span> with workloads.
+              Another provider trusted for
+              <span style="color: #ff9966">workloads</span>.
               <div
                 style="
                   font-size: 0.42em;
@@ -1961,7 +2270,7 @@
                   font-style: italic;
                 "
               >
-                Historical default - not a real choice today.
+                Often a historical choice, driven by early pricing.
               </div>
             </div>
             <div
@@ -1983,8 +2292,8 @@
                   margin-top: 0.4rem;
                 "
               >
-                Identity → Governance → Workloads. Microsoft becomes the
-                operational control layer.
+                Identity → Governance → Workloads. The trusted provider becomes
+                the operational control layer.
               </div>
             </div>
             <div
@@ -1998,8 +2307,7 @@
                 line-height: 1.4;
               "
             >
-              Firsthand from the field: US airlines · Saudi ministries · Danish
-              banks · pharma · FSI.
+              The same pattern repeats across regions and industries.
               <div
                 style="
                   font-size: 0.85em;
@@ -2009,7 +2317,7 @@
                   font-style: italic;
                 "
               >
-                Same pattern, every continent. The FinOps Agent is the start.
+                The FinOps Agent is the start.
               </div>
             </div>
           </div>
@@ -2782,6 +3090,22 @@
               <!-- Azure ARM REST API -->
               <g>
                 <rect
+                  class="node-stack s2"
+                  x="1052"
+                  y="84"
+                  width="500"
+                  height="80"
+                  rx="10"
+                />
+                <rect
+                  class="node-stack"
+                  x="1046"
+                  y="78"
+                  width="500"
+                  height="80"
+                  rx="10"
+                />
+                <rect
                   class="node-box"
                   x="1040"
                   y="72"
@@ -2800,12 +3124,29 @@
                   Azure ARM REST API
                 </text>
                 <text class="node-sub" x="1128" y="126">
-                  Cost Mgmt · Advisor · Reservations · Compute · Carbon
+                  Multi-subscription · Cost Mgmt · Advisor · Monitor metrics ·
+                  Carbon
                 </text>
               </g>
 
               <!-- Resource Graph -->
               <g>
+                <rect
+                  class="node-stack s2"
+                  x="1052"
+                  y="179"
+                  width="500"
+                  height="80"
+                  rx="10"
+                />
+                <rect
+                  class="node-stack"
+                  x="1046"
+                  y="173"
+                  width="500"
+                  height="80"
+                  rx="10"
+                />
                 <rect
                   class="node-box"
                   x="1040"
@@ -2823,12 +3164,28 @@
                 />
                 <text class="node-title" x="1128" y="202">Resource Graph</text>
                 <text class="node-sub" x="1128" y="221">
-                  Cross-subscription inventory
+                  Cross-tenant, cross-subscription inventory
                 </text>
               </g>
 
               <!-- Log Analytics -->
               <g>
+                <rect
+                  class="node-stack s2"
+                  x="1052"
+                  y="274"
+                  width="500"
+                  height="80"
+                  rx="10"
+                />
+                <rect
+                  class="node-stack"
+                  x="1046"
+                  y="268"
+                  width="500"
+                  height="80"
+                  rx="10"
+                />
                 <rect
                   class="node-box"
                   x="1040"
@@ -2844,7 +3201,9 @@
                   width="40"
                   height="40"
                 />
-                <text class="node-title" x="1128" y="297">Log Analytics</text>
+                <text class="node-title" x="1128" y="297">
+                  Azure Monitor Logs
+                </text>
                 <text class="node-sub" x="1128" y="316">
                   KQL · ingestion costs · idle VMs
                 </text>
@@ -2852,6 +3211,22 @@
 
               <!-- App Insights -->
               <g>
+                <rect
+                  class="node-stack s2"
+                  x="1052"
+                  y="369"
+                  width="500"
+                  height="80"
+                  rx="10"
+                />
+                <rect
+                  class="node-stack"
+                  x="1046"
+                  y="363"
+                  width="500"
+                  height="80"
+                  rx="10"
+                />
                 <rect
                   class="node-box"
                   x="1040"
@@ -2917,6 +3292,22 @@
 
               <!-- Cost Export Storage -->
               <g>
+                <rect
+                  class="node-stack s2"
+                  x="1052"
+                  y="654"
+                  width="500"
+                  height="80"
+                  rx="10"
+                />
+                <rect
+                  class="node-stack"
+                  x="1046"
+                  y="648"
+                  width="500"
+                  height="80"
+                  rx="10"
+                />
                 <rect
                   class="node-box"
                   x="1040"
@@ -3056,13 +3447,13 @@
           </h2>
           <p class="section-lead anim d2">
             What used to take days of queries, naming standards, and Slack
-            threads - now done in one chat.
+            threads, now done in one chat.
           </p>
           <div class="proof-wrap anim d3">
             <div class="video-frame">
               <iframe
                 src="https://www.youtube.com/embed/0BbM3TNFp_U?rel=0&modestbranding=1&playsinline=1&controls=1&color=white&iv_load_policy=3&fs=1&enablejsapi=1"
-                title="Azure FinOps Agent - tagging maturity demo"
+                title="Azure FinOps Agent · tagging maturity demo"
                 loading="lazy"
                 allow="
                   accelerometer;
@@ -3116,9 +3507,7 @@
                 </li>
                 <li>
                   <span class="mark">✓</span
-                  ><span
-                    >Generate scripts - or run them with your approval</span
-                  >
+                  ><span>Generate scripts, or run them with your approval</span>
                 </li>
                 <li>
                   <span class="mark">✓</span
@@ -3138,7 +3527,7 @@
                 </li>
                 <li>
                   <span class="mark">✗</span
-                  ><span>Persist your data - always live, never stored</span>
+                  ><span>Persist your data, always live, never stored</span>
                 </li>
                 <li>
                   <span class="mark">✗</span
@@ -3199,7 +3588,7 @@
               <div>
                 <h3>Microsoft Agent Framework</h3>
                 <p>
-                  Built on the official Microsoft agentic stack - Pro Code, not
+                  Built on the official Microsoft agentic stack. Pro Code, not
                   no-code.
                 </p>
               </div>
@@ -3263,7 +3652,7 @@
               </div>
               <div>
                 <h3>Drag &amp; drop CSV</h3>
-                <p>Reads the customer's own billing exports - intelligently.</p>
+                <p>Reads the customer's own billing exports, intelligently.</p>
               </div>
             </div>
             <div class="s6b-card" data-step>
@@ -3309,8 +3698,8 @@
               <div>
                 <h3>In Azure-Samples</h3>
                 <p>
-                  Microsoft's official open-source repo - vetted, endorsed,
-                  ready for any customer.
+                  Microsoft's official open-source repo. Vetted, endorsed, ready
+                  for any customer.
                 </p>
               </div>
             </div>
