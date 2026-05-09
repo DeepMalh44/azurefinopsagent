@@ -9,15 +9,21 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Added
 
-- (placeholder)
+- Chat moderation gate (`AI/ChatModerator.cs`, `AI/ModerationVerdict.cs`) — pre-flight AOAI evaluation of every user prompt (5-second timeout) with fail-open on transient errors. Blocks unsafe prompts before they reach the main session.
+- `moderation_notice` SSE event + amber inline banner in `ChatView.vue` — surfaces transient moderation failures to the user (network, rate-limit, timeout) instead of silent dead time.
+- Single-retry on AOAI 429/503/timeout/network errors in `ChatModerator` (~300ms backoff, honors `Retry-After` header capped at 2s).
+- Telemetry instruments: `finops.moderation.evaluated` (counter), `finops.moderation.blocks` (counter), `finops.moderation.duration_ms` (histogram).
+- Ambiguous-affirmative intent-binding rule in `CopilotSessionFactory.SystemPrompt` — "yes/go ahead/proceed" now binds to the most recent in-chat offer instead of the loudest queued sidebar action.
+- Documentation: "Chat Moderation Gate" section in `.github/copilot-instructions.md` with debug query example.
 
-### Changed
+### Fixed
 
-- (placeholder)
+- `DefaultAzureCredential` 5-second hang on `VisualStudioCredential.RunProcessesAsync` — excluded `VisualStudio`, `VisualStudioCode`, `Interactive`, and `AzurePowerShell` credential providers in `CopilotSessionFactory`. Keeps AzureCli and ManagedIdentity in the chain for local dev and production.
 
-### Removed
+### Security
 
-- (placeholder)
+- Moderation gate now stands between every user prompt and the Copilot session — blocks attempts to bypass refusal patterns or extract system rules.
+- Reaffirmed: no DELETE HTTP methods anywhere in helpers; agent still cannot delete Azure resources directly.
 
 ## [0.1.0] - 2026-05-05
 
