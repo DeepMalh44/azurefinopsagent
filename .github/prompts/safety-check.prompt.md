@@ -42,7 +42,7 @@ Scan `setup-entra-app.ps1` and confirm:
 
 ### 5. Other Tools
 
-Scan all remaining tool files (`ChartTools.cs`, `HealthTools.cs`, `FaqTools.cs`, `FollowUpTools.cs`, `PresentationTools.cs`) and confirm:
+Scan all remaining tool files (`ChartTools.cs`, `HealthTools.cs`, `FaqTools.cs`, `FollowUpTools.cs`, `HtmlPresentationTools.cs`) and confirm:
 
 - No tool makes authenticated HTTP calls to Azure management APIs.
 - Any external HTTP calls (e.g. RSS feeds, IndexNow) do not use Azure tokens.

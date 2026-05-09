@@ -10,7 +10,7 @@ namespace AzureFinOps.Dashboard.AI;
 
 /// <summary>
 /// SSE chat endpoint and session reset. Owns the streaming handler, structured
-/// marker parsing (chart / pptx / script / maturity), and the per-request
+/// marker parsing (chart / html / script / maturity), and the per-request
 /// telemetry span.
 /// </summary>
 public static class ChatEndpoints
@@ -315,7 +315,7 @@ public static class ChatEndpoints
         logger.LogInformation("Tool done: {Tool} id={ToolId} success={Success} durationMs={Duration} resultLen={ResultLen}",
             toolName, toolId, toolDone.Data.Success, durationMs, resultText?.Length ?? 0);
 
-        // Marker-based side channels (chart / pptx / script / maturity).
+        // Marker-based side channels (chart / html / script / maturity).
         // If a marker is detected we emit the tool_done event followed by the
         // structured event, then return null so the caller skips re-emit.
         if ((toolName == "RenderChart" || toolName == "RenderAdvancedChart") && toolDone.Data.Success && resultText is not null)
@@ -349,21 +349,21 @@ public static class ChatEndpoints
             catch (Exception ex) { logger.LogWarning(ex, "Failed to emit __CHART__ marker"); }
         }
 
-        if (toolDone.Data.Success && resultText is not null && resultText.Contains("__PPTX_READY__:"))
+        if (toolDone.Data.Success && resultText is not null && resultText.Contains("__HTML_READY__:"))
         {
             try
             {
                 foreach (var line in resultText.Split('\n'))
                 {
                     var trimmed = line.Trim();
-                    if (trimmed.StartsWith("__PPTX_READY__:"))
+                    if (trimmed.StartsWith("__HTML_READY__:"))
                     {
-                        var parts = trimmed["__PPTX_READY__:".Length..].Split(':', 3);
+                        var parts = trimmed["__HTML_READY__:".Length..].Split(':', 3);
                         if (parts.Length >= 2)
                         {
-                            var pptxPayload = JsonSerializer.Serialize(new { type = "pptx_ready", fileId = parts[0], fileName = parts[1], slideCount = parts.Length > 2 ? parts[2] : "" });
+                            var htmlPayload = JsonSerializer.Serialize(new { type = "html_ready", fileId = parts[0], fileName = parts[1], slideCount = parts.Length > 2 ? parts[2] : "" });
                             await EmitAsync(ctx, sseData);
-                            await EmitAsync(ctx, pptxPayload);
+                            await EmitAsync(ctx, htmlPayload);
                             return null;
                         }
                         break;
@@ -371,7 +371,7 @@ public static class ChatEndpoints
                 }
             }
             catch (Exception ex) when (IsClientDisconnect(ex)) { /* SSE client gone */ }
-            catch (Exception ex) { logger.LogWarning(ex, "Failed to emit __PPTX_READY__ marker"); }
+            catch (Exception ex) { logger.LogWarning(ex, "Failed to emit __HTML_READY__ marker"); }
         }
 
         if (toolDone.Data.Success && resultText is not null && resultText.Contains("__SCRIPT_READY__:"))

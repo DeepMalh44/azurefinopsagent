@@ -36,7 +36,7 @@ Call this when the user says they want a recurring or scheduled report.")]
         [Description("The full prompt/analysis to execute when the report runs")] string prompt,
         [Description("Frequency: 'daily', 'weekly', 'monthly'")] string frequency,
         [Description("Optional: scope to run against (subscription ID, resource group, management group). Omit for tenant-wide.")] string? scope = null,
-        [Description("Optional: output format — 'chat' (default), 'pptx' (PowerPoint), 'script' (remediation script)")] string? outputFormat = "chat")
+        [Description("Optional: output format — 'chat' (default), 'html' (HTML presentation deck), 'script' (remediation script)")] string? outputFormat = "chat")
     {
         var id = Guid.NewGuid().ToString("N")[..8];
         var schedule = new ReportSchedule

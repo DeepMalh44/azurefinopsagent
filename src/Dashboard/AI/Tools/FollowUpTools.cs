@@ -28,7 +28,7 @@ You MUST pass label2/prompt2 (and ideally label3/prompt3) so the user sees a sma
 
 For label2/label3 pick from (in this order of preference):
   - ""Generate remediation script for top finding"" \u2192 calls GenerateScript on the #1 issue
-  - ""Build CFO deck from this analysis""           \u2192 calls GeneratePresentation
+  - ""Build CFO deck from this analysis""           \u2192 calls GenerateHtmlPresentation
   - ""Drill into <top cost driver / RG / SKU>""     \u2192 deep-dives the single biggest entity
   - ""Apply tags via PATCH to <N> untagged resources"" \u2192 only when Azure is connected and tagging is the top finding
 

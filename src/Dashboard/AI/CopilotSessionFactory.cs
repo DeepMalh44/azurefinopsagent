@@ -189,7 +189,7 @@ When the user asks anything like ""What are my biggest issues in my FinOps matur
         var sharedTools = new List<AIFunction>();
         sharedTools.AddRange(ChartTools.Create(chartLogger));
         sharedTools.AddRange(HealthTools.Create());
-        sharedTools.AddRange(PresentationTools.Create());
+        sharedTools.AddRange(HtmlPresentationTools.Create());
         sharedTools.AddRange(FollowUpTools.Create());
         sharedTools.AddRange(FaqTools.Create());
         sharedTools.AddRange(ScoreTools.Create());

@@ -546,7 +546,7 @@ const maturityCategories = [
       {
         label: "Schedule a report",
         prompt:
-          "I want to schedule a recurring FinOps report. Help me set it up — ask me what analysis I want (cost overview, FinOps score, recommendations, etc.), the frequency (daily, weekly, monthly), the scope (subscription, resource group, or all), and the output format (chat summary or PowerPoint). Then save the schedule.",
+          "I want to schedule a recurring FinOps report. Help me set it up — ask me what analysis I want (cost overview, FinOps score, recommendations, etc.), the frequency (daily, weekly, monthly), the scope (subscription, resource group, or all), and the output format (chat summary or HTML presentation). Then save the schedule.",
       },
       {
         label: "View saved reports",

@@ -62,6 +62,6 @@ Invoke-RestMethod "https://azure-finops-agent.com/api/version"
 ### Notes
 
 - Multi-stage Dockerfile: node:22 (frontend) → dotnet/sdk:10.0 (build) → dotnet/aspnet:10.0 (runtime + Python 3 + pip packages)
-- All Python dependencies (python-pptx, matplotlib, lxml, pandas, numpy) are baked into the image.
+- All Python dependencies (pandas, numpy, openpyxl, pdfminer.six, pyarrow) are baked into the image.
 - `appsettings.Local.json` is excluded via `.dockerignore` — it will NOT be in the container.
 - Microsoft Entra ID OAuth callbacks: `https://azure-finops-agent.com/auth/microsoft/callback`, `https://finops-agent-container.azurewebsites.net/auth/microsoft/callback`

@@ -29,7 +29,7 @@ flowchart TB
     API[.NET 10 Minimal API]
     AI[GitHub Copilot SDK<br/>CopilotClient / CopilotSession]
     TOOLS[Custom AI Tools]
-    PY[Python helpers<br/>pandas / pyarrow / pptx / matplotlib]
+    PY[Python helpers<br/>pandas / pyarrow / openpyxl]
     OTEL[In-container OpenTelemetry Collector]
     AIINS[Azure Monitor / Application Insights]
     ACR[Azure Container Registry]
@@ -121,8 +121,8 @@ The final runtime image also includes:
 
 - Python 3
 - pandas / numpy / pyarrow
-- matplotlib
-- python-pptx
+- pdfminer.six
+- pyarrow
 - pdfminer
 - OpenTelemetry Collector
 
@@ -196,6 +196,7 @@ This means the app does **not** automatically have broad access to customer data
 ## 5. Data flow
 
 ### Anonymous/public usage
+
 Without Azure sign-in, users can still use features based on public or uploaded data, such as:
 
 - pricing lookups
@@ -204,6 +205,7 @@ Without Azure sign-in, users can still use features based on public or uploaded 
 - charts and presentations
 
 ### Authenticated usage
+
 When a user connects Azure:
 
 1. user authenticates with Entra ID
@@ -287,8 +289,8 @@ Even if the user has Azure RBAC allowing deletion, the app itself blocks `DELETE
 
 This is an important defense-in-depth measure:
 
-- RBAC says what the user *could* do in Azure generally
-- the app says what it *will ever attempt to do*
+- RBAC says what the user _could_ do in Azure generally
+- the app says what it _will ever attempt to do_
 
 That means the app intentionally narrows effective capability below raw Azure permissions.
 
@@ -412,22 +414,26 @@ If a user has too much access in Azure already, the app can accelerate what they
 ## 5. Other mitigations present in the solution
 
 ### Transport security
+
 - HTTPS redirection outside development
 - HSTS enabled in production
 - managed certificates for custom domain
 
 ### Session protections
+
 - secure cookie handling
 - idle timeout
 - absolute max session lifetime
 - cryptographically random session user IDs
 
 ### Secret handling
+
 - local secrets separated into local-only config
 - production settings supplied via App Service app settings
 - managed identity preferred for Azure auth paths
 
 ### Telemetry and traceability
+
 - Application Insights
 - OpenTelemetry
 - explicit tracing around tool execution and downstream calls
@@ -435,11 +441,13 @@ If a user has too much access in Azure already, the app can accelerate what they
 This improves incident response and abuse investigation.
 
 ### Response hardening
+
 - forwarded headers handling
 - canonical host redirect from `www` to bare domain
 - CSP with restricted sources
 
 ### Runtime safety
+
 - no unconditional load of local dev secrets in production
 - production behavior separated from development mode
 
@@ -466,22 +474,27 @@ The architecture helps mitigate:
 This solution still has meaningful risks that should be understood.
 
 ### A. Overly broad user RBAC remains dangerous
+
 If a user has broad subscription or tenant-wide read access, the agent can summarize a lot of data quickly.
 
 **Mitigation:** assign least-privilege RBAC roles to users of the app.
 
 ### B. Prompt-driven data over-collection
+
 Even read-only tools can return sensitive metadata if a user is allowed to access it.
 
 **Mitigation ideas:**
+
 - add content filtering / DLP checks on outputs
 - add server-side deny lists for especially sensitive ARM/Graph paths
 - add scoped allowlists per tool
 
 ### C. Uploaded file handling can become a data leakage surface
+
 The file analysis feature is powerful. If users upload confidential material, the service processes it.
 
 **Mitigation ideas:**
+
 - document retention policy clearly
 - add file type restrictions beyond current set
 - add malware scanning
@@ -489,14 +502,17 @@ The file analysis feature is powerful. If users upload confidential material, th
 - add automatic deletion schedules for uploaded artifacts
 
 ### D. ACR admin-enabled is not ideal
+
 The repo notes ACR admin is enabled. That is convenient but weaker than identity-based pull/push only.
 
 **Recommendation:** disable ACR admin account and use managed identity / federated CI/CD only.
 
 ### E. App Service network exposure
+
 The current design appears internet-exposed for the public web app.
 
 **Recommended hardening options:**
+
 - Azure Front Door + WAF
 - IP restrictions for admin surfaces if any exist
 - private endpoint patterns where appropriate
@@ -504,7 +520,9 @@ The current design appears internet-exposed for the public web app.
 - DDoS-aware fronting architecture if scaled
 
 ### F. No explicit customer-managed key or private networking controls are described
+
 The repo does not clearly describe:
+
 - private endpoints to Azure OpenAI
 - VNet integration restrictions
 - CMK usage
@@ -514,11 +532,13 @@ The repo does not clearly describe:
 Those would be useful enhancements for higher-assurance environments.
 
 ### G. AI prompt/content risk
+
 As with any agentic system, prompt injection or malicious retrieved content may influence behavior.
 
 The main protection here is that the tool layer is constrained, but the model can still be induced to over-query available data.
 
 **Recommended mitigations:**
+
 - explicit tool call policy rules
 - output filtering
 - sensitive path deny lists
@@ -532,35 +552,41 @@ The main protection here is that the tool layer is constrained, but the model ca
 For production-grade customer deployments, the following would materially improve security posture:
 
 ### Identity and access
+
 - Prefer **Reader / Cost Management Reader** for most users
 - Reserve write-capable roles for small admin groups
 - Use **PIM/JIT** for higher privileges
 - Separate analyst and operator personas
 
 ### Secrets and credentials
+
 - Eliminate client secrets in production where possible
 - Use **Key Vault references** for any remaining secrets
 - Disable **ACR admin user**
 
 ### Network security
+
 - Add **Azure Front Door + WAF**
 - Consider **private endpoint** access to Azure OpenAI
 - Restrict outbound egress where feasible
 - Enable App Service access restrictions if internal use only
 
 ### Data protection
+
 - Define retention/deletion policy for uploaded files
 - Add DLP scanning / sensitive content detection
 - Add output redaction for secrets, tokens, keys, and identifiers
 - Add audit logs for file upload/download/access
 
 ### AI safety
+
 - Add explicit allowlists for ARM/Graph query paths
 - Add server-side validation on tool arguments
 - Add human approval for all write operations, not just deletes
 - Add anomaly detection for suspicious query behavior
 
 ### Monitoring and response
+
 - Alert on unusual Graph/ARM query bursts
 - Alert on abnormal upload volume
 - Alert on excessive failed auth / consent flows

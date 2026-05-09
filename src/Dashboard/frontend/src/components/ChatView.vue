@@ -77,7 +77,15 @@
               class="sidebar-category"
               :class="{ 'sidebar-category--border': cat.key !== 'crawl' }"
             >
-              <div class="sidebar-category-label">
+              <div
+                class="sidebar-category-label"
+                :class="{
+                  'sidebar-category-label--toggle': maturityScores[cat.key],
+                }"
+                @click="
+                  maturityScores[cat.key] && toggleSection('score_' + cat.key)
+                "
+              >
                 <div class="sidebar-category-left">
                   <span>{{ cat.label }}</span>
                   <span v-if="cat.subtitle" class="sidebar-category-subtitle">{{
@@ -91,6 +99,24 @@
                     :style="{ color: starColor(maturityOverall(cat.key)) }"
                     >{{ starsText(maturityOverall(cat.key)) }}</span
                   >
+                  <svg
+                    v-if="maturityScores[cat.key]"
+                    class="collapse-chevron"
+                    :class="{
+                      'collapse-chevron--collapsed':
+                        collapsedSections['score_' + cat.key],
+                    }"
+                    viewBox="0 0 16 16"
+                    fill="none"
+                  >
+                    <path
+                      d="M4 6l4 4 4-4"
+                      stroke="currentColor"
+                      stroke-width="1.5"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
                 </div>
               </div>
               <button
@@ -105,8 +131,14 @@
                     : "Score " + cat.label
                 }}</span>
               </button>
-              <!-- Score results (from LLM) — always visible once scored -->
-              <div v-if="maturityScores[cat.key]" class="assessment-summary">
+              <!-- Score results (from LLM) — collapsible once scored -->
+              <div
+                v-if="
+                  maturityScores[cat.key] &&
+                  !collapsedSections['score_' + cat.key]
+                "
+                class="assessment-summary"
+              >
                 <div
                   v-for="sc in maturityScores[cat.key]"
                   :key="sc.id"
@@ -937,12 +969,13 @@
                   </div>
                   <div class="es-cap-item">
                     <div class="es-cap-title">
-                      Inline charts + CFO-ready PowerPoint
+                      Inline charts + interactive HTML decks
                     </div>
                     <div class="es-cap-desc">
                       20+ ECharts visualizations (treemaps, heatmaps, world
-                      maps, sankey) plus a one-click branded .pptx export — walk
-                      into the steering committee with the deck already built.
+                      maps, sankey) plus a one-click branded HTML presentation —
+                      walk into the steering committee with the deck already
+                      built.
                     </div>
                   </div>
                 </div>
@@ -989,32 +1022,39 @@
                       {{ a.label }}
                     </button>
                   </div>
-                  <div v-if="msg.pptx" class="pptx-inline-download">
-                    <a
-                      :href="'/api/download/pptx/' + msg.pptx.fileId"
-                      class="pptx-download-btn"
-                      download
-                    >
+                  <div v-if="msg.html" class="html-deck-card">
+                    <div class="html-deck-card-icon">
                       <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="16"
-                        height="16"
                         viewBox="0 0 24 24"
                         fill="none"
                         stroke="currentColor"
-                        stroke-width="2"
+                        stroke-width="1.8"
                         stroke-linecap="round"
                         stroke-linejoin="round"
                       >
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                        <polyline points="7 10 12 15 17 10" />
-                        <line x1="12" y1="15" x2="12" y2="3" />
+                        <rect x="3" y="4" width="18" height="14" rx="2" />
+                        <line x1="8" y1="21" x2="16" y2="21" />
+                        <line x1="12" y1="18" x2="12" y2="21" />
                       </svg>
-                      Download {{ msg.pptx.fileName }} ({{
-                        msg.pptx.slideCount
-                      }}
-                      slides)
-                    </a>
+                    </div>
+                    <div class="html-deck-card-body">
+                      <div class="html-deck-card-title">
+                        FinOps presentation ready
+                      </div>
+                      <div class="html-deck-card-meta">
+                        {{ msg.html.slideCount }} slides<span
+                          v-if="msg.html.createdAt"
+                        >
+                          · {{ msg.html.createdAt }}</span
+                        >
+                      </div>
+                    </div>
+                    <a
+                      :href="'/api/download/html/' + msg.html.fileId"
+                      :download="msg.html.fileName"
+                      class="html-deck-card-btn"
+                      >Download</a
+                    >
                   </div>
                   <div v-if="msg.script" class="script-inline-block">
                     <div class="script-header">
@@ -1141,31 +1181,36 @@
           </div>
         </div>
 
-        <!-- PPTX download (streaming) -->
-        <div v-if="pptxReady" class="pptx-download-bar">
-          <a
-            :href="'/api/download/pptx/' + pptxReady.fileId"
-            class="pptx-download-btn"
-            download
-          >
+        <!-- HTML deck (streaming) — compact card -->
+        <div v-if="htmlReady" class="html-deck-card">
+          <div class="html-deck-card-icon">
             <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="16"
-              height="16"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
-              stroke-width="2"
+              stroke-width="1.8"
               stroke-linecap="round"
               stroke-linejoin="round"
             >
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-              <polyline points="7 10 12 15 17 10" />
-              <line x1="12" y1="15" x2="12" y2="3" />
+              <rect x="3" y="4" width="18" height="14" rx="2" />
+              <line x1="8" y1="21" x2="16" y2="21" />
+              <line x1="12" y1="18" x2="12" y2="21" />
             </svg>
-            Download {{ pptxReady.fileName }} ({{ pptxReady.slideCount }}
-            slides)
-          </a>
+          </div>
+          <div class="html-deck-card-body">
+            <div class="html-deck-card-title">FinOps presentation ready</div>
+            <div class="html-deck-card-meta">
+              {{ htmlReady.slideCount }} slides<span v-if="htmlReady.createdAt">
+                · {{ htmlReady.createdAt }}</span
+              >
+            </div>
+          </div>
+          <a
+            :href="'/api/download/html/' + htmlReady.fileId"
+            :download="htmlReady.fileName"
+            class="html-deck-card-btn"
+            >Download</a
+          >
         </div>
 
         <!-- Script download (streaming) -->
@@ -1429,7 +1474,7 @@
                   class="input-action-btn"
                   :disabled="messages.length < 2 || streaming"
                   @click="requestPresentation()"
-                  title="Generate PowerPoint"
+                  title="Generate Presentation"
                 >
                   <svg
                     width="14"
@@ -1441,14 +1486,11 @@
                     stroke-linecap="round"
                     stroke-linejoin="round"
                   >
-                    <path
-                      d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
-                    />
-                    <polyline points="14 2 14 8 20 8" />
-                    <path d="M9 13h2v4h-2z" />
-                    <path d="M9 11h4" />
+                    <rect x="3" y="4" width="18" height="14" rx="2" />
+                    <line x1="8" y1="21" x2="16" y2="21" />
+                    <line x1="12" y1="18" x2="12" y2="21" />
                   </svg>
-                  <span>PowerPoint</span>
+                  <span>Presentation</span>
                 </button>
                 <button
                   class="input-action-btn"
@@ -1638,17 +1680,17 @@
 <script setup>
 import * as echarts from "echarts";
 import {
-    computed,
-    nextTick,
-    onBeforeUnmount,
-    onMounted,
-    reactive,
-    ref,
-    watch,
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  reactive,
+  ref,
+  watch,
 } from "vue";
 import {
-    maturityCategories,
-    pricingCategory,
+  maturityCategories,
+  pricingCategory,
 } from "../data/sidebarCategories.js";
 
 const props = defineProps({
@@ -1665,8 +1707,7 @@ const streamToolCalls = ref([]);
 const streamCharts = ref([]);
 const streamFollowUp = ref(null);
 const streamIntent = ref("");
-const pptxReady = ref(null);
-const pptxDownloads = ref([]);
+const htmlReady = ref(null);
 const scriptReady = ref(null);
 const messagesEl = ref(null);
 const inputEl = ref(null);
@@ -2254,9 +2295,8 @@ async function clearMessages() {
   streamBuffer.value = "";
   streamToolCalls.value = [];
   streamCharts.value = [];
-  pptxReady.value = null;
-  pptxDownloads.value = [];
   scriptReady.value = null;
+  htmlReady.value = null;
   attachments.value = [];
   activeTools.value = [];
   hoveredTool.value = null;
@@ -3562,7 +3602,7 @@ function sendPrompt(text) {
 
 function requestPresentation() {
   input.value =
-    "Generate a FinOps presentation from our conversation findings. Suggest a slide structure with the data we've discussed, and ask me if I want to customize anything before generating.";
+    "Generate a FinOps presentation from our conversation findings. Use the HTML deck format. Suggest a slide structure with the data we've discussed, and ask me if I want to customize anything before generating.";
   send();
 }
 
@@ -3712,11 +3752,15 @@ async function send() {
             scrollToBottom();
             break;
 
-          case "pptx_ready":
-            pptxReady.value = {
+          case "html_ready":
+            htmlReady.value = {
               fileId: data.fileId,
               fileName: data.fileName,
               slideCount: data.slideCount,
+              createdAt: new Date().toLocaleString(undefined, {
+                dateStyle: "medium",
+                timeStyle: "short",
+              }),
             };
             scrollToBottom();
             break;
@@ -3777,10 +3821,9 @@ async function send() {
       charts: [...streamCharts.value],
       followUp: streamFollowUp.value ? { ...streamFollowUp.value } : null,
     };
-    if (pptxReady.value) {
-      msgObj.pptx = { ...pptxReady.value };
-      pptxDownloads.value.push({ ...pptxReady.value });
-      pptxReady.value = null;
+    if (htmlReady.value) {
+      msgObj.html = { ...htmlReady.value };
+      htmlReady.value = null;
     }
     if (scriptReady.value) {
       msgObj.script = { ...scriptReady.value };
@@ -3814,8 +3857,8 @@ async function send() {
     streamCharts.value = [];
     streamFollowUp.value = null;
     streamIntent.value = "";
-    pptxReady.value = null;
     scriptReady.value = null;
+    htmlReady.value = null;
     abortController = null;
     nextTick(() => inputEl.value?.focus());
     if (availableModels.value.length <= 1) {
@@ -6353,61 +6396,66 @@ async function send() {
   font-weight: 600;
 }
 
-/* ── PPTX download ── */
-.pptx-suggest {
+/* ── HTML deck — compact download card ── */
+.html-deck-card {
+  margin-top: 12px;
   display: flex;
-  justify-content: center;
-  padding: 0 1rem 4px;
-  max-width: 800px;
-  margin: 0 auto;
-  width: 100%;
-}
-.pptx-suggest-btn {
-  display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 7px 16px;
-  border-radius: 4px;
+  gap: 12px;
+  padding: 12px 14px;
   border: 1px solid #e1dfdd;
-  background: #fff;
-  color: #323130;
-  font-size: 13px;
-  font-family: inherit;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-.pptx-suggest-btn:hover {
-  border-color: #0078d4;
-  color: #0078d4;
-}
-.pptx-download-bar {
-  display: flex;
-  justify-content: center;
-  padding: 0 1rem 8px;
-  max-width: 800px;
-  margin: 0 auto;
+  border-left: 4px solid #0078d4;
+  border-radius: 6px;
+  background: #fafafa;
   width: 100%;
+  max-width: 560px;
 }
-.pptx-download-btn {
+.html-deck-card-icon {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: #deecf9;
+  color: #0078d4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.html-deck-card-icon svg {
+  width: 20px;
+  height: 20px;
+}
+.html-deck-card-body {
+  flex: 1;
+  min-width: 0;
+}
+.html-deck-card-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #323130;
+  line-height: 1.2;
+}
+.html-deck-card-meta {
+  margin-top: 2px;
+  font-size: 11.5px;
+  color: #605e5c;
+}
+.html-deck-card-btn {
+  flex-shrink: 0;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 18px;
+  padding: 7px 16px;
   border-radius: 4px;
   background: #0078d4;
   color: #fff;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   text-decoration: none;
-  cursor: pointer;
-  transition: background 0.15s;
   border: none;
+  transition: background 0.15s;
 }
-.pptx-download-btn:hover {
+.html-deck-card-btn:hover {
   background: #106ebe;
-}
-.pptx-inline-download {
-  margin-top: 8px;
 }
 
 /* ── Script inline block ── */
