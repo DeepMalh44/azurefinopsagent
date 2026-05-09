@@ -1671,15 +1671,15 @@
         <div class="tool-popover-body">
           <div v-if="hoveredTool.args" class="tool-popover-section">
             <div class="tool-popover-label">INPUT</div>
-            <pre class="tool-popover-pre">{{
-              formatJson(hoveredTool.args)
-            }}</pre>
+            <pre
+              class="tool-popover-pre hljs"
+            ><code class="language-json" v-html="highlightJson(hoveredTool.args)"></code></pre>
           </div>
           <div v-if="hoveredTool.result" class="tool-popover-section">
             <div class="tool-popover-label">RESPONSE</div>
-            <pre class="tool-popover-pre">{{
-              truncate(hoveredTool.result, 4000)
-            }}</pre>
+            <pre
+              class="tool-popover-pre hljs"
+            ><code class="language-json" v-html="highlightJson(truncate(hoveredTool.result, 4000))"></code></pre>
           </div>
           <div v-if="hoveredTool.error" class="tool-popover-section">
             <div class="tool-popover-label">ERROR</div>
@@ -1698,6 +1698,9 @@
 
 <script setup>
 import * as echarts from "echarts";
+import hljs from "highlight.js/lib/core";
+import hljsJson from "highlight.js/lib/languages/json";
+import "highlight.js/styles/github-dark.css";
 import {
   computed,
   nextTick,
@@ -1711,6 +1714,7 @@ import {
   maturityCategories,
   pricingCategory,
 } from "../data/sidebarCategories.js";
+hljs.registerLanguage("json", hljsJson);
 
 const props = defineProps({
   user: { type: Object, default: null },
@@ -3540,6 +3544,40 @@ function formatJson(str) {
   }
 }
 
+function highlightJson(str) {
+  if (!str) return "";
+  const raw = String(str);
+  // Try strict JSON pretty-print first
+  let pretty = raw;
+  try {
+    pretty = JSON.stringify(JSON.parse(raw), null, 2);
+  } catch {
+    // Not valid JSON — try to extract the first JSON object/array within
+    const match = raw.match(/[\[{][\s\S]*[\]}]/);
+    if (match) {
+      try {
+        pretty = JSON.stringify(JSON.parse(match[0]), null, 2);
+      } catch {
+        // leave as raw
+      }
+    }
+  }
+  // Highlight as JSON if it now looks like JSON, otherwise plain escape
+  const looksLikeJson = /^[\s]*[\[{]/.test(pretty);
+  if (looksLikeJson) {
+    try {
+      return hljs.highlight(pretty, { language: "json", ignoreIllegals: true })
+        .value;
+    } catch {
+      // fall through
+    }
+  }
+  return pretty
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
 function truncate(str, max) {
   if (!str || str.length <= max) return str;
   return str.slice(0, max) + "\n... (truncated)";
@@ -3739,16 +3777,15 @@ function renderContent(text) {
     (match) => {
       const lines = match.trim().split("\n");
       if (lines.length < 2) return match;
-      const headerCells = lines[0]
-        .split("|")
-        .filter((c) => c.trim())
-        .map((c) => c.trim());
-      const dataRows = lines.slice(2).map((row) =>
-        row
+      // Strip outer pipes then split — keeps interior empty cells aligned.
+      const splitRow = (line) =>
+        line
+          .trim()
+          .replace(/^\||\|$/g, "")
           .split("|")
-          .filter((c) => c.trim().length > 0 || c === "")
-          .map((c) => c.trim()),
-      );
+          .map((c) => c.trim());
+      const headerCells = splitRow(lines[0]);
+      const dataRows = lines.slice(2).map(splitRow);
       return buildWowTable(headerCells, dataRows);
     },
   );
@@ -4379,11 +4416,11 @@ async function send() {
   display: flex;
   align-items: center;
   width: calc(100% - 20px);
-  margin: 2px 10px;
+  margin: 1px 10px;
   padding: 8px 12px;
-  border: 1px solid #edebe9;
+  border: 1px solid transparent;
   border-radius: 6px;
-  background: #fff;
+  background: transparent;
   font-size: 13px;
   font-weight: 400;
   color: #323130;
@@ -4391,16 +4428,15 @@ async function send() {
   text-align: left;
   line-height: 1.4;
   transition:
-    border-color 0.15s,
-    background 0.15s,
-    box-shadow 0.15s;
+    background 0.15s ease,
+    box-shadow 0.15s ease,
+    color 0.15s ease;
   font-family: inherit;
 }
 .sidebar-question:hover:not(:disabled) {
-  border-color: #0078d4;
-  background: #f3f2f1;
-  color: #0078d4;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  background: rgba(15, 23, 42, 0.04);
+  color: #1a1a1a;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
 }
 .sidebar-question:disabled {
   opacity: 0.4;
@@ -4413,16 +4449,18 @@ async function send() {
 .sidebar-question--score-cta {
   margin: 8px 12px 10px;
   padding: 8px 12px;
-  background: #f3f9fd;
-  border: 1px solid #c7e0f4;
-  border-radius: 4px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
   text-align: center;
   color: #0078d4;
   width: calc(100% - 24px);
+  font-weight: 600;
 }
 .sidebar-question--score-cta:hover {
-  background: #deecf9;
+  background: rgba(0, 120, 212, 0.06);
   color: #005a9e;
+  box-shadow: 0 1px 2px rgba(0, 120, 212, 0.08);
 }
 .sidebar-subgroup {
   border-top: 1px solid #edebe9;
@@ -6575,24 +6613,59 @@ async function send() {
   text-transform: uppercase;
 }
 .tool-popover-pre {
-  background: #f3f2f1;
-  border: 1px solid #e1dfdd;
-  border-radius: 4px;
-  padding: 12px 16px;
+  background: #0d1117;
+  border: 1px solid #21262d;
+  border-radius: 6px;
+  padding: 12px 14px;
   margin: 0;
-  font-size: 13px;
+  font-family:
+    ui-monospace, "SF Mono", "JetBrains Mono", "Fira Code", "Cascadia Code",
+    Menlo, Consolas, "Courier New", monospace;
+  font-size: 12px;
+  font-variant-ligatures: none;
   white-space: pre-wrap;
   word-break: break-word;
   max-height: 500px;
   overflow-y: auto;
-  line-height: 1.5;
-  color: #323130;
+  line-height: 1.55;
+  color: #e6edf3;
   scrollbar-width: thin;
+  -webkit-font-smoothing: antialiased;
+}
+.tool-popover-pre code {
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  display: block;
+}
+/* Force white-dominant scheme regardless of hljs theme */
+.tool-popover-pre :deep(.hljs),
+.tool-popover-pre :deep(.hljs-attr),
+.tool-popover-pre :deep(.hljs-string),
+.tool-popover-pre :deep(.hljs-number),
+.tool-popover-pre :deep(.hljs-literal),
+.tool-popover-pre :deep(.hljs-keyword),
+.tool-popover-pre :deep(.hljs-punctuation),
+.tool-popover-pre :deep(.hljs-built_in) {
+  color: #ffffff !important;
+  background: transparent !important;
+}
+/* Subtle accent to keep keys/strings distinguishable */
+.tool-popover-pre :deep(.hljs-attr) {
+  color: #79c0ff !important;
+}
+.tool-popover-pre :deep(.hljs-string) {
+  color: #d2e4ff !important;
+}
+.tool-popover-pre :deep(.hljs-number),
+.tool-popover-pre :deep(.hljs-literal) {
+  color: #f5b483 !important;
 }
 .tool-popover-pre--error {
-  color: #d13438;
-  background: #fde7e9;
-  border-color: #d13438;
+  color: #ffa198;
+  background: #2d1418;
+  border-color: #f85149;
 }
 
 /* ── Auth buttons ── */
