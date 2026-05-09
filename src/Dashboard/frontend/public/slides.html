@@ -279,7 +279,16 @@
         margin-bottom: 1.4rem;
       }
       .s1 h1 span {
-        color: var(--azure-blue);
+        background: linear-gradient(
+          135deg,
+          #005a9e 0%,
+          #0078d4 50%,
+          #0098e0 100%
+        );
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        color: transparent;
       }
       .s1 .tagline {
         font-size: clamp(1.15rem, 1.45vw, 1.4rem);

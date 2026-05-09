@@ -25,7 +25,35 @@
         </button>
         <span class="portal-title">Azure FinOps Agent</span>
       </div>
-      <div v-if="azureConnected && azureUserEmail" class="portal-header-right">
+      <div class="portal-trustline" aria-hidden="false">
+        <span class="portal-trustline-item">Built by Microsoft</span>
+        <a
+          class="portal-trustline-link"
+          href="https://github.com/Azure-Samples/azure-finops-agent"
+          target="_blank"
+          rel="noopener"
+          title="View source on GitHub"
+        >
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            aria-hidden="true"
+          >
+            <path
+              d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.57.1.78-.25.78-.55 0-.27-.01-.99-.02-1.94-3.2.69-3.87-1.54-3.87-1.54-.52-1.32-1.27-1.67-1.27-1.67-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.18 1.76 1.18 1.02 1.75 2.69 1.25 3.34.96.1-.74.4-1.25.72-1.54-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.28 1.18-3.09-.12-.29-.51-1.46.11-3.04 0 0 .97-.31 3.18 1.18a11.05 11.05 0 0 1 5.79 0c2.21-1.49 3.18-1.18 3.18-1.18.62 1.58.23 2.75.11 3.04.74.81 1.18 1.83 1.18 3.09 0 4.42-2.69 5.39-5.25 5.68.41.36.78 1.06.78 2.14 0 1.55-.01 2.8-.01 3.18 0 .31.21.66.79.55C20.21 21.39 23.5 17.08 23.5 12 23.5 5.65 18.35.5 12 .5z"
+            />
+          </svg>
+          <span>Open source</span>
+        </a>
+      </div>
+      <!-- Hidden for Dragon's Den pitch — email + disconnect are already shown in the sidebar.
+           Re-enable by removing v-if="false". -->
+      <div
+        v-if="false && azureConnected && azureUserEmail"
+        class="portal-header-right"
+      >
         <span class="portal-header-email">{{ azureUserEmail }}</span>
         <button
           class="portal-header-disconnect"
@@ -544,7 +572,10 @@
               </div>
             </div>
             <!-- Incremental consent: one row per scope, all delegated, separate Entra ID consent each -->
-            <div class="addons-section">
+            <!-- HIDDEN for Dragon's Den pitch — single-button Connect Azure only.
+                 Re-enable by removing v-if="false" to bring back License Optimization,
+                 Cost Allocation, Log Analytics, Cost Exports add-on tiers. -->
+            <div v-if="false" class="addons-section">
               <button
                 class="addons-heading"
                 type="button"
@@ -874,7 +905,10 @@
                 </div>
               </div>
 
+              <!-- HIDDEN for Dragon's Den pitch — keep UI to email + X disconnect only.
+                   Re-enable by removing v-if="false" to bring back the revoke-all button. -->
               <button
+                v-if="false"
                 class="azure-revoke-btn"
                 @click="revokeAllPermissions"
                 title="Disconnect and revoke all Entra ID permissions for this app"
@@ -898,84 +932,58 @@
         <div class="messages" ref="messagesEl">
           <div class="messages-inner">
             <div v-if="messages.length === 0" class="empty-state">
-              <h1 class="es-headline">Azure FinOps Agent</h1>
-              <p class="es-sub">
-                The most sophisticated FinOps agent for Azure. Connect a tenant
-                or drop a cost export — and turn weeks of analysis into action
-                in minutes. The agent can
-                <strong>fix things directly</strong> for you (tags, budgets,
-                anomaly alerts, autoshutdown) or hand you a
-                <strong>ready-to-run script and a CFO-ready deck</strong>
-                if you'd rather review first.
-              </p>
-
-              <!-- Capabilities -->
-              <div class="es-capabilities">
-                <div class="es-capabilities-grid">
-                  <div class="es-cap-item">
-                    <div class="es-cap-title">
-                      Quantified savings, ranked by $ impact
-                    </div>
-                    <div class="es-cap-desc">
+              <div class="hero">
+                <h1 class="hero-title">
+                  Azure <span class="hero-title-accent">FinOps</span> Agent
+                </h1>
+                <p class="hero-tagline">
+                  Turn weeks of FinOps analysis into action — in minutes.
+                </p>
+                <div class="hero-cards">
+                  <div class="hero-card">
+                    <div class="hero-card-title">Quantified savings</div>
+                    <div class="hero-card-desc">
                       Reservations, Savings Plans, Hybrid Benefit, rightsizing,
-                      idle and orphaned resources — surfaced with utilization
-                      evidence and an estimated annual saving, so you act on the
-                      biggest levers first.
+                      idle &amp; orphaned — ranked by annual $ impact.
                     </div>
                   </div>
-                  <div class="es-cap-item">
-                    <div class="es-cap-title">
-                      FinOps Foundation maturity score
-                    </div>
-                    <div class="es-cap-desc">
-                      Grades your tenant against the Crawl / Walk / Run
-                      framework with a 0–5 score per capability and a
-                      prioritized roadmap — the assessment a consultant bills
-                      weeks for, delivered in a chat.
+                  <div class="hero-card">
+                    <div class="hero-card-title">Maturity score</div>
+                    <div class="hero-card-desc">
+                      FinOps Foundation Crawl / Walk / Run, scored 0–5 per
+                      capability — the consultant assessment in a chat.
                     </div>
                   </div>
-                  <div class="es-cap-item">
-                    <div class="es-cap-title">
-                      Agentic reasoning, not a dashboard
-                    </div>
-                    <div class="es-cap-desc">
-                      Plans the investigation, picks the right ARM / Graph / Log
-                      Analytics calls, runs Python (pandas, numpy)
-                      mid-conversation, and revises when the data surprises it —
-                      autonomy a static report can't match.
+                  <div class="hero-card">
+                    <div class="hero-card-title">Acts, not dashboards</div>
+                    <div class="hero-card-desc">
+                      Applies tags, sets budgets &amp; anomaly alerts, drafts
+                      cleanup scripts. Never deletes.
                     </div>
                   </div>
-                  <div class="es-cap-item">
-                    <div class="es-cap-title">
-                      Anomalies, chargeback &amp; tag hygiene
+                  <div class="hero-card">
+                    <div class="hero-card-title">
+                      Anomalies &amp; chargeback
                     </div>
-                    <div class="es-cap-desc">
-                      Catches cost spikes and explains the <em>why</em> —
-                      resource, change, owner. Auto-generates showback by tag or
-                      business unit and quantifies the untagged spend breaking
-                      accountability.
+                    <div class="hero-card-desc">
+                      Catches cost spikes &amp; explains the why. Showback by
+                      tag, team, or business unit.
                     </div>
                   </div>
-                  <div class="es-cap-item">
-                    <div class="es-cap-title">
+                  <div class="hero-card">
+                    <div class="hero-card-title">
                       M365 license &amp; Copilot ROI
                     </div>
-                    <div class="es-cap-desc">
-                      Microsoft Graph integration surfaces unused licenses,
-                      Copilot seat utilization, and SKU mismatch — levers Azure
-                      Cost Management simply can't see, across 40+ Azure
-                      services and every subscription in one query.
+                    <div class="hero-card-desc">
+                      Microsoft Graph surfaces unused licenses, Copilot seat
+                      usage, SKU mismatch — beyond Cost Management.
                     </div>
                   </div>
-                  <div class="es-cap-item">
-                    <div class="es-cap-title">
-                      Inline charts + interactive HTML decks
-                    </div>
-                    <div class="es-cap-desc">
-                      20+ ECharts visualizations (treemaps, heatmaps, world
-                      maps, sankey) plus a one-click branded HTML presentation —
-                      walk into the steering committee with the deck already
-                      built.
+                  <div class="hero-card">
+                    <div class="hero-card-title">CFO-ready decks</div>
+                    <div class="hero-card-desc">
+                      20+ inline charts plus a one-click branded HTML
+                      presentation — walk in with the deck already built.
                     </div>
                   </div>
                 </div>
@@ -4058,11 +4066,69 @@ async function send() {
   align-items: center;
   justify-content: space-between;
   height: 40px;
-  background: #0078d4;
+  background: linear-gradient(90deg, #005a9e 0%, #0078d4 55%, #0098e0 100%);
   color: #fff;
   padding: 0 12px;
   flex-shrink: 0;
   z-index: 100;
+}
+.portal-trustline {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.9);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 60vw;
+}
+.portal-trustline-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ffffff;
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+.portal-trustline-sep {
+  opacity: 0.5;
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+}
+.portal-trustline-item {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+  transform: translateY(-1px);
+}
+.portal-trustline-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  line-height: 1;
+  color: inherit;
+  text-decoration: none;
+  opacity: 0.95;
+  transition:
+    color 0.15s,
+    opacity 0.15s;
+}
+.portal-trustline-link svg {
+  display: block;
+}
+.portal-trustline-link:hover {
+  color: #ffffff;
+  opacity: 1;
+}
+@media (max-width: 720px) {
+  .portal-trustline {
+    display: none;
+  }
 }
 .portal-header-left {
   display: flex;
@@ -5222,10 +5288,130 @@ async function send() {
   }
 }
 .es-headline {
-  font-size: 1.5rem;
+  font-size: clamp(1.8rem, 3.5vw, 2.6rem);
+  font-weight: 700;
+  margin: 0 0 0.4rem;
+  color: #1a1a1a;
+}
+.es-tagline {
+  font-size: clamp(0.95rem, 1.2vw, 1.1rem);
+  color: #605e5c;
+  margin: 0;
+  text-align: center;
+}
+
+/* ===== Modern hero (empty-state landing) ===== */
+.hero {
+  width: 100%;
+  max-width: 880px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: clamp(1rem, 4vh, 2.5rem) 1rem;
+}
+.hero-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
   font-weight: 600;
-  margin: 0 0 0.3rem;
-  color: #323130;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #0078d4;
+  background: rgba(0, 120, 212, 0.08);
+  padding: 6px 14px;
+  border-radius: 999px;
+  margin-bottom: clamp(1rem, 2.5vh, 1.6rem);
+}
+.hero-eyebrow-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #0078d4;
+  box-shadow: 0 0 0 4px rgba(0, 120, 212, 0.18);
+  animation: hero-pulse 2.4s ease-in-out infinite;
+}
+@keyframes hero-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 4px rgba(0, 120, 212, 0.18);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(0, 120, 212, 0.04);
+  }
+}
+.hero-title {
+  font-size: clamp(2.2rem, 5.5vw, 4.5rem);
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.035em;
+  margin: 0 0 0.6rem;
+  color: #111827;
+}
+.hero-title-accent {
+  background: linear-gradient(135deg, #005a9e 0%, #0078d4 50%, #0098e0 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+.hero-tagline {
+  font-size: clamp(1rem, 1.4vw, 1.25rem);
+  font-weight: 500;
+  color: #4b5563;
+  margin: 0 0 clamp(1.6rem, 4vh, 2.6rem);
+  max-width: 640px;
+  line-height: 1.5;
+}
+.hero-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  width: 100%;
+}
+.hero-card {
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 14px;
+  padding: 18px 18px 20px;
+  text-align: left;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+.hero-card-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #e6f4fc 0%, #cfe9fa 100%);
+  color: #0078d4;
+  font-weight: 800;
+  font-size: 16px;
+  margin-bottom: 10px;
+}
+.hero-card-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #111827;
+  margin-bottom: 4px;
+  letter-spacing: -0.01em;
+}
+.hero-card-desc {
+  font-size: 12.5px;
+  color: #6b7280;
+  line-height: 1.45;
+}
+@media (max-width: 720px) {
+  .hero-cards {
+    grid-template-columns: 1fr;
+  }
+  .hero-eyebrow {
+    font-size: 10.5px;
+    padding: 5px 11px;
+  }
 }
 .es-eyebrow {
   font-size: 11px;
@@ -6868,7 +7054,7 @@ async function send() {
     display: none;
   }
   .es-headline {
-    font-size: 1.3rem;
+    font-size: clamp(2rem, 11vw, 3rem);
   }
   .es-quick-grid {
     grid-template-columns: 1fr 1fr;
@@ -6905,7 +7091,7 @@ async function send() {
     grid-template-columns: 1fr;
   }
   .es-headline {
-    font-size: 1.3rem;
+    font-size: clamp(1.8rem, 12vw, 2.6rem);
   }
 }
 @media (max-width: 768px) {
