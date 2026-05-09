@@ -812,12 +812,12 @@
       /* ========== Slide 4: Architecture ========== */
       .s4 {
         background: #fff;
-        padding: 2vh 2vw;
+        padding: 1vh 2vw;
       }
       .s4 .content {
         display: flex;
         flex-direction: column;
-        gap: 1rem;
+        gap: 0;
         max-width: none;
         width: 100%;
         height: 100%;
@@ -880,13 +880,13 @@
         flex: 1;
         min-height: 0;
         display: flex;
-        align-items: center;
+        align-items: flex-start;
         justify-content: center;
       }
       .arch-svg {
         width: 100%;
         height: 100%;
-        max-height: 88vh;
+        max-height: 100vh;
         display: block;
       }
       .region-box {
@@ -2332,7 +2332,7 @@
           <div class="arch-wrap anim d3">
             <svg
               class="arch-svg"
-              viewBox="0 0 1660 760"
+              viewBox="0 0 1600 1000"
               preserveAspectRatio="xMidYMid meet"
               xmlns="http://www.w3.org/2000/svg"
             >
@@ -2957,464 +2957,462 @@
               <rect
                 class="region-box"
                 x="80"
-                y="290"
-                width="1200"
-                height="330"
+                y="430"
+                width="1240"
+                height="540"
                 rx="14"
               />
-              <text class="region-label" x="100" y="280">
-                Customer tenant · your tokens · your RBAC
-              </text>
 
-              <text class="region-label" x="1320" y="280">
-                Outside the tenant
-              </text>
-
-              <!-- ====== Connections (drawn first, nodes on top) ====== -->
-              <!-- User → App -->
-              <path class="conn c1" d="M 830,110 L 830,150" />
-              <!-- App → fan-out trunk -->
-              <path class="conn c2" d="M 830,260 L 830,300" />
-              <!-- Fan-out from agent to 4 in-tenant chips -->
-              <path class="conn c4" d="M 830,300 C 830,330 243,330 243,360" />
-              <path class="conn c5" d="M 830,300 C 830,330 532,330 532,360" />
-              <path class="conn c6" d="M 830,300 L 822,360" />
-              <path class="conn c7" d="M 830,300 C 830,330 1112,330 1112,360" />
-              <!-- Fan-out from agent to 2 outside-tenant chips -->
-              <path
-                class="conn c8"
-                d="M 830,300 C 1100,300 1450,310 1450,360"
-              />
+              <!-- ====== Connections ====== -->
+              <path class="conn c1" d="M 800,140 L 800,180" />
+              <path class="conn c2" d="M 800,370 L 800,460" />
+              <!-- Trunk fans into 4 columns (centered on each column) -->
+              <path class="conn c3" d="M 800,460 L 250,480" />
+              <path class="conn c3" d="M 800,460 L 550,480" />
+              <path class="conn c3" d="M 800,460 L 850,480" />
+              <path class="conn c3" d="M 800,460 L 1150,480" />
+              <!-- Sub → chip (clean verticals) -->
+              <path class="conn c4" d="M 250,620 L 250,790" opacity="0.5" />
+              <path class="conn c4" d="M 550,620 L 550,790" opacity="0.5" />
+              <path class="conn c4" d="M 850,620 L 850,790" opacity="0.5" />
+              <!-- Agent → Retail Prices -->
               <path
                 class="conn c10"
-                d="M 830,300 C 1100,300 1450,440 1450,490"
+                d="M 800,370 C 1300,370 1450,500 1450,560"
               />
 
               <!-- ====== Nodes ====== -->
-              <!-- User -->
+              <!-- FinOps Team (centered text) -->
               <g>
                 <rect
                   class="node-box"
-                  x="740"
-                  y="30"
-                  width="180"
-                  height="80"
-                  rx="10"
+                  x="500"
+                  y="20"
+                  width="600"
+                  height="120"
+                  rx="12"
                 />
-                <use href="#ic-users" x="755" y="45" width="40" height="40" />
-                <text class="node-title" x="805" y="68">FinOps Lead</text>
-                <text class="node-sub" x="805" y="89">Browser chat</text>
+                <use href="#ic-users" x="555" y="40" width="46" height="46" />
+                <use href="#ic-users" x="610" y="40" width="46" height="46" />
+                <use href="#ic-users" x="665" y="40" width="46" height="46" />
+                <use href="#ic-users" x="720" y="40" width="46" height="46" />
+                <text
+                  class="node-title"
+                  x="900"
+                  y="60"
+                  text-anchor="middle"
+                  style="font-size: 28px"
+                >
+                  FinOps Team
+                </text>
+                <text
+                  class="node-sub"
+                  x="900"
+                  y="92"
+                  text-anchor="middle"
+                  style="font-size: 15px; opacity: 0.75"
+                >
+                  Cost owner · Cloud admin · CFO
+                </text>
+              </g>
+
+              <!-- THE AGENT badge -->
+              <g>
+                <rect
+                  x="690"
+                  y="180"
+                  width="220"
+                  height="40"
+                  rx="20"
+                  fill="var(--azure-blue)"
+                />
+                <text
+                  x="800"
+                  y="208"
+                  text-anchor="middle"
+                  style="
+                    font-family: &quot;Segoe UI&quot;, sans-serif;
+                    font-size: 20px;
+                    font-weight: 800;
+                    fill: white;
+                    letter-spacing: 0.18em;
+                  "
+                >
+                  THE AGENT
+                </text>
               </g>
 
               <!-- App: Vue + .NET + Foundry -->
               <g>
                 <rect
                   class="node-box primary"
-                  x="540"
-                  y="150"
-                  width="580"
-                  height="110"
-                  rx="10"
+                  x="380"
+                  y="230"
+                  width="840"
+                  height="140"
+                  rx="12"
                 />
                 <use
                   href="#ic-app-service"
-                  x="565"
-                  y="178"
-                  width="50"
-                  height="50"
+                  x="430"
+                  y="270"
+                  width="68"
+                  height="68"
                 />
                 <use
                   href="#ic-foundry"
-                  x="985"
-                  y="178"
-                  width="50"
-                  height="50"
+                  x="1102"
+                  y="270"
+                  width="68"
+                  height="68"
                 />
                 <text
                   class="node-title"
-                  x="830"
-                  y="195"
+                  x="800"
+                  y="285"
                   text-anchor="middle"
-                  style="font-size: 22px"
+                  style="font-size: 28px"
                 >
                   Vue + .NET + Microsoft Foundry
                 </text>
                 <text
                   class="node-sub"
-                  x="830"
-                  y="220"
+                  x="800"
+                  y="320"
                   text-anchor="middle"
-                  style="font-size: 14px"
+                  style="font-size: 15px"
                 >
-                  Pro Code · Microsoft Agent Framework · Entra ID · no keys
+                  Pro Code · Microsoft Agent Framework · Entra ID
                 </text>
                 <text
                   class="node-sub"
-                  x="830"
-                  y="240"
+                  x="800"
+                  y="345"
                   text-anchor="middle"
-                  style="font-size: 13px; opacity: 0.7"
+                  style="font-size: 13px; opacity: 0.65"
                 >
                   Container Apps or App Service
                 </text>
               </g>
 
-              <!-- ====== In-tenant data source chips (with stacked subscription shadows) ====== -->
-
-              <!-- ===== Subscription row (between agent and data chips) ===== -->
-              <g>
-                <text
-                  x="120"
-                  y="320"
-                  style="
-                    font-family: &quot;Segoe UI&quot;, sans-serif;
-                    font-size: 13px;
-                    font-weight: 700;
-                    fill: var(--azure-blue);
-                    letter-spacing: 0.12em;
-                    text-transform: uppercase;
-                  "
-                >
-                  Subscriptions across the tenant
-                </text>
-                <use
-                  href="#ic-subscription"
-                  x="160"
-                  y="332"
-                  width="36"
-                  height="36"
-                />
-                <use
-                  href="#ic-subscription"
-                  x="310"
-                  y="332"
-                  width="36"
-                  height="36"
-                />
-                <use
-                  href="#ic-subscription"
-                  x="460"
-                  y="332"
-                  width="36"
-                  height="36"
-                />
-                <use
-                  href="#ic-subscription"
-                  x="610"
-                  y="332"
-                  width="36"
-                  height="36"
-                />
-                <use
-                  href="#ic-subscription"
-                  x="760"
-                  y="332"
-                  width="36"
-                  height="36"
-                />
-                <use
-                  href="#ic-subscription"
-                  x="910"
-                  y="332"
-                  width="36"
-                  height="36"
-                />
-                <use
-                  href="#ic-subscription"
-                  x="1060"
-                  y="332"
-                  width="36"
-                  height="36"
-                />
-                <use
-                  href="#ic-subscription"
-                  x="1140"
-                  y="332"
-                  width="36"
-                  height="36"
-                  opacity="0.55"
-                />
-                <text
-                  x="1200"
-                  y="360"
-                  style="
-                    font-family: &quot;Segoe UI&quot;, sans-serif;
-                    font-size: 26px;
-                    font-weight: 800;
-                    fill: var(--ink-mute);
-                  "
-                >
-                  …
-                </text>
-              </g>
-
-              <!-- Chip 1: Cost Management -->
-              <g>
-                <rect
-                  class="node-box"
-                  x="110"
-                  y="360"
-                  width="240"
-                  height="160"
-                  rx="10"
-                />
-                <!-- icon only, badges moved to dedicated subscription row below -->
-                <use
-                  href="#ic-cost-mgmt"
-                  x="195"
-                  y="385"
-                  width="70"
-                  height="70"
-                />
-                <text
-                  class="node-title"
-                  x="230"
-                  y="480"
-                  text-anchor="middle"
-                  style="font-size: 18px"
-                >
-                  Cost Management
-                </text>
-                <text
-                  class="node-sub"
-                  x="230"
-                  y="503"
-                  text-anchor="middle"
-                  style="font-size: 12px; opacity: 0.7"
-                >
-                  Cost · Advisor · Forecast
-                </text>
-              </g>
-
-              <!-- Chip 2: Resource Graph -->
-              <g>
-                <rect
-                  class="node-box"
-                  x="400"
-                  y="360"
-                  width="240"
-                  height="160"
-                  rx="10"
-                />
-                <use
-                  href="#ic-resource-graph"
-                  x="485"
-                  y="385"
-                  width="70"
-                  height="70"
-                />
-                <text
-                  class="node-title"
-                  x="520"
-                  y="480"
-                  text-anchor="middle"
-                  style="font-size: 18px"
-                >
-                  Resource Graph
-                </text>
-                <text
-                  class="node-sub"
-                  x="520"
-                  y="503"
-                  text-anchor="middle"
-                  style="font-size: 12px; opacity: 0.7"
-                >
-                  Inventory · KQL
-                </text>
-              </g>
-
-              <!-- Chip 3: Azure Monitor -->
-              <g>
-                <rect
-                  class="node-box"
-                  x="690"
-                  y="360"
-                  width="240"
-                  height="160"
-                  rx="10"
-                />
-                <use
-                  href="#ic-log-analytics"
-                  x="775"
-                  y="385"
-                  width="70"
-                  height="70"
-                />
-                <text
-                  class="node-title"
-                  x="810"
-                  y="480"
-                  text-anchor="middle"
-                  style="font-size: 18px"
-                >
-                  Azure Monitor
-                </text>
-                <text
-                  class="node-sub"
-                  x="810"
-                  y="503"
-                  text-anchor="middle"
-                  style="font-size: 12px; opacity: 0.7"
-                >
-                  Logs · Metrics · App Insights
-                </text>
-              </g>
-
-              <!-- Chip 4: Cost Exports -->
-              <g>
-                <rect
-                  class="node-box"
-                  x="980"
-                  y="360"
-                  width="240"
-                  height="160"
-                  rx="10"
-                />
-                <use
-                  href="#ic-storage"
-                  x="1065"
-                  y="385"
-                  width="70"
-                  height="70"
-                />
-                <text
-                  class="node-title"
-                  x="1100"
-                  y="480"
-                  text-anchor="middle"
-                  style="font-size: 18px"
-                >
-                  Cost Exports
-                </text>
-                <text
-                  class="node-sub"
-                  x="1100"
-                  y="503"
-                  text-anchor="middle"
-                  style="font-size: 12px; opacity: 0.7"
-                >
-                  Customer storage
-                </text>
-              </g>
-
-              <!-- ====== Outside-tenant chips (single, no stack) ====== -->
-
-              <!-- Microsoft Graph -->
-              <g>
-                <rect
-                  class="node-box"
-                  x="1330"
-                  y="360"
-                  width="240"
-                  height="100"
-                  rx="10"
-                />
-                <use href="#ic-entra" x="1352" y="380" width="50" height="50" />
-                <text class="node-title" x="1418" y="395">Microsoft Graph</text>
-                <text class="node-sub" x="1418" y="416" style="opacity: 0.7">
-                  M365 licenses · usage
-                </text>
-                <text
-                  class="node-sub"
-                  x="1418"
-                  y="436"
-                  style="opacity: 0.55; font-size: 12px"
-                >
-                  Tenant-wide
-                </text>
-              </g>
-
-              <!-- Retail Prices -->
-              <g>
-                <rect
-                  class="node-box"
-                  x="1330"
-                  y="490"
-                  width="240"
-                  height="100"
-                  rx="10"
-                />
-                <use
-                  href="#ic-marketplace"
-                  x="1352"
-                  y="510"
-                  width="50"
-                  height="50"
-                />
-                <text class="node-title" x="1418" y="525">Retail Prices</text>
-                <text class="node-sub" x="1418" y="546" style="opacity: 0.7">
-                  Public pricing · no auth
-                </text>
-                <text
-                  class="node-sub"
-                  x="1418"
-                  y="566"
-                  style="opacity: 0.55; font-size: 12px"
-                >
-                  Public
-                </text>
-              </g>
-
-              <!-- ====== Caption beneath in-tenant chips: "across N subscriptions" ====== -->
+              <!-- Subscription label inside tenant -->
               <text
-                x="670"
-                y="568"
-                text-anchor="middle"
+                x="110"
+                y="465"
                 style="
                   font-family: &quot;Segoe UI&quot;, sans-serif;
-                  font-size: 14px;
-                  font-weight: 700;
+                  font-size: 13px;
+                  font-weight: 800;
                   fill: var(--azure-blue);
-                  letter-spacing: 0.06em;
+                  letter-spacing: 0.16em;
                   text-transform: uppercase;
                 "
               >
-                Multi-subscription · cross-tenant · read &amp; write · never
-                delete
+                Across every subscription
               </text>
+
+              <!-- Sub tiles row (centers: 250, 550, 850, 1150) -->
+              <g>
+                <rect
+                  class="node-box"
+                  x="130"
+                  y="480"
+                  width="240"
+                  height="140"
+                  rx="12"
+                />
+                <use
+                  href="#ic-subscription"
+                  x="230"
+                  y="500"
+                  width="40"
+                  height="40"
+                />
+                <text
+                  class="node-title"
+                  x="250"
+                  y="585"
+                  text-anchor="middle"
+                  style="font-size: 18px"
+                >
+                  Production EU
+                </text>
+              </g>
+              <g>
+                <rect
+                  class="node-box"
+                  x="430"
+                  y="480"
+                  width="240"
+                  height="140"
+                  rx="12"
+                />
+                <use
+                  href="#ic-subscription"
+                  x="530"
+                  y="500"
+                  width="40"
+                  height="40"
+                />
+                <text
+                  class="node-title"
+                  x="550"
+                  y="585"
+                  text-anchor="middle"
+                  style="font-size: 18px"
+                >
+                  Production US
+                </text>
+              </g>
+              <g>
+                <rect
+                  class="node-box"
+                  x="730"
+                  y="480"
+                  width="240"
+                  height="140"
+                  rx="12"
+                />
+                <use
+                  href="#ic-subscription"
+                  x="830"
+                  y="500"
+                  width="40"
+                  height="40"
+                />
+                <text
+                  class="node-title"
+                  x="850"
+                  y="585"
+                  text-anchor="middle"
+                  style="font-size: 18px"
+                >
+                  Data &amp; Analytics
+                </text>
+              </g>
+              <g>
+                <rect
+                  class="node-box"
+                  x="1030"
+                  y="480"
+                  width="240"
+                  height="140"
+                  rx="12"
+                />
+                <use
+                  href="#ic-subscription"
+                  x="1130"
+                  y="500"
+                  width="40"
+                  height="40"
+                />
+                <text
+                  class="node-title"
+                  x="1150"
+                  y="585"
+                  text-anchor="middle"
+                  style="font-size: 18px"
+                >
+                  Non-prod
+                </text>
+              </g>
+
+              <!-- Data plane label -->
+              <text
+                x="110"
+                y="775"
+                style="
+                  font-family: &quot;Segoe UI&quot;, sans-serif;
+                  font-size: 13px;
+                  font-weight: 800;
+                  fill: var(--azure-blue);
+                  letter-spacing: 0.16em;
+                  text-transform: uppercase;
+                "
+              >
+                Read &amp; write across every Azure data plane
+              </text>
+
+              <!-- Data chips row (same x as sub tiles, centers: 250, 550, 850, 1150) -->
+              <g>
+                <rect
+                  class="node-box"
+                  x="130"
+                  y="790"
+                  width="240"
+                  height="160"
+                  rx="12"
+                />
+                <use
+                  href="#ic-cost-mgmt"
+                  x="215"
+                  y="810"
+                  width="70"
+                  height="70"
+                />
+                <text
+                  class="node-title"
+                  x="250"
+                  y="915"
+                  text-anchor="middle"
+                  style="font-size: 19px"
+                >
+                  Cost Management
+                </text>
+              </g>
+              <g>
+                <rect
+                  class="node-box"
+                  x="430"
+                  y="790"
+                  width="240"
+                  height="160"
+                  rx="12"
+                />
+                <use
+                  href="#ic-resource-graph"
+                  x="515"
+                  y="810"
+                  width="70"
+                  height="70"
+                />
+                <text
+                  class="node-title"
+                  x="550"
+                  y="915"
+                  text-anchor="middle"
+                  style="font-size: 19px"
+                >
+                  Resource Graph
+                </text>
+              </g>
+              <g>
+                <rect
+                  class="node-box"
+                  x="730"
+                  y="790"
+                  width="240"
+                  height="160"
+                  rx="12"
+                />
+                <use
+                  href="#ic-log-analytics"
+                  x="815"
+                  y="810"
+                  width="70"
+                  height="70"
+                />
+                <text
+                  class="node-title"
+                  x="850"
+                  y="915"
+                  text-anchor="middle"
+                  style="font-size: 19px"
+                >
+                  Azure Monitor
+                </text>
+              </g>
+              <g>
+                <rect
+                  class="node-box"
+                  x="1030"
+                  y="790"
+                  width="240"
+                  height="160"
+                  rx="12"
+                />
+                <use href="#ic-entra" x="1115" y="810" width="70" height="70" />
+                <text
+                  class="node-title"
+                  x="1150"
+                  y="915"
+                  text-anchor="middle"
+                  style="font-size: 19px"
+                >
+                  M365 Graph
+                </text>
+              </g>
+
+              <!-- Outside-tenant: Retail Prices -->
+              <g>
+                <rect
+                  class="node-box"
+                  x="1370"
+                  y="540"
+                  width="200"
+                  height="200"
+                  rx="12"
+                  opacity="0.92"
+                />
+                <use
+                  href="#ic-marketplace"
+                  x="1430"
+                  y="565"
+                  width="80"
+                  height="80"
+                />
+                <text
+                  class="node-title"
+                  x="1470"
+                  y="675"
+                  text-anchor="middle"
+                  style="font-size: 18px"
+                >
+                  Retail Prices
+                </text>
+                <text
+                  class="node-sub"
+                  x="1470"
+                  y="700"
+                  text-anchor="middle"
+                  style="font-size: 12px; opacity: 0.6"
+                >
+                  Public · no auth
+                </text>
+              </g>
 
               <!-- ====== Animated flow particles ====== -->
               <circle
                 class="flow-particle fp1"
                 r="4"
-                style="offset-path: path(&quot;M 830,110 L 830,150&quot;)"
+                style="offset-path: path(&quot;M 800,140 L 800,180&quot;)"
               />
               <circle
                 class="flow-particle fp2"
                 r="4"
-                style="offset-path: path(&quot;M 830,260 L 830,300&quot;)"
+                style="offset-path: path(&quot;M 800,370 L 800,460&quot;)"
+              />
+              <circle
+                class="flow-particle fp3"
+                r="4"
+                style="offset-path: path(&quot;M 800,460 L 250,480&quot;)"
+              />
+              <circle
+                class="flow-particle fp4"
+                r="4"
+                style="offset-path: path(&quot;M 800,460 L 550,480&quot;)"
+              />
+              <circle
+                class="flow-particle fp5"
+                r="4"
+                style="offset-path: path(&quot;M 800,460 L 850,480&quot;)"
+              />
+              <circle
+                class="flow-particle fp6"
+                r="4"
+                style="
+                  offset-path: path(&quot;M 800,460 L 1150,480&quot;);
+                  fill: #b77af4;
+                "
               />
               <circle
                 class="flow-particle fp3"
                 r="4"
                 style="
                   offset-path: path(
-                    &quot;M 830,300 C 830,330 243,330 243,360&quot;
+                    &quot;M 800,370 C 1300,370 1450,500 1450,560&quot;
                   );
-                "
-              />
-              <circle
-                class="flow-particle fp4"
-                r="4"
-                style="
-                  offset-path: path(
-                    &quot;M 830,300 C 830,330 532,330 532,360&quot;
-                  );
-                "
-              />
-              <circle
-                class="flow-particle fp5"
-                r="4"
-                style="offset-path: path(&quot;M 830,300 L 822,360&quot;)"
-              />
-              <circle
-                class="flow-particle fp6"
-                r="4"
-                style="
-                  offset-path: path(
-                    &quot;M 830,300 C 830,330 1112,330 1112,360&quot;
-                  );
-                  fill: #b77af4;
+                  fill: #50e6ff;
                 "
               />
             </svg>
