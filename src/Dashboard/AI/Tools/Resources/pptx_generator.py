@@ -116,6 +116,26 @@ def apply_picture_shadow(picture):
     except Exception:
         pass
 
+def _fit_bullets_pt(n):
+    """Pick a bullet font size that scales inversely with bullet count.\n    Few bullets read big and confident; many bullets stay legible."""
+    if n <= 3: return 24
+    if n <= 5: return 20
+    if n <= 7: return 17
+    if n <= 10: return 15
+    return 13
+
+def _fit_kpi_value_pt(text, card_width_in):
+    """Pick a value font size that fits a single line inside the KPI card.
+    Heuristic: ~0.55in per character at 32pt; scale down by length and card width."""
+    n = len(str(text))
+    # Available chars at 32pt baseline given card width (minus padding)
+    avail_in = max(0.5, card_width_in - 0.5)
+    # Approximate avg char width in inches at given pt size: pt * 0.0095 (Segoe UI bold)
+    for size in (32, 28, 24, 20, 18, 16, 14):
+        if n * size * 0.0095 <= avail_in:
+            return size
+    return 14
+
 def add_kpi_card(slide, left, top, width, height, label, value, sublabel='', accent=AZURE_BLUE):
     """A single executive KPI tile: rounded card, thin colored top bar, big value, small label below."""
     card = slide.shapes.add_shape(5, Inches(left), Inches(top), Inches(width), Inches(height))
@@ -128,10 +148,13 @@ def add_kpi_card(slide, left, top, width, height, label, value, sublabel='', acc
     bar.line.fill.background()
     add_textbox(slide, left + 0.25, top + 0.3, width - 0.5, 0.35,
                 label.upper(), font_size=10, bold=True, color=TEXT_LIGHT)
-    add_textbox(slide, left + 0.25, top + 0.65, width - 0.5, 0.9,
-                value, font_size=32, bold=True, color=TEXT_DARK)
+    value_pt = _fit_kpi_value_pt(value, width)
+    val_box = add_textbox(slide, left + 0.25, top + 0.7, width - 0.5, 0.9,
+                value, font_size=value_pt, bold=True, color=TEXT_DARK)
+    # Single-line: disable word wrap so the chosen font size is honored without runaway wrap
+    val_box.text_frame.word_wrap = False
     if sublabel:
-        add_textbox(slide, left + 0.25, top + 1.55, width - 0.5, 0.4,
+        add_textbox(slide, left + 0.25, top + 1.6, width - 0.5, 0.45,
                     sublabel, font_size=11, color=TEXT_MED)
 
 def stars_text(score):
@@ -353,18 +376,30 @@ for idx, slide_def in enumerate(slides_data):
         dot.line.fill.background()
         add_textbox(slide, 1.5, 1.35, 11, 0.45, 'AZURE FINOPS', font_size=12, bold=True,
                     color=ACCENT_TEAL)
-        add_textbox(slide, 1, 2.4, 11, 1.6, title, font_size=46, bold=True, color=WHITE)
+        # Constrain title within the dark accent block (~6.3in wide) and shrink for long strings
+        title_len = len(title)
+        if title_len <= 28:
+            title_pt = 46
+        elif title_len <= 40:
+            title_pt = 38
+        elif title_len <= 55:
+            title_pt = 30
+        else:
+            title_pt = 24
+        add_textbox(slide, 1, 2.4, 6.3, 2.4, title, font_size=title_pt, bold=True, color=WHITE)
         if subtitle:
-            add_textbox(slide, 1, 4.2, 11, 0.8, subtitle, font_size=20, color=RGBColor(0xBE, 0xD7, 0xEF))
+            add_textbox(slide, 1, 4.7, 6.3, 0.8, subtitle, font_size=18, color=RGBColor(0xBE, 0xD7, 0xEF))
         # Hairline divider
-        rule = slide.shapes.add_shape(1, Inches(1), Inches(5.4), Inches(5), Inches(0.012))
+        rule = slide.shapes.add_shape(1, Inches(1), Inches(5.7), Inches(5), Inches(0.012))
         rule.fill.solid(); rule.fill.fore_color.rgb = ACCENT_TEAL
         rule.line.fill.background()
         brand_label = 'Microsoft Azure FinOps Agent'
         if customer_name:
-            brand_label = f'Prepared for {customer_name}'
-        add_textbox(slide, 1, 5.6, 11, 0.4, brand_label, font_size=13, bold=True, color=WHITE)
-        add_textbox(slide, 1, 6.05, 11, 0.4, 'Generated live from Azure APIs', font_size=10, color=RGBColor(0x80, 0x9D, 0xB8))
+            # Truncate very long customer names so the footer line stays inside the accent block
+            display_customer = customer_name if len(customer_name) <= 38 else customer_name[:35] + '…'
+            brand_label = f'Prepared for {display_customer}'
+        add_textbox(slide, 1, 5.9, 6.3, 0.4, brand_label, font_size=12, bold=True, color=WHITE)
+        add_textbox(slide, 1, 6.35, 6.3, 0.4, 'Generated live from Azure APIs', font_size=10, color=RGBColor(0x80, 0x9D, 0xB8))
 
     elif layout == 'section':
         add_bg(slide, AZURE_LIGHT)
@@ -393,7 +428,9 @@ for idx, slide_def in enumerate(slides_data):
                 os.remove(chart_path)
         if bullets:
             bullet_top = 1.3 if not chart_cfg else 6.0
-            add_bullets(slide, 0.8, bullet_top, 11, 1.2, bullets, font_size=12, color=TEXT_MED)
+            # Bigger takeaway font when there are only 1–2 lines below a chart
+            takeaway_pt = 16 if len(bullets) <= 2 else 14
+            add_bullets(slide, 0.8, bullet_top, 11.7, 1.2, bullets, font_size=takeaway_pt, color=TEXT_MED)
 
     elif layout == 'kpi':
         add_bg(slide, SLIDE_BG)
@@ -449,11 +486,13 @@ for idx, slide_def in enumerate(slides_data):
         shape.fill.solid(); shape.fill.fore_color.rgb = AZURE_BLUE
         shape.line.fill.background()
         add_textbox(slide, 0.8, 0.3, 11, 0.7, title, font_size=24, bold=True, color=TEXT_DARK)
-        if bullets:
-            add_bullets(slide, 0.8, 1.3, 5.2, 5.5, bullets, font_size=13, color=TEXT_DARK)
         right_bullets = slide_def.get('bullets_right', [])
+        max_n = max(len(bullets or []), len(right_bullets or []))
+        col_pt = _fit_bullets_pt(max_n)
+        if bullets:
+            add_bullets(slide, 0.8, 1.3, 5.6, 5.5, bullets, font_size=col_pt, color=TEXT_DARK)
         if right_bullets:
-            add_bullets(slide, 6.8, 1.3, 5.2, 5.5, right_bullets, font_size=13, color=TEXT_DARK)
+            add_bullets(slide, 6.9, 1.3, 5.6, 5.5, right_bullets, font_size=col_pt, color=TEXT_DARK)
 
     else:
         add_bg(slide, SLIDE_BG)
@@ -462,10 +501,12 @@ for idx, slide_def in enumerate(slides_data):
         shape.line.fill.background()
         add_textbox(slide, 0.8, 0.3, 11, 0.7, title, font_size=24, bold=True, color=TEXT_DARK)
         if subtitle:
-            add_textbox(slide, 0.8, 1.0, 11, 0.5, subtitle, font_size=14, color=TEXT_MED)
+            add_textbox(slide, 0.8, 1.0, 11, 0.5, subtitle, font_size=16, color=TEXT_MED)
         if bullets:
-            bullet_top = 1.6 if subtitle else 1.3
-            add_bullets(slide, 0.8, bullet_top, 11, 5.0, bullets, font_size=15, color=TEXT_DARK)
+            bullet_top = 1.7 if subtitle else 1.4
+            # Scale bullet font with bullet count so few bullets read big and many still fit
+            bullet_pt = _fit_bullets_pt(len(bullets))
+            add_bullets(slide, 0.8, bullet_top, 11.7, 5.2, bullets, font_size=bullet_pt, color=TEXT_DARK)
 
         if chart_cfg and HAS_MPL:
             chart_path = output_path.replace('.pptx', f'_chart_{idx}.png')

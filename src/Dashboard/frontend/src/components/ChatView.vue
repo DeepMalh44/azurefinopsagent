@@ -69,36 +69,167 @@
       <!-- Left sidebar -->
       <aside class="sidebar" :class="{ 'sidebar--collapsed': !sidebarOpen }">
         <div class="sidebar-scroll">
-          <!-- FinOps Maturity Categories (Crawl / Walk / Run + Pricing) -->
+          <!-- Score buttons (Crawl / Walk / Run) — single CTA per level -->
+          <template v-if="azureConnected">
+            <div
+              v-for="cat in scoreCategories"
+              :key="'score-' + cat.key"
+              class="sidebar-category"
+              :class="{ 'sidebar-category--border': cat.key !== 'crawl' }"
+            >
+              <div class="sidebar-category-label">
+                <div class="sidebar-category-left">
+                  <span>{{ cat.label }}</span>
+                  <span v-if="cat.subtitle" class="sidebar-category-subtitle">{{
+                    cat.subtitle
+                  }}</span>
+                </div>
+                <div class="sidebar-category-right">
+                  <span
+                    v-if="maturityScores[cat.key]"
+                    class="sidebar-stars"
+                    :style="{ color: starColor(maturityOverall(cat.key)) }"
+                    >{{ starsText(maturityOverall(cat.key)) }}</span
+                  >
+                </div>
+              </div>
+              <button
+                class="sidebar-question sidebar-question--score-cta"
+                :disabled="streaming"
+                :title="cat.scorePrompt"
+                @click="sendQuestion(cat.scorePrompt)"
+              >
+                <span class="sidebar-question-label--score">{{
+                  maturityScores[cat.key]
+                    ? "Rescore " + cat.label
+                    : "Score " + cat.label
+                }}</span>
+              </button>
+              <!-- Score results (from LLM) — always visible once scored -->
+              <div v-if="maturityScores[cat.key]" class="assessment-summary">
+                <div
+                  v-for="sc in maturityScores[cat.key]"
+                  :key="sc.id"
+                  class="assessment-row"
+                >
+                  <div class="assessment-label">{{ sc.label }}</div>
+                  <div
+                    class="assessment-stars"
+                    :style="{ color: starColor(sc.score) }"
+                  >
+                    {{ starsText(sc.score) }}
+                  </div>
+                  <div class="assessment-detail-text">{{ sc.detail }}</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Playbook parent — collapses all detailed prompts under one node -->
+            <div class="sidebar-category sidebar-category--border">
+              <div
+                class="sidebar-category-label sidebar-category-label--toggle"
+                @click="toggleSection('playbookRoot')"
+              >
+                <div class="sidebar-category-left">
+                  <span>Playbook</span>
+                  <span class="sidebar-category-subtitle"
+                    >All prompts by level</span
+                  >
+                </div>
+                <div class="sidebar-category-right">
+                  <svg
+                    class="collapse-chevron"
+                    :class="{
+                      'collapse-chevron--collapsed':
+                        collapsedSections.playbookRoot,
+                    }"
+                    viewBox="0 0 16 16"
+                    fill="none"
+                  >
+                    <path
+                      d="M4 6l4 4 4-4"
+                      stroke="currentColor"
+                      stroke-width="1.5"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </div>
+              </div>
+              <div
+                class="collapse-body"
+                :class="{
+                  'collapse-body--collapsed': collapsedSections.playbookRoot,
+                }"
+              >
+                <div
+                  v-for="grp in playbookGroups"
+                  :key="grp.key"
+                  class="sidebar-subgroup"
+                >
+                  <div
+                    class="sidebar-subgroup-label sidebar-category-label--toggle"
+                    @click="toggleSection('pb_' + grp.key)"
+                  >
+                    <span>{{ grp.label }}</span>
+                    <svg
+                      class="collapse-chevron"
+                      :class="{
+                        'collapse-chevron--collapsed':
+                          collapsedSections['pb_' + grp.key],
+                      }"
+                      viewBox="0 0 16 16"
+                      fill="none"
+                    >
+                      <path
+                        d="M4 6l4 4 4-4"
+                        stroke="currentColor"
+                        stroke-width="1.5"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      />
+                    </svg>
+                  </div>
+                  <div
+                    class="collapse-body"
+                    :class="{
+                      'collapse-body--collapsed':
+                        collapsedSections['pb_' + grp.key],
+                    }"
+                  >
+                    <button
+                      v-for="q in grp.prompts"
+                      :key="q.label"
+                      class="sidebar-question"
+                      :disabled="streaming"
+                      :title="q.prompt"
+                      @click="sendQuestion(q.prompt)"
+                    >
+                      <span>{{ q.label }}</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <!-- Pricing & Estimates — always visible, no login required -->
           <div
-            v-for="cat in visibleCategories"
-            :key="cat.key"
             class="sidebar-category"
-            :class="{
-              'sidebar-category--border': cat !== visibleCategories[0],
-            }"
+            :class="{ 'sidebar-category--border': azureConnected }"
           >
             <div
               class="sidebar-category-label sidebar-category-label--toggle"
-              @click="toggleSection(cat.key)"
+              @click="toggleSection('pricing')"
             >
               <div class="sidebar-category-left">
-                <span>{{ cat.label }}</span>
-                <span v-if="cat.subtitle" class="sidebar-category-subtitle">{{
-                  cat.subtitle
-                }}</span>
+                <span>{{ pricingCategory.label }}</span>
               </div>
               <div class="sidebar-category-right">
-                <span
-                  v-if="cat.requiresAzure && maturityScores[cat.key]"
-                  class="sidebar-stars"
-                  :style="{ color: starColor(maturityOverall(cat.key)) }"
-                  >{{ starsText(maturityOverall(cat.key)) }}</span
-                >
                 <svg
                   class="collapse-chevron"
                   :class="{
-                    'collapse-chevron--collapsed': collapsedSections[cat.key],
+                    'collapse-chevron--collapsed': collapsedSections.pricing,
                   }"
                   viewBox="0 0 16 16"
                   fill="none"
@@ -113,51 +244,21 @@
                 </svg>
               </div>
             </div>
-            <!-- Score results (from LLM) -->
-            <div
-              v-if="
-                cat.requiresAzure &&
-                maturityScores[cat.key] &&
-                !collapsedSections[cat.key]
-              "
-              class="assessment-summary"
-            >
-              <div
-                v-for="sc in maturityScores[cat.key]"
-                :key="sc.id"
-                class="assessment-row"
-              >
-                <div class="assessment-label">{{ sc.label }}</div>
-                <div
-                  class="assessment-stars"
-                  :style="{ color: starColor(sc.score) }"
-                >
-                  {{ starsText(sc.score) }}
-                </div>
-                <div class="assessment-detail-text">{{ sc.detail }}</div>
-              </div>
-            </div>
             <div
               class="collapse-body"
               :class="{
-                'collapse-body--collapsed': collapsedSections[cat.key],
+                'collapse-body--collapsed': collapsedSections.pricing,
               }"
             >
               <button
-                v-for="q in cat.prompts"
+                v-for="q in pricingCategory.prompts"
                 :key="q.label"
                 class="sidebar-question"
                 :disabled="streaming"
                 :title="q.prompt"
                 @click="sendQuestion(q.prompt)"
               >
-                <span
-                  :class="{
-                    'sidebar-question-label--score':
-                      q.label.startsWith('Score '),
-                  }"
-                  >{{ q.label }}</span
-                >
+                <span>{{ q.label }}</span>
               </button>
             </div>
           </div>
@@ -1537,17 +1638,17 @@
 <script setup>
 import * as echarts from "echarts";
 import {
-  computed,
-  nextTick,
-  onBeforeUnmount,
-  onMounted,
-  reactive,
-  ref,
-  watch,
+    computed,
+    nextTick,
+    onBeforeUnmount,
+    onMounted,
+    reactive,
+    ref,
+    watch,
 } from "vue";
 import {
-  maturityCategories,
-  pricingCategory,
+    maturityCategories,
+    pricingCategory,
 } from "../data/sidebarCategories.js";
 
 const props = defineProps({
@@ -1807,6 +1908,11 @@ const collapsedSections = reactive({
   walk: true,
   run: true,
   pricing: true,
+  playbookRoot: true,
+  pb_crawl: true,
+  pb_walk: true,
+  pb_run: true,
+  pb_playbook: true,
 });
 function toggleSection(key) {
   collapsedSections[key] = !collapsedSections[key];
@@ -2182,9 +2288,36 @@ function formatDuration(ms) {
 }
 
 // ── Prompt categories ──
-// Three maturity levels (Crawl/Walk/Run) when Azure connected, plus public pricing
-const visibleCategories = computed(() =>
-  azureConnected.value ? maturityCategories : [pricingCategory],
+// New simplified layout for the demo:
+//   - Crawl / Walk / Run rendered as 3 hero "Score" buttons (with stars when scored)
+//   - All detailed prompts collapsed under a single "Playbook" parent
+//   - Pricing & Estimates always visible (no login required)
+const SCORE_KEYS = ["crawl", "walk", "run"];
+
+// Hero score categories: just label + subtitle + score CTA + (post-score) results
+const scoreCategories = computed(() =>
+  SCORE_KEYS.map((key) => {
+    const cat = maturityCategories.find((c) => c.key === key);
+    if (!cat) return null;
+    const scorePrompt =
+      (cat.prompts.find((p) => p.label.startsWith("Score ")) || {}).prompt ||
+      "";
+    return {
+      key: cat.key,
+      label: cat.label,
+      subtitle: cat.subtitle,
+      scorePrompt,
+    };
+  }).filter(Boolean),
+);
+
+// Playbook groups: every maturity category's non-Score prompts, nested under Playbook
+const playbookGroups = computed(() =>
+  maturityCategories.map((cat) => ({
+    key: cat.key,
+    label: cat.label,
+    prompts: cat.prompts.filter((p) => !p.label.startsWith("Score ")),
+  })),
 );
 
 // ── Maturity scores (set by LLM via ReportMaturityScore tool → SSE) ──
@@ -3976,6 +4109,40 @@ async function send() {
 .sidebar-question-label--score {
   font-weight: 600;
   font-size: 13px;
+}
+.sidebar-question--score-cta {
+  margin: 8px 12px 10px;
+  padding: 8px 12px;
+  background: #f3f9fd;
+  border: 1px solid #c7e0f4;
+  border-radius: 4px;
+  text-align: center;
+  color: #0078d4;
+  width: calc(100% - 24px);
+}
+.sidebar-question--score-cta:hover {
+  background: #deecf9;
+  color: #005a9e;
+}
+.sidebar-subgroup {
+  border-top: 1px solid #edebe9;
+}
+.sidebar-subgroup:first-child {
+  border-top: none;
+}
+.sidebar-subgroup-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px 8px 20px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #605e5c;
+  cursor: pointer;
+  user-select: none;
+}
+.sidebar-subgroup-label:hover {
+  background: #f3f2f1;
 }
 .sidebar-question--locked {
   opacity: 0.4;
