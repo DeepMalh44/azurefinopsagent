@@ -3811,7 +3811,7 @@ function sendPrompt(text) {
 
 function requestPresentation() {
   input.value =
-    "Generate a FinOps presentation from our conversation findings. Use the HTML deck format. Suggest a slide structure with the data we've discussed, and ask me if I want to customize anything before generating.";
+    "Build a leadership-ready HTML presentation from our conversation. Frame it for executive stakeholders: if the findings are healthy, position it as a FinOps maturity & wins story; if there are issues, position it as a prioritized action plan. Maximum 4 slides. Use the data we've already discussed, and generate it now — no need to ask me first.";
   send();
 }
 
