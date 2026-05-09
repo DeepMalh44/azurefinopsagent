@@ -2199,8 +2199,7 @@
                   Leadership has clarity on spend.
                 </div>
                 <div class="punchline tier3" data-step data-img="8">
-                  Trust shouldn't be paywalled. Customer doubles down on a
-                  trusted provider.
+                  Customer doubles down on a trusted provider.
                 </div>
               </div>
             </div>
@@ -2957,401 +2956,440 @@
               <!-- ====== Region containers ====== -->
               <rect
                 class="region-box"
-                x="40"
-                y="55"
-                width="280"
-                height="685"
-                rx="12"
+                x="80"
+                y="290"
+                width="1200"
+                height="330"
+                rx="14"
               />
-              <text class="region-label" x="60" y="42">User</text>
-
-              <rect
-                class="region-box"
-                x="340"
-                y="55"
-                width="320"
-                height="685"
-                rx="12"
-              />
-              <text class="region-label" x="360" y="42">
-                Application Platform
+              <text class="region-label" x="100" y="280">
+                Customer tenant · your tokens · your RBAC
               </text>
 
-              <rect
-                class="region-box"
-                x="1020"
-                y="55"
-                width="620"
-                height="685"
-                rx="12"
-              />
-              <text class="region-label" x="1040" y="42">Tenant Interface</text>
-
-              <!--
-                Node geometry (rect x,y,w,h):
-                  user      :  70,230,140,80   right edge (210,270)
-                  vue       : 340,160,160,80   left (340,200)  bottom (420,240)
-                  net       : 340,300,160,80   left (340,340)  top    (420,300)
-                  copilot   : 620,230,160,80   left (620,270)  right  (780,270)
-                  cost      : 900,120,160,80   left (900,160)
-                  rg        : 900,230,160,80   left (900,270)  right  (1060,270)
-                  graph     : 900,340,160,80   left (900,380)
-                  la        : 1080,230,160,80  left (1080,270) right  (1240,270)
-                  ai        : 1310,230,60,80   left (1310,270)
-              -->
+              <text class="region-label" x="1320" y="280">
+                Outside the tenant
+              </text>
 
               <!-- ====== Connections (drawn first, nodes on top) ====== -->
-              <!-- User → Container Apps -->
-              <path class="conn c1" d="M 290,375 C 320,375 330,335 360,335" />
-              <!-- Container Apps → Microsoft Agent Framework -->
-              <path class="conn c2" d="M 500,400 L 500,460" />
-              <!-- MAF → Azure ARM REST API -->
-              <path class="conn c4" d="M 640,505 C 760,505 920,112 1040,112" />
-              <!-- MAF → Resource Graph -->
-              <path class="conn c5" d="M 640,505 C 760,505 920,207 1040,207" />
-              <!-- MAF → Log Analytics -->
-              <path class="conn c6" d="M 640,505 C 760,505 920,302 1040,302" />
-              <!-- MAF → App Insights -->
-              <path class="conn c7" d="M 640,505 C 760,505 920,397 1040,397" />
-              <!-- MAF → MS Graph -->
-              <path class="conn c8" d="M 640,505 C 760,505 920,492 1040,492" />
-              <!-- MAF → Retail Prices API -->
-              <path class="conn c10" d="M 640,505 C 760,505 920,587 1040,587" />
-              <!-- MAF → Cost Export Storage -->
-              <path class="conn c11" d="M 640,505 C 760,505 920,682 1040,682" />
-              <text class="conn-label" x="780" y="22" style="display: none">
-                OpenTelemetry
-              </text>
+              <!-- User → App -->
+              <path class="conn c1" d="M 830,110 L 830,150" />
+              <!-- App → fan-out trunk -->
+              <path class="conn c2" d="M 830,260 L 830,300" />
+              <!-- Fan-out from agent to 4 in-tenant chips -->
+              <path class="conn c4" d="M 830,300 C 830,330 243,330 243,360" />
+              <path class="conn c5" d="M 830,300 C 830,330 532,330 532,360" />
+              <path class="conn c6" d="M 830,300 L 822,360" />
+              <path class="conn c7" d="M 830,300 C 830,330 1112,330 1112,360" />
+              <!-- Fan-out from agent to 2 outside-tenant chips -->
+              <path
+                class="conn c8"
+                d="M 830,300 C 1100,300 1450,310 1450,360"
+              />
+              <path
+                class="conn c10"
+                d="M 830,300 C 1100,300 1450,440 1450,490"
+              />
 
               <!-- ====== Nodes ====== -->
               <!-- User -->
               <g>
                 <rect
                   class="node-box"
-                  x="70"
-                  y="335"
-                  width="220"
+                  x="740"
+                  y="30"
+                  width="180"
                   height="80"
                   rx="10"
                 />
-                <use href="#ic-users" x="85" y="350" width="40" height="40" />
-                <text class="node-title" x="135" y="373">FinOps Lead</text>
-                <text class="node-sub" x="135" y="395">Browser chat</text>
+                <use href="#ic-users" x="755" y="45" width="40" height="40" />
+                <text class="node-title" x="805" y="68">FinOps Lead</text>
+                <text class="node-sub" x="805" y="89">Browser chat</text>
               </g>
 
-              <!-- Container Apps -->
+              <!-- App: Vue + .NET + Foundry -->
               <g>
                 <rect
                   class="node-box primary"
-                  x="360"
-                  y="295"
-                  width="280"
-                  height="105"
+                  x="540"
+                  y="150"
+                  width="580"
+                  height="110"
                   rx="10"
                 />
                 <use
-                  href="#ic-container-apps"
-                  x="378"
-                  y="320"
+                  href="#ic-app-service"
+                  x="565"
+                  y="178"
                   width="50"
                   height="50"
-                />
-                <text class="node-title" x="440" y="340">Container Apps</text>
-                <text class="node-sub" x="440" y="362">Vue SPA + .NET API</text>
-                <text class="node-sub" x="440" y="380">Managed Identity</text>
-              </g>
-
-              <!-- Agent Framework -->
-              <g>
-                <rect
-                  class="node-box primary"
-                  x="360"
-                  y="460"
-                  width="280"
-                  height="105"
-                  rx="10"
                 />
                 <use
                   href="#ic-foundry"
-                  x="378"
-                  y="485"
+                  x="985"
+                  y="178"
                   width="50"
                   height="50"
                 />
-                <text class="node-title" x="440" y="510">
-                  Microsoft Foundry
+                <text
+                  class="node-title"
+                  x="830"
+                  y="195"
+                  text-anchor="middle"
+                  style="font-size: 22px"
+                >
+                  Vue + .NET + Microsoft Foundry
                 </text>
-                <text class="node-sub" x="440" y="532">+ Azure AI Foundry</text>
-                <text class="node-sub" x="440" y="550">
-                  Tools · Entra ID · no keys
+                <text
+                  class="node-sub"
+                  x="830"
+                  y="220"
+                  text-anchor="middle"
+                  style="font-size: 14px"
+                >
+                  Pro Code · Microsoft Agent Framework · Entra ID · no keys
+                </text>
+                <text
+                  class="node-sub"
+                  x="830"
+                  y="240"
+                  text-anchor="middle"
+                  style="font-size: 13px; opacity: 0.7"
+                >
+                  Container Apps or App Service
                 </text>
               </g>
 
-              <!-- Azure ARM REST API -->
+              <!-- ====== In-tenant data source chips (with stacked subscription shadows) ====== -->
+
+              <!-- ===== Subscription row (between agent and data chips) ===== -->
               <g>
-                <rect
-                  class="node-stack s2"
-                  x="1052"
-                  y="84"
-                  width="500"
-                  height="80"
-                  rx="10"
-                />
-                <rect
-                  class="node-stack"
-                  x="1046"
-                  y="78"
-                  width="500"
-                  height="80"
-                  rx="10"
-                />
-                <rect
-                  class="node-box"
-                  x="1040"
-                  y="72"
-                  width="500"
-                  height="80"
-                  rx="10"
+                <text
+                  x="120"
+                  y="320"
+                  style="
+                    font-family: &quot;Segoe UI&quot;, sans-serif;
+                    font-size: 13px;
+                    font-weight: 700;
+                    fill: var(--azure-blue);
+                    letter-spacing: 0.12em;
+                    text-transform: uppercase;
+                  "
+                >
+                  Subscriptions across the tenant
+                </text>
+                <use
+                  href="#ic-subscription"
+                  x="160"
+                  y="332"
+                  width="36"
+                  height="36"
                 />
                 <use
                   href="#ic-subscription"
-                  x="1058"
-                  y="87"
-                  width="40"
-                  height="40"
+                  x="310"
+                  y="332"
+                  width="36"
+                  height="36"
                 />
-                <text class="node-title" x="1128" y="107">
-                  Azure ARM REST API
-                </text>
-                <text class="node-sub" x="1128" y="126">
-                  Multi-subscription · Cost Mgmt · Advisor · Monitor metrics ·
-                  Carbon
+                <use
+                  href="#ic-subscription"
+                  x="460"
+                  y="332"
+                  width="36"
+                  height="36"
+                />
+                <use
+                  href="#ic-subscription"
+                  x="610"
+                  y="332"
+                  width="36"
+                  height="36"
+                />
+                <use
+                  href="#ic-subscription"
+                  x="760"
+                  y="332"
+                  width="36"
+                  height="36"
+                />
+                <use
+                  href="#ic-subscription"
+                  x="910"
+                  y="332"
+                  width="36"
+                  height="36"
+                />
+                <use
+                  href="#ic-subscription"
+                  x="1060"
+                  y="332"
+                  width="36"
+                  height="36"
+                />
+                <use
+                  href="#ic-subscription"
+                  x="1140"
+                  y="332"
+                  width="36"
+                  height="36"
+                  opacity="0.55"
+                />
+                <text
+                  x="1200"
+                  y="360"
+                  style="
+                    font-family: &quot;Segoe UI&quot;, sans-serif;
+                    font-size: 26px;
+                    font-weight: 800;
+                    fill: var(--ink-mute);
+                  "
+                >
+                  …
                 </text>
               </g>
 
-              <!-- Resource Graph -->
+              <!-- Chip 1: Cost Management -->
               <g>
                 <rect
-                  class="node-stack s2"
-                  x="1052"
-                  y="179"
-                  width="500"
-                  height="80"
+                  class="node-box"
+                  x="110"
+                  y="360"
+                  width="240"
+                  height="160"
                   rx="10"
                 />
-                <rect
-                  class="node-stack"
-                  x="1046"
-                  y="173"
-                  width="500"
-                  height="80"
-                  rx="10"
+                <!-- icon only, badges moved to dedicated subscription row below -->
+                <use
+                  href="#ic-cost-mgmt"
+                  x="195"
+                  y="385"
+                  width="70"
+                  height="70"
                 />
+                <text
+                  class="node-title"
+                  x="230"
+                  y="480"
+                  text-anchor="middle"
+                  style="font-size: 18px"
+                >
+                  Cost Management
+                </text>
+                <text
+                  class="node-sub"
+                  x="230"
+                  y="503"
+                  text-anchor="middle"
+                  style="font-size: 12px; opacity: 0.7"
+                >
+                  Cost · Advisor · Forecast
+                </text>
+              </g>
+
+              <!-- Chip 2: Resource Graph -->
+              <g>
                 <rect
                   class="node-box"
-                  x="1040"
-                  y="167"
-                  width="500"
-                  height="80"
+                  x="400"
+                  y="360"
+                  width="240"
+                  height="160"
                   rx="10"
                 />
                 <use
                   href="#ic-resource-graph"
-                  x="1058"
-                  y="182"
-                  width="40"
-                  height="40"
+                  x="485"
+                  y="385"
+                  width="70"
+                  height="70"
                 />
-                <text class="node-title" x="1128" y="202">Resource Graph</text>
-                <text class="node-sub" x="1128" y="221">
-                  Cross-tenant, cross-subscription inventory
+                <text
+                  class="node-title"
+                  x="520"
+                  y="480"
+                  text-anchor="middle"
+                  style="font-size: 18px"
+                >
+                  Resource Graph
+                </text>
+                <text
+                  class="node-sub"
+                  x="520"
+                  y="503"
+                  text-anchor="middle"
+                  style="font-size: 12px; opacity: 0.7"
+                >
+                  Inventory · KQL
                 </text>
               </g>
 
-              <!-- Log Analytics -->
+              <!-- Chip 3: Azure Monitor -->
               <g>
                 <rect
-                  class="node-stack s2"
-                  x="1052"
-                  y="274"
-                  width="500"
-                  height="80"
-                  rx="10"
-                />
-                <rect
-                  class="node-stack"
-                  x="1046"
-                  y="268"
-                  width="500"
-                  height="80"
-                  rx="10"
-                />
-                <rect
                   class="node-box"
-                  x="1040"
-                  y="262"
-                  width="500"
-                  height="80"
+                  x="690"
+                  y="360"
+                  width="240"
+                  height="160"
                   rx="10"
                 />
                 <use
                   href="#ic-log-analytics"
-                  x="1058"
-                  y="277"
-                  width="40"
-                  height="40"
+                  x="775"
+                  y="385"
+                  width="70"
+                  height="70"
                 />
-                <text class="node-title" x="1128" y="297">
-                  Azure Monitor Logs
+                <text
+                  class="node-title"
+                  x="810"
+                  y="480"
+                  text-anchor="middle"
+                  style="font-size: 18px"
+                >
+                  Azure Monitor
                 </text>
-                <text class="node-sub" x="1128" y="316">
-                  KQL · ingestion costs · idle VMs
+                <text
+                  class="node-sub"
+                  x="810"
+                  y="503"
+                  text-anchor="middle"
+                  style="font-size: 12px; opacity: 0.7"
+                >
+                  Logs · Metrics · App Insights
                 </text>
               </g>
 
-              <!-- App Insights -->
+              <!-- Chip 4: Cost Exports -->
               <g>
                 <rect
-                  class="node-stack s2"
-                  x="1052"
-                  y="369"
-                  width="500"
-                  height="80"
-                  rx="10"
-                />
-                <rect
-                  class="node-stack"
-                  x="1046"
-                  y="363"
-                  width="500"
-                  height="80"
-                  rx="10"
-                />
-                <rect
                   class="node-box"
-                  x="1040"
-                  y="357"
-                  width="500"
-                  height="80"
+                  x="980"
+                  y="360"
+                  width="240"
+                  height="160"
                   rx="10"
                 />
                 <use
-                  href="#ic-app-insights"
-                  x="1058"
-                  y="372"
-                  width="40"
-                  height="40"
+                  href="#ic-storage"
+                  x="1065"
+                  y="385"
+                  width="70"
+                  height="70"
                 />
-                <text class="node-title" x="1128" y="392">App Insights</text>
-                <text class="node-sub" x="1128" y="411">
-                  KQL · dependency · perf
+                <text
+                  class="node-title"
+                  x="1100"
+                  y="480"
+                  text-anchor="middle"
+                  style="font-size: 18px"
+                >
+                  Cost Exports
+                </text>
+                <text
+                  class="node-sub"
+                  x="1100"
+                  y="503"
+                  text-anchor="middle"
+                  style="font-size: 12px; opacity: 0.7"
+                >
+                  Customer storage
                 </text>
               </g>
+
+              <!-- ====== Outside-tenant chips (single, no stack) ====== -->
 
               <!-- Microsoft Graph -->
               <g>
                 <rect
                   class="node-box"
-                  x="1040"
-                  y="452"
-                  width="500"
-                  height="80"
+                  x="1330"
+                  y="360"
+                  width="240"
+                  height="100"
                   rx="10"
                 />
-                <use href="#ic-entra" x="1058" y="467" width="40" height="40" />
-                <text class="node-title" x="1128" y="487">Microsoft Graph</text>
-                <text class="node-sub" x="1128" y="506">
-                  M365 licenses · usage · org chart
+                <use href="#ic-entra" x="1352" y="380" width="50" height="50" />
+                <text class="node-title" x="1418" y="395">Microsoft Graph</text>
+                <text class="node-sub" x="1418" y="416" style="opacity: 0.7">
+                  M365 licenses · usage
+                </text>
+                <text
+                  class="node-sub"
+                  x="1418"
+                  y="436"
+                  style="opacity: 0.55; font-size: 12px"
+                >
+                  Tenant-wide
                 </text>
               </g>
 
-              <!-- Retail Prices API -->
+              <!-- Retail Prices -->
               <g>
                 <rect
                   class="node-box"
-                  x="1040"
-                  y="547"
-                  width="500"
-                  height="80"
+                  x="1330"
+                  y="490"
+                  width="240"
+                  height="100"
                   rx="10"
                 />
                 <use
                   href="#ic-marketplace"
-                  x="1058"
-                  y="562"
-                  width="40"
-                  height="40"
+                  x="1352"
+                  y="510"
+                  width="50"
+                  height="50"
                 />
-                <text class="node-title" x="1128" y="582">
-                  Retail Prices API
-                </text>
-                <text class="node-sub" x="1128" y="601">
+                <text class="node-title" x="1418" y="525">Retail Prices</text>
+                <text class="node-sub" x="1418" y="546" style="opacity: 0.7">
                   Public pricing · no auth
+                </text>
+                <text
+                  class="node-sub"
+                  x="1418"
+                  y="566"
+                  style="opacity: 0.55; font-size: 12px"
+                >
+                  Public
                 </text>
               </g>
 
-              <!-- Cost Export Storage -->
-              <g>
-                <rect
-                  class="node-stack s2"
-                  x="1052"
-                  y="654"
-                  width="500"
-                  height="80"
-                  rx="10"
-                />
-                <rect
-                  class="node-stack"
-                  x="1046"
-                  y="648"
-                  width="500"
-                  height="80"
-                  rx="10"
-                />
-                <rect
-                  class="node-box"
-                  x="1040"
-                  y="642"
-                  width="500"
-                  height="80"
-                  rx="10"
-                />
-                <use
-                  href="#ic-storage"
-                  x="1058"
-                  y="657"
-                  width="40"
-                  height="40"
-                />
-                <text class="node-title" x="1128" y="677">
-                  Cost Export Storage
-                </text>
-                <text class="node-sub" x="1128" y="696">
-                  Large-scale cost detail blobs
-                </text>
-              </g>
+              <!-- ====== Caption beneath in-tenant chips: "across N subscriptions" ====== -->
+              <text
+                x="670"
+                y="568"
+                text-anchor="middle"
+                style="
+                  font-family: &quot;Segoe UI&quot;, sans-serif;
+                  font-size: 14px;
+                  font-weight: 700;
+                  fill: var(--azure-blue);
+                  letter-spacing: 0.06em;
+                  text-transform: uppercase;
+                "
+              >
+                Multi-subscription · cross-tenant · read &amp; write · never
+                delete
+              </text>
 
               <!-- ====== Animated flow particles ====== -->
               <circle
                 class="flow-particle fp1"
                 r="4"
-                style="
-                  offset-path: path(
-                    &quot;M 290,375 C 320,375 330,335 360,335&quot;
-                  );
-                "
+                style="offset-path: path(&quot;M 830,110 L 830,150&quot;)"
               />
               <circle
                 class="flow-particle fp2"
                 r="4"
-                style="offset-path: path(&quot;M 500,400 L 500,460&quot;)"
+                style="offset-path: path(&quot;M 830,260 L 830,300&quot;)"
               />
               <circle
                 class="flow-particle fp3"
                 r="4"
                 style="
                   offset-path: path(
-                    &quot;M 640,505 C 760,505 920,397 1040,397&quot;
+                    &quot;M 830,300 C 830,330 243,330 243,360&quot;
                   );
                 "
               />
@@ -3360,25 +3398,21 @@
                 r="4"
                 style="
                   offset-path: path(
-                    &quot;M 640,505 C 760,505 920,112 1040,112&quot;
+                    &quot;M 830,300 C 830,330 532,330 532,360&quot;
                   );
                 "
               />
               <circle
                 class="flow-particle fp5"
                 r="4"
-                style="
-                  offset-path: path(
-                    &quot;M 640,505 C 760,505 920,492 1040,492&quot;
-                  );
-                "
+                style="offset-path: path(&quot;M 830,300 L 822,360&quot;)"
               />
               <circle
                 class="flow-particle fp6"
-                r="3"
+                r="4"
                 style="
                   offset-path: path(
-                    &quot;M 640,505 C 760,505 920,682 1040,682&quot;
+                    &quot;M 830,300 C 830,330 1112,330 1112,360&quot;
                   );
                   fill: #b77af4;
                 "
