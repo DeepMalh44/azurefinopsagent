@@ -4,6 +4,8 @@ description: "Audit and update API tool descriptions against latest Microsoft do
 
 Review all API tool descriptions in this project against the latest Microsoft documentation. Check for deprecated endpoints, new API versions, and missing operations. Query App Insights for recent tool call errors. Update tool descriptions and copilot instructions accordingly, then build to verify.
 
+Search deeply for all apis though Microsoft docs, all relevant github repo and any other relevant tools to find latest and greatest information. 
+
 ### Rules
 
 - **Never remove a working API** unless Microsoft has fully retired it — add deprecation notes instead.

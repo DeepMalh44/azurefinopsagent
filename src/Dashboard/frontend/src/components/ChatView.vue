@@ -1627,7 +1627,7 @@
                 stroke-linecap="round"
               />
             </svg>
-            <span class="st-name">{{ tc.tool }}</span>
+            <span class="st-name">{{ friendlyToolLabel(tc) }}</span>
             <span v-if="tc.done" class="st-time">{{
               formatDuration(tc.durationMs)
             }}</span>
@@ -1641,7 +1641,9 @@
     <Teleport to="body">
       <div v-if="hoveredTool" class="tool-popover" @click.stop>
         <div class="tool-popover-header">
-          <span class="tool-popover-name">{{ hoveredTool.tool }}</span>
+          <span class="tool-popover-name">{{
+            friendlyToolLabel(hoveredTool)
+          }}</span>
           <span class="tool-popover-time">{{
             formatDuration(hoveredTool.durationMs)
           }}</span>
@@ -2325,6 +2327,147 @@ function formatDuration(ms) {
   if (ms == null) return "";
   if (ms < 1000) return ms + "ms";
   return (ms / 1000).toFixed(1) + "s";
+}
+
+// ── Friendly tool labels ──
+// Detect which Azure API a generic QueryAzure / BulkAzureRequest call is hitting
+// based on the URL path, and return a short user-facing label that highlights
+// the breadth of APIs the agent uses (Cost Management, Resource Graph, etc.).
+const AZURE_API_LABELS = [
+  // Order matters: more specific first.
+  [/microsoft\.costmanagement.*\/forecast/i, "Forecast API"],
+  [/microsoft\.costmanagement.*\/exports/i, "Cost Exports"],
+  [/microsoft\.costmanagement.*\/scheduledactions/i, "Scheduled Actions"],
+  [/microsoft\.costmanagement.*\/views/i, "Cost Views"],
+  [/microsoft\.costmanagement/i, "Cost Management"],
+  [/microsoft\.consumption.*\/budgets/i, "Budgets"],
+  [/microsoft\.consumption.*\/reservation/i, "Reservations"],
+  [/microsoft\.consumption.*\/pricesheet/i, "Pricesheet"],
+  [/microsoft\.consumption/i, "Consumption"],
+  [/microsoft\.billing/i, "Billing"],
+  [/microsoft\.capacity\/reservation/i, "Reservations"],
+  [/microsoft\.billingbenefits/i, "Savings Plans"],
+  [/microsoft\.advisor/i, "Advisor"],
+  [/microsoft\.resourcegraph/i, "Resource Graph"],
+  [/providers\/microsoft\.insights\/metrics/i, "Azure Monitor Metrics"],
+  [/providers\/microsoft\.insights\/eventtypes/i, "Activity Log"],
+  [/microsoft\.insights/i, "Azure Monitor"],
+  [/microsoft\.operationalinsights/i, "Log Analytics"],
+  [/microsoft\.compute\/virtualmachines/i, "Compute · VMs"],
+  [/microsoft\.compute\/disks/i, "Compute · Disks"],
+  [/microsoft\.compute/i, "Compute"],
+  [/microsoft\.containerservice/i, "AKS"],
+  [/microsoft\.app\/containerapps/i, "Container Apps"],
+  [/microsoft\.network\/publicipaddresses/i, "Network · Public IPs"],
+  [/microsoft\.network\/virtualnetworks/i, "Network · VNets"],
+  [/microsoft\.network/i, "Network"],
+  [/microsoft\.storage/i, "Storage"],
+  [/microsoft\.sql/i, "Azure SQL"],
+  [/microsoft\.web/i, "App Service"],
+  [/microsoft\.documentdb/i, "Cosmos DB"],
+  [/microsoft\.cache\/redis/i, "Redis Cache"],
+  [/microsoft\.machinelearningservices/i, "Azure ML"],
+  [/microsoft\.cognitiveservices/i, "AI Foundry"],
+  [/microsoft\.databricks/i, "Databricks"],
+  [/microsoft\.datafactory/i, "Data Factory"],
+  [/microsoft\.synapse/i, "Synapse"],
+  [/microsoft\.security\/securescores/i, "Defender · Secure Score"],
+  [/microsoft\.security/i, "Defender for Cloud"],
+  [/microsoft\.authorization\/roleassignments/i, "RBAC"],
+  [/microsoft\.authorization\/policy/i, "Policy"],
+  [/microsoft\.authorization\/locks/i, "Resource Locks"],
+  [/microsoft\.authorization/i, "Authorization"],
+  [/microsoft\.policyinsights/i, "Policy Insights"],
+  [/microsoft\.management\/managementgroups/i, "Management Groups"],
+  [/microsoft\.resourcehealth/i, "Resource Health"],
+  [/microsoft\.quota/i, "Quota"],
+  [/microsoft\.carbon/i, "Carbon"],
+  [/microsoft\.migrate/i, "Migrate"],
+  [/microsoft\.support/i, "Support"],
+  [/\/subscriptions(\?|\/?$)/i, "Subscriptions"],
+  [/\/tenants/i, "Tenants"],
+  [/\/resources(\?|\/?$)/i, "Resource Manager"],
+  [/\/providers/i, "Providers"],
+  [/\/resourcegroups/i, "Resource Groups"],
+];
+
+function _arm_label(path) {
+  if (!path) return null;
+  for (const [re, label] of AZURE_API_LABELS) if (re.test(path)) return label;
+  return "ARM";
+}
+
+function _graph_label(path) {
+  if (!path) return null;
+  if (/subscribedSkus/i.test(path)) return "Graph · Licenses";
+  if (/getMicrosoft365Copilot/i.test(path)) return "Graph · M365 Copilot";
+  if (/getM365App/i.test(path)) return "Graph · M365 Apps";
+  if (
+    /getOffice365|getMailbox|getTeams|getOneDrive|getSharePoint|getEmail/i.test(
+      path,
+    )
+  )
+    return "Graph · M365 Reports";
+  if (/managedDevices|deviceCompliance/i.test(path)) return "Graph · Intune";
+  if (/secureScore/i.test(path)) return "Graph · Secure Score";
+  if (/\/users/i.test(path)) return "Graph · Users";
+  if (/\/groups/i.test(path)) return "Graph · Groups";
+  if (/\/organization/i.test(path)) return "Graph · Org";
+  if (/directoryRoles|roleManagement/i.test(path)) return "Graph · Roles";
+  return "Microsoft Graph";
+}
+
+function friendlyToolLabel(tc) {
+  if (!tc) return "";
+  const tool = tc.tool;
+  let args = tc.args;
+  if (args && typeof args === "string") {
+    try {
+      args = JSON.parse(args);
+    } catch {
+      args = null;
+    }
+  }
+  if (tool === "QueryAzure") {
+    const path = args?.path || args?.url || "";
+    return _arm_label(path) || tool;
+  }
+  if (tool === "BulkAzureRequest") {
+    // Args carry an array of {path, method, body?}; sniff the first path so the
+    // label still tells the audience what surface the bulk hit (e.g. tagging vs RBAC).
+    const items = args?.requests || args?.items || [];
+    const firstPath =
+      Array.isArray(items) && items.length
+        ? items[0]?.path || items[0]?.url
+        : null;
+    const sub = firstPath ? _arm_label(firstPath) : null;
+    const count = Array.isArray(items) ? items.length : 0;
+    return sub ? `${sub} · Bulk${count ? " ×" + count : ""}` : "ARM · Bulk";
+  }
+  if (tool === "QueryGraph") {
+    return _graph_label(args?.path || args?.url || "") || "Microsoft Graph";
+  }
+  if (tool === "QueryLogAnalytics") return "Log Analytics · KQL";
+  if (tool === "GetAzureRetailPricing") return "Retail Prices";
+  if (tool === "GetAzureServiceHealth") return "Service Health";
+  if (tool === "GenerateHtmlPresentation") return "Build HTML deck";
+  if (tool === "GenerateScript") return "Generate script";
+  if (tool === "RenderChart" || tool === "RenderAdvancedChart")
+    return "Render chart";
+  if (tool === "ReportMaturityScore") return "Score maturity";
+  if (tool === "GetScoreHistory") return "Score history";
+  if (tool === "DetectCostAnomalies") return "Detect anomalies";
+  if (tool === "FindIdleResources") return "Find idle resources";
+  if (tool === "ListCostExportBlobs") return "List cost exports";
+  if (tool === "ReadCostExportBlob") return "Read cost export";
+  if (tool === "SaveReportSchedule") return "Save schedule";
+  if (tool === "ListReportSchedules") return "List schedules";
+  if (tool === "DeleteReportSchedule") return "Delete schedule";
+  if (tool === "PublishFAQ") return "Publish FAQ";
+  if (tool === "SuggestFollowUp") return "Suggest follow-up";
+  if (tool === "QueryUploadedFile") return "Read uploaded file";
+  if (tool === "report_intent") return "Report intent";
+  return tool;
 }
 
 // ── Prompt categories ──
