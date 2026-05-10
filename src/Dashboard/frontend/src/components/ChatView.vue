@@ -931,47 +931,43 @@
                   <div class="hero-card">
                     <div class="hero-card-title">Quantified savings</div>
                     <div class="hero-card-desc">
-                      Reservations, Savings Plans, Hybrid Benefit, rightsizing,
-                      idle &amp; orphaned — ranked by annual $ impact.
+                      Reservations. Savings Plans. Hybrid Benefit. Rightsizing.
+                      Idle &amp; orphaned — ranked by annual $ impact.
                     </div>
                   </div>
                   <div class="hero-card">
                     <div class="hero-card-title">Maturity score</div>
                     <div class="hero-card-desc">
-                      FinOps Foundation Crawl / Walk / Run, scored 0–5 per
-                      capability — the consultant assessment in a chat.
+                      FinOps Foundation Crawl / Walk / Run. Scored 0–5 per
+                      capability. The consultant assessment, in a chat.
                     </div>
                   </div>
                   <div class="hero-card">
-                    <div class="hero-card-title">Acts, not dashboards</div>
+                    <div class="hero-card-title">Agentic remediation</div>
                     <div class="hero-card-desc">
-                      Applies tags, sets budgets &amp; anomaly alerts, drafts
-                      cleanup scripts. Never deletes.
+                      Applies tags. Sets budgets. Drafts cleanup scripts. Never
+                      deletes.
                     </div>
                   </div>
                   <div class="hero-card">
-                    <div class="hero-card-title">
-                      Anomalies &amp; chargeback
-                    </div>
+                    <div class="hero-card-title">Spots cost spikes</div>
                     <div class="hero-card-desc">
-                      Catches cost spikes &amp; explains the why. Showback by
-                      tag, team, or business unit.
+                      Catches anomalies the moment they happen. Explains the
+                      why. Tells you who to bill.
                     </div>
                   </div>
                   <div class="hero-card">
-                    <div class="hero-card-title">
-                      M365 license &amp; Copilot ROI
-                    </div>
+                    <div class="hero-card-title">License &amp; Copilot ROI</div>
                     <div class="hero-card-desc">
-                      Microsoft Graph surfaces unused licenses, Copilot seat
-                      usage, SKU mismatch — beyond Cost Management.
+                      Microsoft Graph surfaces unused M365 licenses, idle
+                      Copilot seats, SKU mismatches — savings other tools miss.
                     </div>
                   </div>
                   <div class="hero-card">
                     <div class="hero-card-title">CFO-ready decks</div>
                     <div class="hero-card-desc">
-                      20+ inline charts plus a one-click branded HTML
-                      presentation — walk in with the deck already built.
+                      20+ inline charts. One-click branded HTML deck. Walk in
+                      with the presentation already built.
                     </div>
                   </div>
                 </div>
