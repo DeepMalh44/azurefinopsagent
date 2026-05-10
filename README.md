@@ -13,7 +13,7 @@ The agent fixes the issue for you, or hands you the az&nbsp;cli script. Read &am
 
 ![Azure FinOps Agent](src/Dashboard/frontend/public/og-image.png)
 
-![Azure FinOps Agent screenshot](docs/assets/screenshot-finops-shortq.png)
+![Azure FinOps Agent screenshot](docs/assets/screenshot-portal.png)
 
 ## Try it without signing in
 
@@ -99,12 +99,12 @@ In production (Azure App Service), the same configuration keys are sourced from 
 
 The deploy workflow (`deploy.yml`) injects secrets into App Service as application settings at deploy time. Add them under **Settings → Secrets and variables → Actions → New repository secret** in the GitHub UI.
 
-| GitHub Secret name | App Service setting | Purpose |
-|---|---|---|
-| `AZURE_OPENAI_ENDPOINT` | `AzureOpenAI__Endpoint` | Azure OpenAI resource URL — **required** |
-| `AZURE_CLIENT_ID` | *(OIDC login)* | Managed identity / service principal client ID |
-| `AZURE_TENANT_ID` | *(OIDC login)* | Azure AD tenant ID |
-| `AZURE_SUBSCRIPTION_ID` | *(OIDC login)* | Target subscription ID |
+| GitHub Secret name      | App Service setting     | Purpose                                        |
+| ----------------------- | ----------------------- | ---------------------------------------------- |
+| `AZURE_OPENAI_ENDPOINT` | `AzureOpenAI__Endpoint` | Azure OpenAI resource URL — **required**       |
+| `AZURE_CLIENT_ID`       | _(OIDC login)_          | Managed identity / service principal client ID |
+| `AZURE_TENANT_ID`       | _(OIDC login)_          | Azure AD tenant ID                             |
+| `AZURE_SUBSCRIPTION_ID` | _(OIDC login)_          | Target subscription ID                         |
 
 > **Convention:** App Service application settings use `__` (double underscore) to map to .NET `IConfiguration` hierarchy — `AzureOpenAI__Endpoint` maps to `AzureOpenAI:Endpoint`. Follow the same pattern for any future secrets (e.g., `Microsoft__ClientId` → `Microsoft:ClientId`).
 >
