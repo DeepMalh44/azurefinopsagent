@@ -1,5 +1,5 @@
 # ── Stage 1: Build Vue frontend ──
-FROM node:22-slim AS frontend
+FROM node:26-slim AS frontend
 WORKDIR /app/frontend
 COPY frontend/package.json frontend/package-lock.json* ./
 # Use `npm install` instead of `npm ci` so that Linux-only platform-optional
