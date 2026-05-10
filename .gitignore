@@ -89,3 +89,4 @@ secrets.json
 # Local Dragon's Den / pitch prep notes
 docs/local/
 .github/agents/competition.agent.md
+.github/agents/triage.agent.md
