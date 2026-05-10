@@ -937,7 +937,7 @@
                   Azure <span class="hero-title-accent">FinOps</span> Agent
                 </h1>
                 <p class="hero-tagline">
-                  Weeks of FinOps analysis. Done in minutes.
+                  Weeks of FinOps work. Done in minutes.
                 </p>
                 <div class="hero-cards">
                   <div class="hero-card">
