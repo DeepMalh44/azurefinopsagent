@@ -2330,6 +2330,11 @@ async function clearMessages() {
     } catch {}
   });
   chartInstances.length = 0;
+  // Reset FinOps maturity scores in the sidebar
+  maturityScores.crawl = null;
+  maturityScores.walk = null;
+  maturityScores.run = null;
+  maturityScores.playbook = null;
   try {
     await fetch("/api/chat/reset", { method: "POST" });
   } catch {}
