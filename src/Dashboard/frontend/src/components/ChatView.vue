@@ -97,75 +97,60 @@
       <!-- Left sidebar -->
       <aside class="sidebar" :class="{ 'sidebar--collapsed': !sidebarOpen }">
         <div class="sidebar-scroll">
-          <!-- Score buttons (Crawl / Walk / Run) — single CTA per level -->
+          <!-- Maturity score cards (Crawl / Walk / Run) — whole card is clickable -->
           <template v-if="azureConnected">
             <div
               v-for="cat in scoreCategories"
               :key="'score-' + cat.key"
-              class="sidebar-category"
-              :class="{ 'sidebar-category--border': cat.key !== 'crawl' }"
+              class="maturity-card"
+              :class="{
+                'maturity-card--scored': maturityScores[cat.key],
+                'maturity-card--disabled': streaming,
+              }"
+              role="button"
+              tabindex="0"
+              :title="cat.scorePrompt"
+              @click="!streaming && sendQuestion(cat.scorePrompt)"
+              @keydown.enter="!streaming && sendQuestion(cat.scorePrompt)"
             >
-              <div
-                class="sidebar-category-label"
-                :class="{
-                  'sidebar-category-label--toggle': maturityScores[cat.key],
-                }"
-                @click="
-                  maturityScores[cat.key] && toggleSection('score_' + cat.key)
-                "
-              >
-                <div class="sidebar-category-left">
-                  <span>{{ cat.label }}</span>
-                  <span v-if="cat.subtitle" class="sidebar-category-subtitle">{{
+              <div class="maturity-card-header">
+                <div class="maturity-card-title">
+                  <span class="maturity-card-label">{{ cat.label }}</span>
+                  <span v-if="cat.subtitle" class="maturity-card-subtitle">{{
                     cat.subtitle
                   }}</span>
                 </div>
-                <div class="sidebar-category-right">
-                  <span
-                    v-if="maturityScores[cat.key]"
-                    class="sidebar-stars"
-                    :style="{ color: starColor(maturityOverall(cat.key)) }"
-                    >{{ starsText(maturityOverall(cat.key)) }}</span
-                  >
-                  <svg
-                    v-if="maturityScores[cat.key]"
-                    class="collapse-chevron"
-                    :class="{
-                      'collapse-chevron--collapsed':
-                        collapsedSections['score_' + cat.key],
-                    }"
-                    viewBox="0 0 16 16"
-                    fill="none"
-                  >
-                    <path
-                      d="M4 6l4 4 4-4"
-                      stroke="currentColor"
-                      stroke-width="1.5"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    />
-                  </svg>
-                </div>
+                <span class="maturity-card-cta">
+                  {{ maturityScores[cat.key] ? "Re-score" : "Score" }}
+                </span>
               </div>
-              <button
-                class="sidebar-question sidebar-question--score-cta"
-                :disabled="streaming"
-                :title="cat.scorePrompt"
-                @click="sendQuestion(cat.scorePrompt)"
-              >
-                <span class="sidebar-question-label--score">{{
-                  maturityScores[cat.key]
-                    ? "Rescore " + cat.label
-                    : "Score " + cat.label
-                }}</span>
-              </button>
-              <!-- Score results (from LLM) — collapsible once scored -->
+              <div class="maturity-card-body">
+                <span
+                  class="maturity-card-stars"
+                  :style="{
+                    color: maturityScores[cat.key]
+                      ? starColor(maturityOverall(cat.key))
+                      : '#c8c6c4',
+                  }"
+                  >{{
+                    maturityScores[cat.key]
+                      ? starsText(maturityOverall(cat.key))
+                      : "☆☆☆☆☆"
+                  }}</span
+                >
+                <span class="maturity-card-score">
+                  {{
+                    maturityScores[cat.key]
+                      ? maturityNumeric(cat.key) + " / 5"
+                      : "not scored"
+                  }}
+                </span>
+              </div>
+              <!-- Per-dimension breakdown (only after scoring) -->
               <div
-                v-if="
-                  maturityScores[cat.key] &&
-                  !collapsedSections['score_' + cat.key]
-                "
+                v-if="maturityScores[cat.key]"
                 class="assessment-summary"
+                @click.stop
               >
                 <div
                   v-for="sc in maturityScores[cat.key]"
@@ -2583,6 +2568,13 @@ function maturityOverall(level) {
   );
 }
 
+function maturityNumeric(level) {
+  const scores = maturityScores[level];
+  if (!scores || scores.length === 0) return "0.0";
+  const avg = scores.reduce((sum, s) => sum + s.score, 0) / scores.length;
+  return avg.toFixed(1);
+}
+
 function starsText(score) {
   if (score < 0) return "☆☆☆☆☆";
   const full = Math.min(score, 5);
@@ -3729,19 +3721,8 @@ function buildWowTable(headerCells, dataRows) {
         .map((_, c) => {
           const raw = row[c] ?? "";
           const isNum = numericColumns[c];
-          let inner = enhanceCell(raw);
-          let extra = "";
-          if (c === barColumn) {
-            const v = parseNumeric(raw);
-            if (v !== null) {
-              const pct = Math.min(
-                100,
-                Math.max(0, (Math.abs(v) / barColMax) * 100),
-              );
-              extra = `<span class="wt-bar"><i style="width:${pct.toFixed(1)}%"></i></span>`;
-            }
-          }
-          return `<td class="${isNum ? "wt-num" : ""}">${inner}${extra}</td>`;
+          const inner = enhanceCell(raw);
+          return `<td class="${isNum ? "wt-num" : ""}">${inner}</td>`;
         })
         .join("");
       return `<tr>${cells}</tr>`;
@@ -4556,6 +4537,99 @@ async function send() {
   color: #005a9e;
   box-shadow: 0 1px 2px rgba(0, 120, 212, 0.08);
 }
+
+/* ── Maturity score cards (Crawl / Walk / Run) — clickable hero cards ── */
+.maturity-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 8px 12px;
+  padding: 14px 14px 12px;
+  border: 1px solid #e1dfdd;
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.1s ease;
+  user-select: none;
+}
+.maturity-card:hover:not(.maturity-card--disabled) {
+  border-color: #c8c6c4;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+  transform: translateY(-1px);
+}
+.maturity-card:focus-visible {
+  outline: 2px solid #c8c6c4;
+  outline-offset: 2px;
+}
+.maturity-card--disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.maturity-card--scored {
+  background: #fafbfc;
+}
+.maturity-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+.maturity-card-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.maturity-card-label {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1f2328;
+  letter-spacing: 0.2px;
+}
+.maturity-card-subtitle {
+  font-size: 11px;
+  font-weight: 400;
+  color: #656d76;
+}
+.maturity-card-cta {
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #0078d4;
+  padding: 3px 10px;
+  border: 1px solid #0078d4;
+  border-radius: 12px;
+  background: transparent;
+  white-space: nowrap;
+}
+.maturity-card:hover:not(.maturity-card--disabled) .maturity-card-cta {
+  background: #0078d4;
+  color: #fff;
+}
+.maturity-card-body {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 2px;
+}
+.maturity-card-stars {
+  font-size: 22px;
+  letter-spacing: 3px;
+  line-height: 1;
+}
+.maturity-card-score {
+  font-size: 13px;
+  font-weight: 600;
+  color: #656d76;
+}
+.maturity-card--scored .maturity-card-score {
+  color: #1f2328;
+}
+
 .sidebar-subgroup {
   border-top: 1px solid #edebe9;
 }
