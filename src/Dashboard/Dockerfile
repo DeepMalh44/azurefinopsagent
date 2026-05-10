@@ -2,7 +2,10 @@
 FROM node:22-slim AS frontend
 WORKDIR /app/frontend
 COPY frontend/package.json frontend/package-lock.json* ./
-RUN npm ci
+# Use `npm install` instead of `npm ci` so that Linux-only platform-optional
+# deps (e.g. @emnapi/*) that aren't present when the lockfile was last
+# regenerated on a Windows dev machine still resolve cleanly in CI.
+RUN npm install --no-audit --no-fund
 COPY frontend/ ./
 RUN npx vite build --outDir ../wwwroot
 
