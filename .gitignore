@@ -91,6 +91,3 @@ docs/local/
 .github/agents/competition.agent.md
 .github/agents/triage.agent.md
 
-# Demo video (too large for GitHub - keep in docs/assets/ only)
-src/Dashboard/frontend/public/video.mp4
-src/Dashboard/wwwroot/video.mp4
