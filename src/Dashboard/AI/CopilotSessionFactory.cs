@@ -196,11 +196,21 @@ When the user asks anything like ""What are my biggest issues in my FinOps matur
         await copilotClient.StartAsync();
 
         // BYOK credential: prefers a managed identity in Azure (App Service / Container Apps),
-        // falls back to az CLI / VS / env vars locally. Grant the identity the
+        // falls back to az CLI / Environment / env vars locally. Grant the identity the
         // "Cognitive Services User" role on the Azure OpenAI resource.
+        //
+        // Exclude credentials that shell out to find an account and frequently
+        // hang locally — VisualStudioCredential.RunProcessesAsync is the proven
+        // offender (Roberto's stack trace 2026-05-08); VS Code and Azure
+        // PowerShell credentials exhibit the same pattern. Keep AzureCli (the
+        // canonical local-dev path), Environment (CI/explicit config), and
+        // ManagedIdentity/WorkloadIdentity (production) in the chain.
         var credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions
         {
             ExcludeInteractiveBrowserCredential = true,
+            ExcludeVisualStudioCredential = true,
+            ExcludeVisualStudioCodeCredential = true,
+            ExcludeAzurePowerShellCredential = true,
         });
 
         var chartLogger = loggerFactory.CreateLogger("AzureFinOps.AI.Charts");
