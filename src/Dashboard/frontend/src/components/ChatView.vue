@@ -1479,6 +1479,7 @@
                   <span>Clear</span>
                 </button>
                 <button
+                  v-if="attachments.length > 0"
                   class="input-action-btn"
                   :disabled="streaming"
                   @click="requestAnalyze()"
@@ -2489,43 +2490,64 @@ function friendlyToolLabel(tc) {
   }
   if (tool === "QueryAzure") {
     const path = args?.path || args?.url || "";
-    return _arm_label(path) || tool;
+    return _arm_label(path) || "Azure";
   }
   if (tool === "BulkAzureRequest") {
-    // Args carry an array of {path, method, body?}; sniff the first path so the
-    // label still tells the audience what surface the bulk hit (e.g. tagging vs RBAC).
     const items = args?.requests || args?.items || [];
-    const firstPath =
-      Array.isArray(items) && items.length
-        ? items[0]?.path || items[0]?.url
-        : null;
-    const sub = firstPath ? _arm_label(firstPath) : null;
-    const count = Array.isArray(items) ? items.length : 0;
-    return sub ? `${sub} · Bulk${count ? " ×" + count : ""}` : "ARM · Bulk";
+    const n = Array.isArray(items) ? items.length : 0;
+    return n ? `Bulk ×${n}` : "Bulk";
   }
   if (tool === "QueryGraph") {
-    return _graph_label(args?.path || args?.url || "") || "Microsoft Graph";
+    return _graph_label(args?.path || args?.url || "") || "Graph";
   }
-  if (tool === "QueryLogAnalytics") return "Log Analytics · KQL";
-  if (tool === "GetAzureRetailPricing") return "Retail Prices";
-  if (tool === "GetAzureServiceHealth") return "Service Health";
-  if (tool === "GenerateHtmlPresentation") return "Build HTML deck";
-  if (tool === "GenerateScript") return "Generate script";
-  if (tool === "RenderChart" || tool === "RenderAdvancedChart")
-    return "Render chart";
-  if (tool === "ReportMaturityScore") return "Score maturity";
-  if (tool === "GetScoreHistory") return "Score history";
-  if (tool === "DetectCostAnomalies") return "Detect anomalies";
-  if (tool === "FindIdleResources") return "Find idle resources";
-  if (tool === "ListCostExportBlobs") return "List cost exports";
-  if (tool === "ReadCostExportBlob") return "Read cost export";
-  if (tool === "SaveReportSchedule") return "Save schedule";
-  if (tool === "ListReportSchedules") return "List schedules";
-  if (tool === "DeleteReportSchedule") return "Delete schedule";
-  if (tool === "PublishFAQ") return "Publish FAQ";
-  if (tool === "SuggestFollowUp") return "Suggest follow-up";
-  if (tool === "QueryUploadedFile") return "Read uploaded file";
-  if (tool === "report_intent") return "Report intent";
+  if (tool === "QueryLogAnalytics") return "KQL";
+  if (tool === "GetAzureRetailPricing") {
+    const sku = args?.armSkuName || args?.skuName || args?.serviceName || "";
+    const head = String(sku).split(/[\s_]/)[0];
+    return head ? `Pricing · ${head}` : "Pricing";
+  }
+  if (tool === "GetAzureServiceHealth") return "Health";
+  if (tool === "GenerateHtmlPresentation") {
+    let n = 0;
+    try {
+      const slides = args?.slidesJson ? JSON.parse(args.slidesJson) : null;
+      n = Array.isArray(slides) ? slides.length : 0;
+    } catch {}
+    return n ? `Deck ×${n}` : "Deck";
+  }
+  if (tool === "GenerateScript") {
+    const lang = (args?.language || args?.lang || "").toLowerCase();
+    if (lang.includes("powershell") || lang.includes("ps")) return "PowerShell";
+    if (lang.includes("bash") || lang.includes("sh")) return "Bash";
+    return "Script";
+  }
+  if (tool === "RenderChart" || tool === "RenderAdvancedChart") {
+    const t = (args?.type || args?.chartType || "").toLowerCase();
+    if (t.includes("bar")) return "Chart · bar";
+    if (t.includes("pie") || t.includes("doughnut")) return "Chart · pie";
+    if (t.includes("line")) return "Chart · line";
+    if (t.includes("map")) return "Chart · map";
+    return "Chart";
+  }
+  if (tool === "ReportMaturityScore") {
+    const lvl = (args?.level || "").toLowerCase();
+    return lvl ? `Score · ${lvl}` : "Score";
+  }
+  if (tool === "GetScoreHistory") return "History";
+  if (tool === "DetectCostAnomalies") return "Anomalies";
+  if (tool === "FindIdleResources") return "Idle";
+  if (tool === "ListCostExportBlobs") return "Exports";
+  if (tool === "ReadCostExportBlob") return "Export";
+  if (tool === "SaveReportSchedule") return "Schedule +";
+  if (tool === "ListReportSchedules") return "Schedules";
+  if (tool === "DeleteReportSchedule") return "Schedule −";
+  if (tool === "PublishFAQ") return "FAQ";
+  if (tool === "SuggestFollowUp") return "Follow-up";
+  if (tool === "QueryUploadedFile") {
+    const mode = (args?.mode || "").toLowerCase();
+    return mode ? `File · ${mode}` : "File";
+  }
+  if (tool === "report_intent") return "Intent";
   return tool;
 }
 
