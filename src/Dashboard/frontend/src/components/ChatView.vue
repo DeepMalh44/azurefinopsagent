@@ -2837,19 +2837,30 @@ function buildEChartsOption(raw) {
     const pieData = dataArr.map((d) =>
       Array.isArray(d) ? { name: String(d[0]), value: d[1] } : d,
     );
+    const total = pieData.reduce((sum, d) => sum + (Number(d.value) || 0), 0);
+
+    // Weather-example technique: solid pie (radius 65%), selectedMode 'single'
+    // so a slice pops out when clicked, hover shadow emphasis, and a bottom
+    // legend listing the categories. Subtitle shows the total.
     return {
       title: {
         text: title,
+        subtext:
+          chartType === "pie" ? `Total ${total.toLocaleString()}` : undefined,
         left: "center",
         top: 0,
         textStyle: { fontSize: 14, color: "#1f2328" },
+        subtextStyle: { fontSize: 11, color: "#656d76" },
       },
-      tooltip: { trigger: "item", formatter: "{b}: {c} ({d}%)" },
+      tooltip: {
+        trigger: "item",
+        formatter: "{a} <br/>{b} : {c} ({d}%)",
+      },
       legend: {
-        bottom: 0,
+        bottom: 10,
         left: "center",
-        orient: "horizontal",
         type: "scroll",
+        data: pieData.map((d) => d.name),
         textStyle: { color: "#656d76", fontSize: 11 },
       },
       color: colors,
@@ -2857,29 +2868,24 @@ function buildEChartsOption(raw) {
         {
           name: seriesName,
           type: chartType,
-          radius: chartType === "pie" ? ["35%", "60%"] : undefined,
-          center: ["50%", "50%"],
-          avoidLabelOverlap: false,
-          itemStyle: {
-            borderRadius: 10,
-            borderColor: "#fff",
-            borderWidth: 2,
-          },
+          radius: chartType === "pie" ? "65%" : undefined,
+          center: ["50%", "52%"],
+          selectedMode: chartType === "pie" ? "single" : undefined,
+          data: pieData,
           label: {
-            show: false,
-            position: "center",
+            show: true,
+            formatter: "{b}",
+            color: "#1f2328",
+            fontSize: 11,
           },
+          labelLine: { show: true, length: 8, length2: 12 },
           emphasis: {
-            label: {
-              show: true,
-              fontSize: 24,
-              fontWeight: "bold",
+            itemStyle: {
+              shadowBlur: 10,
+              shadowOffsetX: 0,
+              shadowColor: "rgba(0, 0, 0, 0.5)",
             },
           },
-          labelLine: {
-            show: false,
-          },
-          data: pieData,
         },
       ],
     };

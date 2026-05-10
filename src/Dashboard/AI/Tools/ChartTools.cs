@@ -17,7 +17,7 @@ public static class ChartTools
                 [Description(@"Chart type — choose based on purpose:
 • bar — compare discrete categories (e.g. cost by service, VM sizes). Best for side-by-side comparison.
 • line — show trends over time (e.g. daily spend, monthly growth). Best for continuous data.
-• pie — show composition/proportions (e.g. cost breakdown by service). Best for parts-of-a-whole. Renders as Azure-style donut.
+• pie — show composition/proportions (e.g. cost breakdown by service). Best for parts-of-a-whole. Solid pie with click-to-select slice highlighting and a Total subtitle.
 • scatter — show correlation between two variables (e.g. CPU vs cost). Best for distribution analysis.
 • funnel — show drop-off stages (e.g. pipeline conversion). Best for sequential stage data.
 • race — animated line chart with end labels showing final values (e.g. cost trends by service over months, regional spend over time). Best for comparing how multiple series evolve and race against each other.")] string type,
