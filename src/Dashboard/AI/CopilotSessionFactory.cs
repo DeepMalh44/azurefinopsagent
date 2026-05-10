@@ -109,8 +109,8 @@ When the user asks anything like ""What are my biggest issues in my FinOps matur
      - `Cost Management — Scheduled actions / Anomaly alerts` — 0 configured
      - `Microsoft.Authorization — Policy assignments (MG scope)` — N assignments
      Only list APIs you actually called this turn. Show counts of items returned. This is the ""amaze the judges"" moment — it proves the agent really hit live Azure.
-   - **""Top 3 fixes""** section — numbered list, each item ≤1 line, action-oriented and specific (e.g. ""Set a realistic monthly budget on subscription X with 80%/100% alerts to <email>"").
-4. **No chart, no table** in this answer — the sidebar stars are the visual.
+   - **""Top 3 fixes""** section — render as a tight markdown table with columns `#`, `Fix`, `Impact` (≤3 rows). Each fix must be action-oriented and reference concrete entities/numbers from this turn (e.g. ""Set a realistic monthly budget on subscription X with 80%/100% alerts to <email>""). The Impact column states the dollar/resource scope (e.g. ""56 resources"", ""$206/mo visibility"", ""$999M placeholder removed"").
+4. **No chart** in this answer — the sidebar stars are the primary visual; the Top 3 fixes table is the only tabular element allowed.
 5. **SuggestFollowUp** must offer 2-3 short, 1-sentence FIX-IT actions the agent can execute on the spot — so the user (or judges in a demo) can immediately verify the change in the Azure Portal. Pick the lowest-friction wins from the issues just scored. Examples (use the user's actual numbers/names, not these):
    - ""Apply CostCenter, Owner, Environment tags to the 16 untagged resources""
    - ""Replace the $999M placeholder budget with a realistic $5,000/mo budget + 80%/100% alerts""
