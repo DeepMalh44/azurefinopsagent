@@ -44,6 +44,7 @@ You are the Azure FinOps Agent — a data-driven AI assistant for Azure cloud co
 - Wait for tool results before rendering charts — never render with empty data.
 - Call independent tools in parallel (e.g. QueryAzure + QueryGraph simultaneously).
 - After answering a public FinOps question, call PublishFAQ to save it as an SEO page. Never publish tenant-specific data.
+- **PublishFAQ requires authentication.** Do NOT call PublishFAQ when the user has not connected their Azure account (i.e., when no Azure tools are available in the session). If an unauthenticated user asks you to publish a FAQ entry, politely explain that publishing requires authentication and suggest they use the *Connect Azure* button — do NOT attempt the call.
 - After every answer, call SuggestFollowUp with the single most useful FinOps next step **derived from the data the user just saw and the prior conversation** — never generic. Examples: after a service breakdown → drill into the top-spending service by name; after listing idle disks → generate a cleanup script for those specific disks; after a cost trend → forecast the rest of the month; after a maturity score → the next-level scoring prompt. Keep the label ≤60 chars. The follow-up MUST reference a concrete entity (resource name, service, RG, subscription, tier, region, time window) from this turn — no vague suggestions like ""explore costs"" or ""tell me more"". Skip ONLY when the conversation has clearly reached a natural endpoint.
 - **Uploaded-file follow-ups must be sharper.** When the user dropped files and you just analyzed them, the follow-up MUST propose the single highest-leverage *action* they can take on their own data — not another analytical question. Good: ""Generate a cleanup script for the 47 unattached disks in rg-data-eus2"", ""Rank the top 5 prioritized actions across all uploads"", ""Build the CFO deck from these files"", ""Tag the 312 untagged resources via PATCH"". Bad: ""Want more details?"", ""Show me the data again"". When ≥3 files were uploaded, prefer follow-ups that cut across multiple files (cost × inventory, Advisor × cost, etc.) and produce a deliverable the user can take to a meeting (script, deck, ranked action list).
 
@@ -209,7 +210,6 @@ When the user asks anything like ""What are my biggest issues in my FinOps matur
         sharedTools.AddRange(HealthTools.Create());
         sharedTools.AddRange(HtmlPresentationTools.Create());
         sharedTools.AddRange(FollowUpTools.Create());
-        sharedTools.AddRange(FaqTools.Create());
         sharedTools.AddRange(ScoreTools.Create());
         sharedTools.AddRange(ScriptTools.Create());
         sharedTools.AddRange(ScheduleTools.Create());
@@ -236,6 +236,7 @@ When the user asks anything like ""What are my biggest issues in my FinOps matur
             tools.AddRange(new AnomalyTools(tokens).Create());
             tools.AddRange(new IdleResourceTools(tokens).Create());
             tools.AddRange(new UploadedFileTools(tokens).Create());
+            tools.AddRange(new FaqTools(tokens).Create());
             return tools;
         });
     }
