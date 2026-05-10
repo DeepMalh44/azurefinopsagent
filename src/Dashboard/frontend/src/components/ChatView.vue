@@ -27,6 +27,9 @@
       </div>
       <div class="portal-trustline" aria-hidden="false">
         <span class="portal-trustline-item">Built by Microsoft</span>
+        <span class="portal-trustline-sep" aria-hidden="true">·</span>
+        <span class="portal-trustline-item">Build {{ buildNumber }}</span>
+        <span class="portal-trustline-sep" aria-hidden="true">·</span>
         <a
           class="portal-trustline-link"
           href="https://github.com/Azure-Samples/azure-finops-agent"
@@ -1680,9 +1683,6 @@
         </div>
       </div>
     </Teleport>
-
-    <!-- Build badge -->
-    <div class="build-badge">B{{ buildNumber }}</div>
   </div>
 </template>
 
@@ -7059,22 +7059,6 @@ async function send() {
   outline: none;
 }
 
-/* ── Build badge ── */
-.build-badge {
-  position: fixed;
-  bottom: 12px;
-  right: 16px;
-  font-size: 14px;
-  font-family: "Cascadia Code", "Fira Code", Consolas, monospace;
-  color: #605e5c;
-  background: #f3f2f1;
-  padding: 2px 8px;
-  border-radius: 4px;
-  pointer-events: none;
-  z-index: 1000;
-  font-weight: 600;
-}
-
 /* ── HTML deck — compact download card ── */
 .html-deck-card {
   margin-top: 12px;
@@ -7389,9 +7373,6 @@ async function send() {
     display: none;
   }
   .tool-popover {
-    display: none;
-  }
-  .build-badge {
     display: none;
   }
   .portal-user-text {
