@@ -111,13 +111,19 @@ When the user asks anything like ""What are my biggest issues in my FinOps matur
      Only list APIs you actually called this turn. Show counts of items returned. This is the ""amaze the judges"" moment — it proves the agent really hit live Azure.
    - **""Top 3 fixes""** section — render as a tight markdown table with columns `#`, `Fix`, `Impact` (≤3 rows). Each fix must be action-oriented and reference concrete entities/numbers from this turn (e.g. ""Set a realistic monthly budget on subscription X with 80%/100% alerts to <email>""). The Impact column states the dollar/resource scope (e.g. ""56 resources"", ""$206/mo visibility"", ""$999M placeholder removed"").
 4. **No chart** in this answer — the sidebar stars are the primary visual; the Top 3 fixes table is the only tabular element allowed.
-5. **SuggestFollowUp** must offer 2-3 short, 1-sentence FIX-IT actions the agent can execute on the spot — so the user (or judges in a demo) can immediately verify the change in the Azure Portal. Pick the lowest-friction wins from the issues just scored. Examples (use the user's actual numbers/names, not these):
-   - ""Apply CostCenter, Owner, Environment tags to the 16 untagged resources""
-   - ""Replace the $999M placeholder budget with a realistic $5,000/mo budget + 80%/100% alerts""
-   - ""Create a daily Cost Management export to a new storage container""
-   - ""Enable a cost anomaly alert on subscription <name>""
-   - ""Delete the empty resource group <name> and the 5 unattached disks""  ← phrase as ""generate a cleanup script"" since DELETE is blocked
-   Each label ≤60 chars, each prompt ≤1 sentence, each must reference a concrete entity from this turn. Do NOT suggest more analysis or charts here — the goal is a visible portal change.
+5. **SuggestFollowUp** must offer 2-3 short, 1-sentence FIX-IT actions the agent can execute on the spot — so the user (or judges in a demo) can immediately verify the change in the Azure Portal. Pick the lowest-friction wins from the issues just scored.
+
+   **THE FIRST follow-up MUST be a single ""Auto-fix everything"" mega-action** that bundles every reasonable remediation from this turn into one click. The agent should pick sensible POC-grade defaults so a single click visibly raises the score on rescore:
+   - Tagging: apply `CostCenter=Demo`, `Owner=<connected user's email/UPN>`, `Environment=POC` to every untagged resource (use BulkAzureRequest).
+   - Budget: replace any clearly-fake placeholder (≥$1M) with a realistic POC-sized monthly budget (default $400/mo unless current MTD spend suggests otherwise — round to a sensible 100s value) and add 80%/100% actual + 100% forecasted alerts to the connected user's email.
+   - Exports: create a daily Cost Management export to a new storage container `finops-exports` (skip if storage tier not consented).
+   - Anomaly alert: enable a default subscription-level cost anomaly alert to the connected user's email.
+   - Cleanup: for unattached disks / orphaned IPs / empty App Service plans, call GenerateScript (DELETE is blocked) so the user can review and run.
+   The label MUST read like ""Auto-fix everything (tags + budget + alerts)"" and the prompt MUST instruct the agent to execute all the above in parallel without asking for further confirmation, then summarise what was done in one line. Acknowledge in the prompt that this is POC-grade defaults and an enterprise rollout would use proper conventions. After the auto-fix runs, the natural next click is to rescore the same level — make that the SECOND follow-up (label: ""Re-score Crawl maturity"" / Walk / Run as appropriate).
+
+   The optional THIRD follow-up should be the next-best targeted single action (e.g. drill into the top-spending service, generate a cleanup script for specific waste items, jump to Walk-level scoring).
+
+   Each label ≤60 chars, each prompt ≤2 sentences, each must reference concrete entities from this turn. Do NOT suggest more analysis or charts here — the goal is a visible portal change followed by a verifiable rescore.
 ";
 
     private static readonly TokenRequestContext CognitiveServicesScope =

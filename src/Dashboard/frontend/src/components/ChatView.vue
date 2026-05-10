@@ -6578,7 +6578,6 @@ async function send() {
   align-items: center;
   justify-content: space-between;
   padding: 8px 16px;
-  border-bottom: 1px solid #e1dfdd;
 }
 .tools-sidebar-header-text {
   display: flex;
