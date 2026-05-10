@@ -1,83 +1,119 @@
 // FinOps maturity sidebar categories — extracted from ChatView.vue for maintainability.
 // Pure static data; no runtime dependencies.
 
+// Public retail-pricing prompts — work without an Azure login.
+const publicPricingPrompts = [
+  {
+    label: "Compare VM pricing by region",
+    prompt:
+      "Compare the monthly cost of a D4s_v5 VM across the 10 cheapest Azure regions. Show a bar chart.",
+  },
+  {
+    label: "Spot vs on-demand savings",
+    prompt:
+      "Compare spot vs on-demand pricing for D4s_v5, D8s_v5, and NC24ads_A100_v4 in East US. Show the discount % for each.",
+  },
+  {
+    label: "Reserved vs pay-as-you-go",
+    prompt:
+      "Compare pay-as-you-go vs 1-year vs 3-year reserved pricing for a D4s_v5 VM in East US.",
+  },
+  {
+    label: "Storage tier comparison",
+    prompt:
+      "Compare Azure Blob Storage costs for 10 TB across Hot, Cool, Cold, and Archive tiers in East US.",
+  },
+  {
+    label: "Database pricing comparison",
+    prompt:
+      "Compare monthly cost of Azure SQL 8-vCore vs Cosmos DB 10K RU/s vs PostgreSQL Flexible 8-vCore with 500 GB storage.",
+  },
+  {
+    label: "3-tier app cost estimate",
+    prompt:
+      "Estimate monthly cost for a 3-tier app in East US: 2x D4s_v5 VMs, Azure SQL 4-vCore 500 GB, 1 TB Premium SSD, Standard LB.",
+  },
+  {
+    label: "AKS vs Container Apps vs Functions",
+    prompt:
+      "Compare cost of running 20 microservices on AKS vs Azure Container Apps vs Azure Functions consumption plan.",
+  },
+  {
+    label: "GPU training cluster cost",
+    prompt:
+      "Compare monthly cost of 4x A100 (ND96asr_v4) vs 4x H100 (NC80adis_H100_v5) on-demand in East US.",
+  },
+  {
+    label: "Global VM pricing map",
+    prompt:
+      "Show a world map of Azure regions color-coded by D4s_v5 VM pricing.",
+  },
+  {
+    label: "Azure service health",
+    prompt: "Are there any active Azure service health incidents right now?",
+  },
+  {
+    label: "Kubernetes node pool sizing",
+    prompt:
+      "Compare monthly cost of an AKS cluster with 3x D4s_v5 vs 3x D8s_v5 vs 3x D16s_v5 nodes in East US.",
+  },
+  {
+    label: "Estimate new deployment",
+    prompt:
+      "I want to estimate the monthly cost of a new deployment. Help me price out the infrastructure — I'll describe the resources I need (VMs, storage, databases, networking) and you calculate the estimated monthly cost using Azure retail pricing.",
+  },
+  {
+    label: "Azure OpenAI token pricing",
+    prompt:
+      "Compare Azure OpenAI pricing for GPT-4o vs GPT-4o-mini vs GPT-4.1 per 1M input and output tokens.",
+  },
+  {
+    label: "Azure Firewall cost tiers",
+    prompt:
+      "Compare Azure Firewall Basic vs Standard vs Premium monthly cost including 5 TB data processed.",
+  },
+];
+
+// Personalised pricing prompts — only useful once the user has connected Azure,
+// because they cross-reference the user's actual resources with retail pricing.
+const connectedPricingPrompts = [
+  {
+    label: "Re-price my top 5 VMs in cheaper regions",
+    prompt:
+      "List my top 5 most expensive VMs by monthly cost. For each, look up the retail price in 3 cheaper Azure regions (e.g. North Europe, Sweden Central, West US 3) and show a comparison table with the potential monthly savings if I migrated.",
+  },
+  {
+    label: "Reservation savings on my current VMs",
+    prompt:
+      "For each VM SKU I'm currently running on pay-as-you-go, compute the savings from moving to a 1-year and 3-year reservation using Azure retail pricing. Sort by total annual savings.",
+  },
+  {
+    label: "Spot eligibility for dev/test",
+    prompt:
+      "Find my VMs that look like dev/test (tagged Environment=Dev or in resource groups containing 'dev', 'test', 'sandbox') and compute the savings if I converted them to spot pricing using Azure retail rates.",
+  },
+  {
+    label: "Storage tier downgrade savings",
+    prompt:
+      "List my storage accounts and their used capacity. For Hot-tier blobs that haven't been accessed in 30+ days, compute monthly savings from moving them to Cool or Cold using Azure retail pricing.",
+  },
+  {
+    label: "Cost projection if I add this workload",
+    prompt:
+      "I want to add a new workload to my subscription. Describe the resources you need (VMs, storage, databases) and I'll project the new monthly bill using Azure retail prices, broken down by service and added on top of my current spend.",
+  },
+];
+
 export const pricingCategory = {
   key: "pricing",
   label: "Pricing & Estimates",
   icon: "$",
   colorClass: "cat-pricing",
   requiresAzure: false,
-  prompts: [
-    {
-      label: "Compare VM pricing by region",
-      prompt:
-        "Compare the monthly cost of a D4s_v5 VM across the 10 cheapest Azure regions. Show a bar chart.",
-    },
-    {
-      label: "Spot vs on-demand savings",
-      prompt:
-        "Compare spot vs on-demand pricing for D4s_v5, D8s_v5, and NC24ads_A100_v4 in East US. Show the discount % for each.",
-    },
-    {
-      label: "Reserved vs pay-as-you-go",
-      prompt:
-        "Compare pay-as-you-go vs 1-year vs 3-year reserved pricing for a D4s_v5 VM in East US.",
-    },
-    {
-      label: "Storage tier comparison",
-      prompt:
-        "Compare Azure Blob Storage costs for 10 TB across Hot, Cool, Cold, and Archive tiers in East US.",
-    },
-    {
-      label: "Database pricing comparison",
-      prompt:
-        "Compare monthly cost of Azure SQL 8-vCore vs Cosmos DB 10K RU/s vs PostgreSQL Flexible 8-vCore with 500 GB storage.",
-    },
-    {
-      label: "3-tier app cost estimate",
-      prompt:
-        "Estimate monthly cost for a 3-tier app in East US: 2x D4s_v5 VMs, Azure SQL 4-vCore 500 GB, 1 TB Premium SSD, Standard LB.",
-    },
-    {
-      label: "AKS vs Container Apps vs Functions",
-      prompt:
-        "Compare cost of running 20 microservices on AKS vs Azure Container Apps vs Azure Functions consumption plan.",
-    },
-    {
-      label: "GPU training cluster cost",
-      prompt:
-        "Compare monthly cost of 4x A100 (ND96asr_v4) vs 4x H100 (NC80adis_H100_v5) on-demand in East US.",
-    },
-    {
-      label: "Global VM pricing map",
-      prompt:
-        "Show a world map of Azure regions color-coded by D4s_v5 VM pricing.",
-    },
-    {
-      label: "Azure service health",
-      prompt: "Are there any active Azure service health incidents right now?",
-    },
-    {
-      label: "Kubernetes node pool sizing",
-      prompt:
-        "Compare monthly cost of an AKS cluster with 3x D4s_v5 vs 3x D8s_v5 vs 3x D16s_v5 nodes in East US.",
-    },
-    {
-      label: "Estimate new deployment",
-      prompt:
-        "I want to estimate the monthly cost of a new deployment. Help me price out the infrastructure — I'll describe the resources I need (VMs, storage, databases, networking) and you calculate the estimated monthly cost using Azure retail pricing.",
-    },
-    {
-      label: "Azure OpenAI token pricing",
-      prompt:
-        "Compare Azure OpenAI pricing for GPT-4o vs GPT-4o-mini vs GPT-4.1 per 1M input and output tokens.",
-    },
-    {
-      label: "Azure Firewall cost tiers",
-      prompt:
-        "Compare Azure Firewall Basic vs Standard vs Premium monthly cost including 5 TB data processed.",
-    },
-  ],
+  publicPrompts: publicPricingPrompts,
+  connectedPrompts: connectedPricingPrompts,
+  // Backwards-compat: callers that read .prompts get the public list.
+  prompts: publicPricingPrompts,
 };
 const maturityCategories = [
   // ── CRAWL — "Where am I?" Visibility & baseline ──
@@ -555,8 +591,8 @@ const maturityCategories = [
       },
     ],
   },
-  // ── Public pricing (no login required) ──
-  pricingCategory,
+  // ── Public pricing — also rendered as its own dedicated sidebar card,
+  // so it is intentionally NOT included in maturityCategories anymore.
 ];
 
 export { maturityCategories };

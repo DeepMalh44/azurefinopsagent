@@ -176,9 +176,9 @@
                 @click="toggleSection('playbookRoot')"
               >
                 <div class="sidebar-category-left">
-                  <span>Playbook</span>
+                  <span>All prompts</span>
                   <span class="sidebar-category-subtitle"
-                    >All prompts by level</span
+                    >Browse by maturity level</span
                   >
                 </div>
                 <div class="sidebar-category-right">
@@ -296,7 +296,7 @@
               }"
             >
               <button
-                v-for="q in pricingCategory.prompts"
+                v-for="q in pricingPromptsForUser"
                 :key="q.label"
                 class="sidebar-question"
                 :disabled="streaming"
@@ -2166,7 +2166,8 @@ async function revokeAllPermissions() {
   } catch {}
 }
 
-// When Azure connects, expand Crawl and collapse pricing
+// When Azure connects, force Crawl/Walk/Run/Playbook/Pricing to collapsed.
+// This guarantees a clean initial state every time the user reconnects.
 watch(azureConnected, async (connected, wasConnected) => {
   if (!connected) return;
   collapsedSections.pricing = true;
@@ -2174,6 +2175,11 @@ watch(azureConnected, async (connected, wasConnected) => {
   collapsedSections.walk = true;
   collapsedSections.run = true;
   collapsedSections.playbook = true;
+  collapsedSections.playbookRoot = true;
+  collapsedSections.pb_crawl = true;
+  collapsedSections.pb_walk = true;
+  collapsedSections.pb_run = true;
+  collapsedSections.pb_playbook = true;
   // Auto-clear chat when Azure connects — removes stale "Connect Azure first" messages
   // and resets the Copilot session so the LLM knows the user is now connected
   if (!wasConnected) await clearMessages();
@@ -2543,13 +2549,25 @@ const scoreCategories = computed(() =>
   }).filter(Boolean),
 );
 
-// Playbook groups: every maturity category's non-Score prompts, nested under Playbook
+// Playbook groups: every maturity level's non-Score prompts. Pricing has its
+// own dedicated sidebar card and is no longer in maturityCategories.
 const playbookGroups = computed(() =>
   maturityCategories.map((cat) => ({
     key: cat.key,
     label: cat.label,
     prompts: cat.prompts.filter((p) => !p.label.startsWith("Score ")),
   })),
+);
+
+// Pricing prompts: when user is connected, append the personalised prompts
+// that cross-reference real Azure resources with retail pricing.
+const pricingPromptsForUser = computed(() =>
+  azureConnected.value
+    ? [
+        ...(pricingCategory.connectedPrompts || []),
+        ...(pricingCategory.publicPrompts || pricingCategory.prompts),
+      ]
+    : pricingCategory.publicPrompts || pricingCategory.prompts,
 );
 
 // ── Maturity scores (set by LLM via ReportMaturityScore tool → SSE) ──
@@ -4447,9 +4465,8 @@ async function send() {
   padding: 0 16px;
 }
 .sidebar-category--border {
-  margin-top: 4px;
-  border-top: 1px solid #e1dfdd;
-  padding-top: 8px;
+  margin-top: 12px;
+  padding-top: 4px;
 }
 .sidebar-category-label--toggle {
   display: flex;
@@ -4631,10 +4648,10 @@ async function send() {
 }
 
 .sidebar-subgroup {
-  border-top: 1px solid #edebe9;
+  margin-top: 6px;
 }
 .sidebar-subgroup:first-child {
-  border-top: none;
+  margin-top: 0;
 }
 .sidebar-subgroup-label {
   display: flex;
@@ -4687,19 +4704,15 @@ async function send() {
 
 /* ── Assessment summary rows ── */
 .assessment-summary {
-  padding: 4px 12px 6px;
-  border-bottom: 1px solid #edebe9;
-  background: #faf9f8;
+  padding: 8px 4px 4px;
+  margin-top: 8px;
+  background: transparent;
 }
 .assessment-row {
   display: flex;
   flex-direction: column;
   gap: 4px;
   padding: 8px 4px 10px;
-  border-bottom: 1px dashed #edebe9;
-}
-.assessment-row:last-child {
-  border-bottom: none;
 }
 .assessment-label {
   color: #323130;
