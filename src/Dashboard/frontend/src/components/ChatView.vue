@@ -3980,6 +3980,19 @@ async function send() {
             break;
 
           case "tool_start":
+            // If we already streamed text BEFORE this tool call, that text was
+            // mid-turn narration ("I'm rerunning…", "I've got the estate shape…")
+            // — not the final answer. Wipe it; the real answer streams after the
+            // last tool completes.
+            if (hasDeltas) {
+              if (textAnimFrame) {
+                cancelAnimationFrame(textAnimFrame);
+                textAnimFrame = null;
+              }
+              pendingText = "";
+              streamBuffer.value = "";
+              hasDeltas = false;
+            }
             activeTools.value = [...activeTools.value, data.tool];
             toolCalls.push({
               id: data.id,
