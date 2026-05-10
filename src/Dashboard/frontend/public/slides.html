@@ -760,6 +760,75 @@
         transform: scale(0.96);
       }
 
+      /* ========== Slide 3 (centered, no images): same pain-card style as slide 2 ========== */
+      .s3.s3-centered {
+        align-items: center;
+        padding-top: 5vh;
+      }
+      .s3.s3-centered .content {
+        max-width: 1280px;
+        margin: 0 auto;
+      }
+      .s3-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 1.6rem;
+        margin-top: 1.4rem;
+        max-width: 980px;
+        margin-left: auto;
+        margin-right: auto;
+      }
+      .s3-grid .pain-card {
+        display: flex;
+        align-items: flex-start;
+        gap: 1.25rem;
+        text-align: left;
+        padding: 0.65rem 0;
+        margin: 0;
+        border: none;
+        border-radius: 0;
+        background: transparent;
+        transition: none;
+      }
+      .s3-grid .pain-card:hover {
+        border: none;
+        box-shadow: none;
+        transform: none;
+      }
+      .s3-grid .pain-card .ico {
+        margin: 0;
+        flex: 0 0 auto;
+        width: 64px;
+        height: 64px;
+        border-radius: 14px;
+      }
+      .s3-grid .pain-card .ico svg {
+        width: 34px;
+        height: 34px;
+      }
+      .s3-grid .pain-card .card-text {
+        min-width: 0;
+      }
+      .s3-grid .pain-card h3 {
+        font-size: clamp(1.35rem, 1.6vw, 1.7rem);
+        margin: 0 0 0.4rem;
+        line-height: 1.25;
+      }
+      .s3-grid .pain-card p {
+        font-size: clamp(1.05rem, 1.15vw, 1.25rem);
+        margin: 0;
+        line-height: 1.5;
+        color: var(--ink-soft);
+      }
+      .s3.s3-centered .punchline {
+        margin-top: 1.4rem;
+      }
+      @media (max-width: 720px) {
+        .s3-grid {
+          gap: 1rem;
+        }
+      }
+
       /* ========== Slide 3 (legacy): Solution image at bottom ========== */
       .s3 .content {
         display: flex;
@@ -2075,58 +2144,108 @@
       <section class="slide s3 s3-centered">
         <div class="content">
           <h2 class="section-title anim d1">
-            Solution. FinOps <em>Agent</em>.
+            Solution. Azure FinOps <em>Agent</em>.
           </h2>
           <p class="section-lead anim d2">
-            One portal for the CFO and the FinOps team.
-            Every spend question becomes an Azure query.
+            Every spend question becomes an agentic operation.
           </p>
-          <div class="s3c-list">
-            <div class="s3c-row anim d3">
-              <span class="s3c-num">01</span>
-              <div class="s3c-text">
-                <h3>One portal. CFO and FinOps, same chat.</h3>
-                <p>Plain&#8209;English questions. No tabs, no KQL, no dashboards to build.</p>
+          <div class="s3-grid">
+            <div class="pain-card anim d3" data-step>
+              <div class="ico">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                </svg>
+              </div>
+              <div class="card-text">
+                <h3>CFO &amp; FinOps unified.</h3>
+                <p>
+                  Plain&#8209;language questions about waste and spend
+                  translated into dozens of live Azure API calls.<br />
+                  Not a chatbot summarising PDFs or stale data.
+                </p>
               </div>
             </div>
-            <div class="s3c-row anim d4">
-              <span class="s3c-num">02</span>
-              <div class="s3c-text">
-                <h3>Questions become Azure queries &mdash; live.</h3>
-                <p>Translates intent into Cost Management, ARM, Graph and Log Analytics calls. Reads <em>your</em> tenant, not a stale report.</p>
+            <div class="pain-card anim d4" data-step>
+              <div class="ico">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <circle cx="12" cy="12" r="3" />
+                  <path
+                    d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"
+                  />
+                </svg>
+              </div>
+              <div class="card-text">
+                <h3>Agentic remediation.</h3>
+                <p>
+                  An agent that takes action. Applies tags, sets budgets &amp;
+                  alerts. Crawl &rarr; Walk &rarr; Run.
+                </p>
               </div>
             </div>
-            <div class="s3c-row anim d5">
-              <span class="s3c-num">03</span>
-              <div class="s3c-text">
-                <h3>Reads. Reasons. Acts.</h3>
-                <p>Surfaces waste, applies tags, sets budgets and alerts &mdash; across subscriptions, while you talk to it.</p>
+            <div class="pain-card anim d5" data-step>
+              <div class="ico">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <rect x="2" y="3" width="20" height="14" rx="2" />
+                  <line x1="8" y1="21" x2="16" y2="21" />
+                  <line x1="12" y1="17" x2="12" y2="21" />
+                </svg>
               </div>
-            </div>
-            <div class="s3c-row anim d6">
-              <span class="s3c-num">04</span>
-              <div class="s3c-text">
-                <h3>Scores your FinOps maturity, 0&ndash;5.</h3>
-                <p>Crawl &rarr; Walk &rarr; Run, FinOps Framework aligned. Concrete next steps, not opinions.</p>
-              </div>
-            </div>
-            <div class="s3c-row anim d7">
-              <span class="s3c-num">05</span>
-              <div class="s3c-text">
+              <div class="card-text">
                 <h3>One&#8209;click executive deck.</h3>
-                <p>From chat to a CFO&#8209;ready HTML deck &mdash; charts, findings, actions &mdash; in seconds.</p>
+                <p>
+                  From chat to a CFO&#8209;ready deck &mdash; charts, findings,
+                  actions &mdash; in seconds.
+                </p>
               </div>
             </div>
-            <div class="s3c-row anim d8">
-              <span class="s3c-num">06</span>
-              <div class="s3c-text">
-                <h3>Trust by architecture.</h3>
-                <p>Runs in the customer&rsquo;s tenant. Customer&rsquo;s tokens. Every tool call visible. <strong>Never deletes</strong> &mdash; enforced in code.</p>
+            <div class="pain-card anim d6" data-step>
+              <div class="ico">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                </svg>
+              </div>
+              <div class="card-text">
+                <h3>Trust &amp; open source.</h3>
+                <p>
+                  Open source and free. Runs in the customer&rsquo;s tenant,
+                  with fully transparent tool calls &mdash; and
+                  <strong>never deletes</strong>, enforced in code.
+                </p>
               </div>
             </div>
           </div>
-          <div class="s3c-closer anim d9">
-            Microsoft&rsquo;s first <em>agentic</em> FinOps experience. Free. Open source. Ready Monday.
+          <div class="punchline tier2 anim d7" data-step>
+            Microsoft&rsquo;s first <em>agentic</em> FinOps experience.<br />
+            Free. Open source.<br />
+            Ready for renewals and AI&#8209;first transformations.
           </div>
         </div>
       </section>
