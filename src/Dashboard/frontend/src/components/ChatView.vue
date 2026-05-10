@@ -3904,7 +3904,7 @@ async function requestAnalyze() {
 
 function requestPresentation() {
   input.value =
-    "Build a leadership-ready HTML presentation from our conversation. Frame it for executive stakeholders: if the findings are healthy, position it as a FinOps maturity & wins story; if there are issues, position it as a prioritized action plan. Maximum 4 slides. Use the data we've already discussed, and generate it now — no need to ask me first.";
+    "Build a 6-slide deck for my FinOps team: where we're wasting money and the fixes the agent will run for us.";
   send();
 }
 

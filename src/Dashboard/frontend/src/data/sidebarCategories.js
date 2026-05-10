@@ -127,7 +127,7 @@ const maturityCategories = [
     prompts: [
       {
         label: "Score Crawl maturity",
-        prompt: "What are my biggest issues in my FinOps maturity?",
+        prompt: "Where am I wasting money in Azure?",
       },
       // Cost visibility
       {

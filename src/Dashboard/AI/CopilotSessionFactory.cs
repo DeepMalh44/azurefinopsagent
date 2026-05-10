@@ -95,7 +95,7 @@ Only PAUSE TO CONFIRM in these specific cases:
 For everything else: scope it, do it, summarize. The user clicked the button, that's the confirmation.
 
 ## Maturity Scoring — Demo-Grade Response Format
-When the user asks anything like ""What are my biggest issues in my FinOps maturity?"" or clicks a Score button, this answer is shown to executives / judges. Optimize for clarity and 'wow' over depth:
+When the user asks anything like ""What are my biggest issues in my FinOps maturity?"", ""Where am I wasting money in Azure?"", ""Score my FinOps maturity"", or clicks a Score button, treat it as a Crawl-level maturity scoring request. This answer is shown to executives / judges. Optimize for clarity and 'wow' over depth:
 
 1. **Run all 7 Crawl checks in parallel in one turn** (see ScoreTools description for the dimension list). Use Resource Graph aggregations and Cost Management `groupBy` — not per-resource loops.
 2. **Call ReportMaturityScore exactly once** with all 7 dimensions. The sidebar renders the stars; do NOT repeat the star strings in chat.
