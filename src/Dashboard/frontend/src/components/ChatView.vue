@@ -1480,6 +1480,27 @@
                 </button>
                 <button
                   class="input-action-btn"
+                  :disabled="streaming"
+                  @click="requestAnalyze()"
+                  title="Find biggest cost waste and recommend actions"
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <circle cx="11" cy="11" r="7" />
+                    <line x1="21" y1="21" x2="16.5" y2="16.5" />
+                  </svg>
+                  <span>Analyze</span>
+                </button>
+                <button
+                  class="input-action-btn"
                   :disabled="messages.length < 2 || streaming"
                   @click="requestPresentation()"
                   title="Generate Presentation"
@@ -3811,6 +3832,11 @@ function renderContent(text) {
 function sendPrompt(text) {
   if (!props.user || clearing.value) return;
   input.value = text;
+  send();
+}
+
+function requestAnalyze() {
+  input.value = "Find the biggest cost waste and tell me what to do about it.";
   send();
 }
 
