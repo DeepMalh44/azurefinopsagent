@@ -1136,7 +1136,14 @@
                     >
                       {{ msg.script.description }}
                     </div>
+                    <button
+                      class="script-toggle-btn"
+                      @click="msg.script.expanded = !msg.script.expanded"
+                    >
+                      {{ msg.script.expanded ? "Hide script" : "View script" }}
+                    </button>
                     <pre
+                      v-if="msg.script.expanded"
                       class="script-code"
                     ><code>{{ msg.script.content }}</code></pre>
                   </div>
@@ -4084,6 +4091,7 @@ async function send() {
               language: data.language,
               description: data.description,
               content: data.content,
+              expanded: false,
             };
             scrollToBottom();
             break;
@@ -7223,6 +7231,23 @@ async function send() {
   color: #605e5c;
   background: #f9f9f9;
   border-bottom: 1px solid #e1dfdd;
+}
+.script-toggle-btn {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  background: #f3f2f1;
+  color: #323130;
+  border: none;
+  border-bottom: 1px solid #e1dfdd;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s;
+}
+.script-toggle-btn:hover {
+  background: #edebe9;
 }
 .script-code {
   margin: 0;
