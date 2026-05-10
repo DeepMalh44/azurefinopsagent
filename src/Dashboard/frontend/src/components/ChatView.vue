@@ -1339,24 +1339,7 @@
 
         <!-- Input bar -->
         <div class="input-area">
-          <!-- One-click Analyze when files are attached (above the input wrapper) -->
-          <div
-            v-if="readyAttachments.length && messages.length === 0"
-            class="attach-analyze-row"
-          >
-            <button
-              class="attach-analyze-btn"
-              :disabled="streaming"
-              @click="sendQuestion(analyzePrompt)"
-              :title="`Inspect ${readyAttachments.length} attached file${readyAttachments.length > 1 ? 's' : ''} and surface FinOps insights`"
-            >
-              <span
-                >Analyze {{ readyAttachments.length }} file{{
-                  readyAttachments.length > 1 ? "s" : ""
-                }}</span
-              >
-            </button>
-          </div>
+          <!-- (Removed) Analyze CTA above input — replaced by the Analyze button inside the input bar. -->
 
           <div
             class="input-wrapper"
@@ -2907,6 +2890,43 @@ function buildEChartsOption(raw) {
     Array.isArray(d) ? String(d[0]) : d.name,
   );
 
+  // X-axis label formatter: wrap long category names onto 2 lines so they're
+  // readable without going horizontal. Splits on spaces, dashes, dots, slashes.
+  // Falls back to a hard mid-string break if there is no separator.
+  const wrapXLabel = (raw) => {
+    const s = String(raw ?? "");
+    if (s.length <= 14) return s;
+    // Find the best mid-ish split character
+    const seps = [/\s+/, /-/, /\./, /\//];
+    for (const re of seps) {
+      const parts = s.split(re);
+      if (parts.length >= 2) {
+        // Greedy 2-line wrap aiming for balance
+        const half = Math.ceil(parts.length / 2);
+        const a = parts.slice(0, half).join(" ");
+        const b = parts.slice(half).join(" ");
+        return `${a}\n${b}`;
+      }
+    }
+    // Hard split
+    const mid = Math.ceil(s.length / 2);
+    return `${s.slice(0, mid)}\n${s.slice(mid)}`;
+  };
+  // Decide rotation: only rotate if the longest single label is huge AND many
+  // categories — otherwise prefer the 2-line wrap which stays horizontal.
+  const longest = categories.reduce((m, c) => Math.max(m, String(c).length), 0);
+  const xRotate = categories.length > 14 && longest > 18 ? 30 : 0;
+  const xAxisLabel = {
+    fontSize: 11,
+    color: "#1f2328",
+    fontWeight: 500,
+    interval: 0,
+    rotate: xRotate,
+    lineHeight: 13,
+    formatter: wrapXLabel,
+  };
+  const yAxisLabel = { fontSize: 11, color: "#1f2328", fontWeight: 500 };
+
   // Detect multi-series: objects with keys beyond "name" and "value"
   const firstItem = dataArr[0];
   const isMultiSeries =
@@ -2940,14 +2960,14 @@ function buildEChartsOption(raw) {
         name: xAxisName,
         nameLocation: "center",
         nameGap: 30,
-        axisLabel: { fontSize: 10, rotate: categories.length > 10 ? 45 : 0 },
+        axisLabel: xAxisLabel,
       },
       yAxis: {
         type: "value",
         name: yAxisName,
         nameLocation: "center",
         nameGap: 45,
-        axisLabel: { fontSize: 10 },
+        axisLabel: yAxisLabel,
       },
       series: seriesKeys.map((key) => ({
         name: key,
@@ -2987,14 +3007,14 @@ function buildEChartsOption(raw) {
         name: xAxisName,
         nameLocation: "center",
         nameGap: 30,
-        axisLabel: { fontSize: 10, rotate: categories.length > 10 ? 45 : 0 },
+        axisLabel: xAxisLabel,
       },
       yAxis: {
         type: "value",
         name: yAxisName,
         nameLocation: "center",
         nameGap: 45,
-        axisLabel: { fontSize: 10 },
+        axisLabel: yAxisLabel,
       },
       series: seriesKeys.map((key, idx) => ({
         name: key,
@@ -3022,14 +3042,14 @@ function buildEChartsOption(raw) {
       name: xAxisName,
       nameLocation: "center",
       nameGap: 30,
-      axisLabel: { fontSize: 10, rotate: categories.length > 10 ? 45 : 0 },
+      axisLabel: xAxisLabel,
     },
     yAxis: {
       type: "value",
       name: yAxisName,
       nameLocation: "center",
       nameGap: 45,
-      axisLabel: { fontSize: 10 },
+      axisLabel: yAxisLabel,
     },
     series: [
       {
@@ -3869,7 +3889,7 @@ async function requestAnalyze() {
   const list = readyAttachments.value;
   if (list.length) {
     const names = list.map((a) => `'${a.fileName}'`).join(", ");
-    input.value = `Analyze the uploaded file${list.length > 1 ? "s" : ""} ${names}. Find the biggest cost waste and tell me exactly what to do about it. Only use data from the upload — do not give generic advice.`;
+    input.value = `Analyze the uploaded file${list.length > 1 ? "s" : ""} ${names}. Find the biggest cost waste and tell me exactly what to do about it.`;
   } else {
     input.value =
       "Find the biggest cost waste and tell me what to do about it.";
