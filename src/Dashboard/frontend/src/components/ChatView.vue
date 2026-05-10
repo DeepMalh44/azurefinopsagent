@@ -3835,8 +3835,23 @@ function sendPrompt(text) {
   send();
 }
 
-function requestAnalyze() {
-  input.value = "Find the biggest cost waste and tell me what to do about it.";
+async function requestAnalyze() {
+  // Wait for any in-flight uploads to finish so the prompt always sees the file.
+  const pending = () => attachments.value.some((a) => !a.fileId && !a.error);
+  if (pending()) {
+    const start = Date.now();
+    while (pending() && Date.now() - start < 30000) {
+      await new Promise((r) => setTimeout(r, 100));
+    }
+  }
+  const list = readyAttachments.value;
+  if (list.length) {
+    const names = list.map((a) => `'${a.fileName}'`).join(", ");
+    input.value = `Analyze the uploaded file${list.length > 1 ? "s" : ""} ${names}. Find the biggest cost waste and tell me exactly what to do about it. Only use data from the upload — do not give generic advice.`;
+  } else {
+    input.value =
+      "Find the biggest cost waste and tell me what to do about it.";
+  }
   send();
 }
 
