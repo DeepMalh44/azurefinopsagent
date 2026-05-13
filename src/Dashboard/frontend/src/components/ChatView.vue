@@ -4584,15 +4584,17 @@ async function send() {
   background: #fff;
   cursor: pointer;
   transition:
-    border-color 0.15s ease,
-    box-shadow 0.15s ease,
-    transform 0.1s ease;
+    border-color 0.2s ease,
+    box-shadow 0.25s ease,
+    transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
   user-select: none;
 }
 .maturity-card:hover:not(.maturity-card--disabled) {
-  border-color: #c8c6c4;
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
-  transform: translateY(-1px);
+  border-color: #0078d4;
+  box-shadow:
+    0 8px 20px rgba(0, 120, 212, 0.18),
+    0 2px 6px rgba(15, 23, 42, 0.08);
+  transform: translateY(-3px);
 }
 .maturity-card:focus-visible {
   outline: 2px solid #c8c6c4;
@@ -7275,20 +7277,28 @@ async function send() {
   margin-top: 12px;
 }
 .follow-up-btn {
-  background: #deecf9;
+  background: #fff;
   color: #0078d4;
-  border: 1px solid rgba(0, 120, 212, 0.3);
-  border-radius: 4px;
-  padding: 6px 14px;
+  border: 1px solid #e1dfdd;
+  border-radius: 8px;
+  padding: 8px 14px;
   font-size: 13px;
   cursor: pointer;
-  transition: background 0.15s;
   line-height: 1.4;
   text-align: left;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.25s ease,
+    transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 .follow-up-btn:hover {
-  background: #c7e0f4;
+  background: #fff;
   border-color: #0078d4;
+  box-shadow:
+    0 8px 20px rgba(0, 120, 212, 0.18),
+    0 2px 6px rgba(15, 23, 42, 0.08);
+  transform: translateY(-3px);
 }
 
 /* ── Mobile ── */
